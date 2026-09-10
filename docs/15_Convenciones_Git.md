@@ -146,8 +146,8 @@ a `player` antes de desplegar. Script en supabase/migrations/0007.
 
 - Uno por rama. El título sigue **exactamente** el mismo formato que un commit: `feat(match): add internal running clock`.
 - Se rellena la plantilla. La lista de comprobación no es decorativa: la accesibilidad y los datos de menores se miran ahí.
-- Fusión con **squash merge**. El historial de `main` queda con un commit por tarea, legible de arriba abajo.
-- CI en verde antes de fusionar. La rama se borra al fusionar.
+- Fusión con **squash merge**, que es la única estrategia habilitada. El historial de `main` queda con un commit por tarea, legible de arriba abajo.
+- CI en verde antes de fusionar. Nadie te lo impide (ver apartado 5), así que lo miras tú. La rama se borra sola al fusionar.
 
 ---
 
@@ -161,9 +161,21 @@ a `player` antes de desplegar. Script en supabase/migrations/0007.
 | Formato del mensaje             | `.husky/commit-msg` + `commitlint`  | Al hacer commit en local    |
 | Mensajes de toda la rama        | Workflow `CI / commits`             | Al abrir el pull request    |
 | Lint, formato y build           | Workflow `CI / verify`              | En cada push y pull request |
-| Nada de push directo a `main`   | Protección de rama en GitHub        | Al hacer push               |
+| Nada de push directo a `main`   | `.husky/pre-push`                   | Al hacer push               |
 
 Saltarse un hook (`--no-verify`) es una decisión consciente que deja rastro en el pull request. No es el camino habitual.
+
+### Por qué la protección vive en los hooks y no en GitHub
+
+Los _rulesets_ de GitHub no se aplican en repositorios privados de una cuenta personal gratuita: se pueden crear, pero no bloquean nada. La propia página lo avisa. Con el repositorio privado, la garantía real son los hooks locales, y por eso `pre-commit` y `pre-push` son obligatorios: quien clone el repositorio tiene que ejecutar `npm install` para que se activen.
+
+Lo que sí está puesto en GitHub, porque no depende del plan:
+
+- Solo se permite **squash merge**, con el título del pull request como mensaje del commit.
+- La rama se borra sola al fusionar.
+- El workflow `CI` corre en cada push y pull request. **No es un check obligatorio**, así que fusionar con CI en rojo es técnicamente posible. No lo hagas.
+
+Si algún día el repositorio pasa a público o a una organización, se crea el ruleset y estas tres cosas dejan de depender de la disciplina.
 
 ---
 
