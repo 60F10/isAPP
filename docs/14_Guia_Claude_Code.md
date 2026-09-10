@@ -8,13 +8,13 @@
 
 ## 1. Antes de instalar
 
-| Requisito | Valor |
-| :--- | :--- |
-| Sistema | Windows 10 build 1809 o superior |
-| Memoria | 4 GB mínimo |
+| Requisito        | Valor                                                                                                           |
+| :--------------- | :-------------------------------------------------------------------------------------------------------------- |
+| Sistema          | Windows 10 build 1809 o superior                                                                                |
+| Memoria          | 4 GB mínimo                                                                                                     |
 | Git para Windows | Opcional, pero instálalo: habilita la herramienta Bash. Sin él, Claude Code ejecuta los comandos con PowerShell |
-| Node.js | **No hace falta.** Solo lo pide el método antiguo por npm |
-| WSL | **No hace falta.** La instalación nativa de Windows ya está soportada |
+| Node.js          | **No hace falta.** Solo lo pide el método antiguo por npm                                                       |
+| WSL              | **No hace falta.** La instalación nativa de Windows ya está soportada                                           |
 
 **Comprobación previa importante:** si tienes una variable de entorno `ANTHROPIC_API_KEY` puesta en el sistema, bórrala. Claude Code la detecta y factura por token en vez de consumir tu suscripción.
 
@@ -24,7 +24,7 @@ Para verlo, en PowerShell:
 echo $env:ANTHROPIC_API_KEY
 ```
 
-Si devuelve algo, quítala desde *Variables de entorno* en las propiedades del sistema.
+Si devuelve algo, quítala desde _Variables de entorno_ en las propiedades del sistema.
 
 ---
 
@@ -75,14 +75,17 @@ Stack: React + Vite (PWA), Supabase (PostgreSQL + Auth + RLS), Netlify.
 Deadline MVP: 25 de octubre de 2026.
 
 ## Documentación
+
 La documentación viva está en /docs. Léela antes de proponer arquitectura:
+
 - /docs/00_Indice_Documental_y_Herramientas.md
-- /docs/03_Decisiones_Pendientes.md  (decisiones ya cerradas, NO las cuestiones)
+- /docs/03_Decisiones_Pendientes.md (decisiones ya cerradas, NO las cuestiones)
 - /docs/05_Modelo_Datos.md
 - /docs/08_TAREAS.md
-- /docs/13_HANDOFF.md  (estado real al cerrar la última sesión)
+- /docs/13_HANDOFF.md (estado real al cerrar la última sesión)
 
 ## Reglas
+
 - Una tarea por sesión. No amplíes el alcance sin preguntar.
 - No inventes esquema de base de datos: si falta un dato, pregunta.
 - Accesibilidad WCAG 2.2 AA en toda pantalla nueva. Ver /docs/02.
@@ -97,35 +100,35 @@ Cada vez que cerréis una decisión de arquitectura, se añade ahí o al documen
 
 ## 5. Cómo se trabaja
 
-| Práctica | Por qué |
-| :--- | :--- |
-| **Una tarea por sesión** | Es el principio P4 del DOC 00. Al terminar, `/clear` para vaciar el contexto antes de la siguiente |
-| **Pide un plan antes de picar** | «Antes de escribir código, explícame qué vas a tocar y espera mi visto bueno». Evita que se lance a modificar diez archivos por una frase ambigua |
-| **Revisa los cambios como una PR** | Antes de aceptar, mira el diff. Claude Code se equivoca, y lo tuyo es el código, no la fe |
-| **El commit lo haces tú** | Como en RefuelControl. Que proponga el mensaje si quieres, pero el push es decisión humana |
-| **Actualiza `13_HANDOFF.md` al cerrar** | Es lo que permite que la sesión siguiente arranque sabiendo dónde quedó todo |
-| **Trabaja en rama** | Netlify genera un *deploy preview* por rama. Te deja probar en el móvil sin tocar producción |
+| Práctica                                | Por qué                                                                                                                                           |
+| :-------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Una tarea por sesión**                | Es el principio P4 del DOC 00. Al terminar, `/clear` para vaciar el contexto antes de la siguiente                                                |
+| **Pide un plan antes de picar**         | «Antes de escribir código, explícame qué vas a tocar y espera mi visto bueno». Evita que se lance a modificar diez archivos por una frase ambigua |
+| **Revisa los cambios como una PR**      | Antes de aceptar, mira el diff. Claude Code se equivoca, y lo tuyo es el código, no la fe                                                         |
+| **El commit lo haces tú**               | Como en RefuelControl. Que proponga el mensaje si quieres, pero el push es decisión humana                                                        |
+| **Actualiza `13_HANDOFF.md` al cerrar** | Es lo que permite que la sesión siguiente arranque sabiendo dónde quedó todo                                                                      |
+| **Trabaja en rama**                     | Netlify genera un _deploy preview_ por rama. Te deja probar en el móvil sin tocar producción                                                      |
 
 ### Comandos que vas a usar a diario
 
-| Comando | Qué hace |
-| :--- | :--- |
-| `/clear` | Vacía el contexto. Entre tarea y tarea, siempre |
-| `/init` | Genera un `CLAUDE.md` inicial analizando el repo |
-| `/help` | Lista los comandos disponibles en tu versión |
-| `claude doctor` | Diagnóstico de la instalación |
+| Comando         | Qué hace                                         |
+| :-------------- | :----------------------------------------------- |
+| `/clear`        | Vacía el contexto. Entre tarea y tarea, siempre  |
+| `/init`         | Genera un `CLAUDE.md` inicial analizando el repo |
+| `/help`         | Lista los comandos disponibles en tu versión     |
+| `claude doctor` | Diagnóstico de la instalación                    |
 
 ---
 
 ## 6. Reparto entre Claude Code y el chat web
 
-| Va a Claude Code | Va al chat web |
-| :--- | :--- |
-| Escribir y modificar código | Diseño de arquitectura y modelo de datos |
-| Refactores que tocan varios archivos | Documentación del proyecto |
-| Depurar errores con la traza delante | Decisiones de producto y priorización |
-| Migraciones de Supabase | Revisión de accesibilidad sobre capturas |
-| Ejecutar `npm` y el servidor local | Manuales de usuario |
+| Va a Claude Code                     | Va al chat web                           |
+| :----------------------------------- | :--------------------------------------- |
+| Escribir y modificar código          | Diseño de arquitectura y modelo de datos |
+| Refactores que tocan varios archivos | Documentación del proyecto               |
+| Depurar errores con la traza delante | Decisiones de producto y priorización    |
+| Migraciones de Supabase              | Revisión de accesibilidad sobre capturas |
+| Ejecutar `npm` y el servidor local   | Manuales de usuario                      |
 
 El motivo del reparto es simple: en Claude Code el contexto se llena de código, y las conversaciones de diseño lo desperdician. En el chat web pasa al revés.
 
