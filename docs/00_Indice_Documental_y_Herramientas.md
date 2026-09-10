@@ -11,7 +11,7 @@
 
 Fija tres cosas: qué documentos componen el proyecto, qué herramientas hacen falta para desarrollarlo y cómo se trabaja sesión a sesión sin agotar la ventana de contexto ni dejar nada a medias.
 
-Es el primer archivo que se sube al *Knowledge* del proyecto y el primero que se lee al arrancar cualquier sesión.
+Es el primer archivo que se sube al _Knowledge_ del proyecto y el primero que se lee al arrancar cualquier sesión.
 
 ---
 
@@ -19,13 +19,13 @@ Es el primer archivo que se sube al *Knowledge* del proyecto y el primero que se
 
 Estas cinco reglas mandan sobre cualquier decisión posterior. Si un documento las contradice, gana esta lista.
 
-| # | Principio | Consecuencia práctica |
-| :-- | :--- | :--- |
-| P1 | **Primero meter datos, luego ver datos** | El bloque de entrada se construye completo antes de tocar una sola gráfica. Un dashboard sin datos reales no vale nada. |
-| P2 | **Funcional antes que bonito** | Blanco, negro y gris hasta que el motor gire sin errores. La capa visual es la última fase. |
-| P3 | **Módulos independientes** | Cada módulo (Auth, Core, MatchEngine, Stats, OCR, Scraping) se puede tocar o sustituir sin romper el resto. |
-| P4 | **Una tarea = una conversación** | Ninguna sesión abarca más de lo que cabe en su ventana. Si no cabe, se parte y se deja traspaso escrito. |
-| P5 | **Accesible por diseño** | WCAG 2.2 AA se aplica al construir cada pantalla, no como repaso final. Ver DOC 02 §5. |
+| #   | Principio                                | Consecuencia práctica                                                                                                   |
+| :-- | :--------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
+| P1  | **Primero meter datos, luego ver datos** | El bloque de entrada se construye completo antes de tocar una sola gráfica. Un dashboard sin datos reales no vale nada. |
+| P2  | **Funcional antes que bonito**           | Blanco, negro y gris hasta que el motor gire sin errores. La capa visual es la última fase.                             |
+| P3  | **Módulos independientes**               | Cada módulo (Auth, Core, MatchEngine, Stats, OCR, Scraping) se puede tocar o sustituir sin romper el resto.             |
+| P4  | **Una tarea = una conversación**         | Ninguna sesión abarca más de lo que cabe en su ventana. Si no cabe, se parte y se deja traspaso escrito.                |
+| P5  | **Accesible por diseño**                 | WCAG 2.2 AA se aplica al construir cada pantalla, no como repaso final. Ver DOC 02 §5.                                  |
 
 ---
 
@@ -33,32 +33,32 @@ Estas cinco reglas mandan sobre cualquier decisión posterior. Si un documento l
 
 ### 3.1 Estado actual
 
-| Código | Documento | Qué contiene | Estado |
-| :--- | :--- | :--- | :--- |
-| **00** | Índice documental y herramientas | Este archivo. Mapa de docs, tooling y método de sesiones | ✅ v1.0 |
-| **01** | Backlog maestro de ideas | Todas las ideas (tuyas y de Gemini) con ID, origen, módulo y fase | ✅ v1.0 |
-| **02** | Pantallas, navegación y accesibilidad | Inventario de pantallas, árbol de rutas, patrones de navegación y criterios WCAG | ✅ v1.0 |
-| **03** | Decisiones pendientes | Preguntas que bloquean los documentos siguientes | ✅ v1.0 |
-| **04** | Reglas de negocio y glosario | Reglamento configurable, cálculo de minutos, casos límite, estados de evento | ⏳ Bloqueado por 03 |
-| **05** | Modelo de datos y políticas RLS | Tablas, relaciones, índices, trazabilidad y seguridad a nivel de fila | ⏳ Bloqueado por 04 |
-| **06** | Arquitectura frontend y convenciones | Estructura de carpetas, gestión de estado, capa offline, nomenclatura | ⏳ Bloqueado por 02 + 05 |
-| **07** | Sistema de diseño y tokens | Variables CSS, escala tipográfica, color de equipo inyectable, componentes base | ⏳ Bloqueado por 02 |
-| **08** | `TAREAS.md` — plan de tareas | Lista atómica de tareas con ID, dependencia, estimación y estado | ⏳ Bloqueado por 04–07 |
-| **09** | Observabilidad y registro de errores | Tabla `error_logs`, Error Boundary global, qué se captura y qué no | ⏳ Bloqueado por 05 |
-| **10** | Entornos y despliegue | Variables de entorno, deploy previews, checklist de release. El modelo de ramas ya vive en DOC 15 | ⏳ Bloqueado por 06 |
-| **11** | RGPD y política de datos | Base legal, minimización, entidades `Player` sin datos sensibles, retención | ⏳ Bloqueado por 04 |
-| **12** | Identidad corporativa | Nombre, logo SVG, paleta base | ⏳ No bloqueante. Se puede hacer en cualquier momento |
-| **13** | `HANDOFF.md` — traspaso vivo | Estado real del desarrollo al cerrar cada sesión | ⏳ Nace con la primera tarea de código |
-| **14** | Guía de arranque de Claude Code | Instalación en Windows, `CLAUDE.md`, método de trabajo y reparto con el chat web | ✅ v1.0 |
-| **15** | Convenciones de Git | Ramas por módulo, commits por tarea, pull requests y qué hace cumplir cada hook | ✅ v1.0 |
+| Código | Documento                             | Qué contiene                                                                                      | Estado                                                |
+| :----- | :------------------------------------ | :------------------------------------------------------------------------------------------------ | :---------------------------------------------------- |
+| **00** | Índice documental y herramientas      | Este archivo. Mapa de docs, tooling y método de sesiones                                          | ✅ v1.0                                               |
+| **01** | Backlog maestro de ideas              | Todas las ideas (tuyas y de Gemini) con ID, origen, módulo y fase                                 | ✅ v1.0                                               |
+| **02** | Pantallas, navegación y accesibilidad | Inventario de pantallas, árbol de rutas, patrones de navegación y criterios WCAG                  | ✅ v1.0                                               |
+| **03** | Decisiones pendientes                 | Preguntas que bloquean los documentos siguientes                                                  | ✅ v1.0                                               |
+| **04** | Reglas de negocio y glosario          | Reglamento configurable, cálculo de minutos, casos límite, estados de evento                      | ⏳ Bloqueado por 03                                   |
+| **05** | Modelo de datos y políticas RLS       | Tablas, relaciones, índices, trazabilidad y seguridad a nivel de fila                             | ⏳ Bloqueado por 04                                   |
+| **06** | Arquitectura frontend y convenciones  | Estructura de carpetas, gestión de estado, capa offline, nomenclatura                             | ⏳ Bloqueado por 02 + 05                              |
+| **07** | Sistema de diseño y tokens            | Variables CSS, escala tipográfica, color de equipo inyectable, componentes base                   | ⏳ Bloqueado por 02                                   |
+| **08** | `TAREAS.md` — plan de tareas          | Lista atómica de tareas con ID, dependencia, estimación y estado                                  | ⏳ Bloqueado por 04–07                                |
+| **09** | Observabilidad y registro de errores  | Tabla `error_logs`, Error Boundary global, qué se captura y qué no                                | ⏳ Bloqueado por 05                                   |
+| **10** | Entornos y despliegue                 | Variables de entorno, deploy previews, checklist de release. El modelo de ramas ya vive en DOC 15 | ⏳ Bloqueado por 06                                   |
+| **11** | RGPD y política de datos              | Base legal, minimización, entidades `Player` sin datos sensibles, retención                       | ⏳ Bloqueado por 04                                   |
+| **12** | Identidad corporativa                 | Nombre, logo SVG, paleta base                                                                     | ⏳ No bloqueante. Se puede hacer en cualquier momento |
+| **13** | `HANDOFF.md` — traspaso vivo          | Estado real del desarrollo al cerrar cada sesión                                                  | ⏳ Nace con la primera tarea de código                |
+| **14** | Guía de arranque de Claude Code       | Instalación en Windows, `CLAUDE.md`, método de trabajo y reparto con el chat web                  | ✅ v1.0                                               |
+| **15** | Convenciones de Git                   | Ramas por módulo, commits por tarea, pull requests y qué hace cumplir cada hook                   | ✅ v1.0                                               |
 
 ### 3.2 Dónde vive cada documento
 
 Todos los documentos viven en `/docs` dentro del repositorio. Esa es la única copia buena.
 
-Al *Knowledge* del proyecto de Claude suben solo los que hacen falta como contexto permanente: **00, 04, 05, 06, 07, 08, 13**. El **15** no hace falta subirlo: su resumen vive en `CLAUDE.md` y los hooks lo aplican solos. Los demás se adjuntan a mano en la sesión concreta que los necesite. Así el contexto base se mantiene ligero.
+Al _Knowledge_ del proyecto de Claude suben solo los que hacen falta como contexto permanente: **00, 04, 05, 06, 07, 08, 13**. El **15** no hace falta subirlo: su resumen vive en `CLAUDE.md` y los hooks lo aplican solos. Los demás se adjuntan a mano en la sesión concreta que los necesite. Así el contexto base se mantiene ligero.
 
-Cuando un documento cambia, se actualiza en `/docs`, se hace commit y se vuelve a subir al *Knowledge* la versión nueva. Un documento desactualizado en el *Knowledge* provoca más daño que su ausencia.
+Cuando un documento cambia, se actualiza en `/docs`, se hace commit y se vuelve a subir al _Knowledge_ la versión nueva. Un documento desactualizado en el _Knowledge_ provoca más daño que su ausencia.
 
 ---
 
@@ -68,11 +68,11 @@ Cuando un documento cambia, se actualiza en `/docs`, se hace commit y se vuelve 
 
 Hay tres modos. Elige uno como principal; los otros quedan de reserva.
 
-| Modo | Qué permite | Coste | Cuándo usarlo |
-| :--- | :--- | :--- | :--- |
-| **A · Claude Code** *(recomendado)* | Lee el repo entero, edita varios archivos, ejecuta `npm`, lanza el servidor de desarrollo, hace commits | Incluido en tu plan de pago, mismo pool de uso que el chat | Desarrollo diario, refactores, tareas que tocan varios archivos |
-| **B · Escritorio con carpeta conectada** | Escribo los archivos directamente en tu carpeta local; tú haces commit y push | Incluido | Es el flujo que ya usas en RefuelControl. Bueno para entregas de archivos completos |
-| **C · Chat web + Project** | Te entrego archivos completos y los pegas tú | Incluido | Diseño, documentación, dudas puntuales, revisión de código |
+| Modo                                     | Qué permite                                                                                             | Coste                                                      | Cuándo usarlo                                                                       |
+| :--------------------------------------- | :------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------- | :---------------------------------------------------------------------------------- |
+| **A · Claude Code** _(recomendado)_      | Lee el repo entero, edita varios archivos, ejecuta `npm`, lanza el servidor de desarrollo, hace commits | Incluido en tu plan de pago, mismo pool de uso que el chat | Desarrollo diario, refactores, tareas que tocan varios archivos                     |
+| **B · Escritorio con carpeta conectada** | Escribo los archivos directamente en tu carpeta local; tú haces commit y push                           | Incluido                                                   | Es el flujo que ya usas en RefuelControl. Bueno para entregas de archivos completos |
+| **C · Chat web + Project**               | Te entrego archivos completos y los pegas tú                                                            | Incluido                                                   | Diseño, documentación, dudas puntuales, revisión de código                          |
 
 **Corrección a la conversación con Gemini:** el modo A no requiere API de pago ni agentes de terceros tipo Aider o Cline. Claude Code se autentica con la misma cuenta del plan. Ojo con un detalle: si tienes una variable de entorno `ANTHROPIC_API_KEY` puesta en el sistema, Claude Code la usará y te facturará por token en vez de consumir la suscripción. Bórrala antes de empezar.
 
@@ -92,24 +92,24 @@ Claves de Supabase (`service_role`), secretos de OAuth de Google, tokens de Netl
 
 ### 4.4 Servicios externos a dar de alta
 
-| Servicio | Para qué | Coste | Ojo con |
-| :--- | :--- | :--- | :--- |
-| **GitHub** | Repositorio y despliegue continuo | Gratis | Decide público o privado antes del primer commit |
-| **Netlify** | Hosting del frontend, variables de entorno, deploy previews | Gratis | El *deploy preview* de cada rama sirve para probar en el móvil sin tocar producción |
-| **Supabase** | PostgreSQL, autenticación, RLS, Storage, Edge Functions | Gratis | El plan gratuito pausa proyectos tras inactividad prolongada. Con uso semanal real no es problema |
-| **Google Cloud Console** | Cliente OAuth para el login con Google | Gratis | Paso que se olvida siempre. Hay que registrar los *redirect URI* de Supabase, de Netlify y de `localhost` |
-| **Node.js LTS + npm** | Entorno de desarrollo local | Gratis | — |
-| **VS Code + Git** | Editor y control de versiones | Gratis | — |
-| **Dominio propio** | `loquesea.app` en vez del subdominio de Netlify | **≈ 10–15 €/año** | Única partida que rompe el 0 €. El subdominio de Netlify funciona igual de bien para el MVP |
+| Servicio                 | Para qué                                                    | Coste             | Ojo con                                                                                                   |
+| :----------------------- | :---------------------------------------------------------- | :---------------- | :-------------------------------------------------------------------------------------------------------- |
+| **GitHub**               | Repositorio y despliegue continuo                           | Gratis            | Decide público o privado antes del primer commit                                                          |
+| **Netlify**              | Hosting del frontend, variables de entorno, deploy previews | Gratis            | El _deploy preview_ de cada rama sirve para probar en el móvil sin tocar producción                       |
+| **Supabase**             | PostgreSQL, autenticación, RLS, Storage, Edge Functions     | Gratis            | El plan gratuito pausa proyectos tras inactividad prolongada. Con uso semanal real no es problema         |
+| **Google Cloud Console** | Cliente OAuth para el login con Google                      | Gratis            | Paso que se olvida siempre. Hay que registrar los _redirect URI_ de Supabase, de Netlify y de `localhost` |
+| **Node.js LTS + npm**    | Entorno de desarrollo local                                 | Gratis            | —                                                                                                         |
+| **VS Code + Git**        | Editor y control de versiones                               | Gratis            | —                                                                                                         |
+| **Dominio propio**       | `loquesea.app` en vez del subdominio de Netlify             | **≈ 10–15 €/año** | Única partida que rompe el 0 €. El subdominio de Netlify funciona igual de bien para el MVP               |
 
 ### 4.5 Herramientas de apoyo
 
-| Herramienta | Uso | Coste |
-| :--- | :--- | :--- |
-| Lighthouse (integrado en Chrome) | Auditoría de PWA, rendimiento y accesibilidad | Gratis |
-| axe DevTools (extensión) | Detección de fallos WCAG en cada pantalla | Gratis |
-| Excalidraw | Bocetos rápidos de pantalla antes de picar código | Gratis |
-| Dispositivos físicos | Un Android y un iPhone. La instalación de PWA y el modo offline se comportan distinto en cada uno | Ya los tienes |
+| Herramienta                      | Uso                                                                                               | Coste         |
+| :------------------------------- | :------------------------------------------------------------------------------------------------ | :------------ |
+| Lighthouse (integrado en Chrome) | Auditoría de PWA, rendimiento y accesibilidad                                                     | Gratis        |
+| axe DevTools (extensión)         | Detección de fallos WCAG en cada pantalla                                                         | Gratis        |
+| Excalidraw                       | Bocetos rápidos de pantalla antes de picar código                                                 | Gratis        |
+| Dispositivos físicos             | Un Android y un iPhone. La instalación de PWA y el modo offline se comportan distinto en cada uno | Ya los tienes |
 
 ---
 
@@ -150,7 +150,7 @@ Al terminar, el DOC 13 se sobrescribe con esto:
 
 - No pegues el proyecto entero. Adjunta solo los archivos que la tarea toca.
 - Prefiere edición sobre reescritura completa de archivos.
-- Si un dato ya está en un documento del *Knowledge*, no lo repitas en el chat.
+- Si un dato ya está en un documento del _Knowledge_, no lo repitas en el chat.
 - Cierra la conversación cuando la tarea termine. Reutilizar un hilo largo para una tarea nueva desperdicia ventana.
 
 ---

@@ -8,12 +8,12 @@
 
 ## 1. Repositorio
 
-| Dato | Valor |
-| :--- | :--- |
-| Remoto | `https://github.com/60F10/isAPP.git` |
-| Visibilidad | Privado |
-| Rama por defecto | `main` |
-| Licencia | MIT |
+| Dato             | Valor                                |
+| :--------------- | :----------------------------------- |
+| Remoto           | `https://github.com/60F10/isAPP.git` |
+| Visibilidad      | Privado                              |
+| Rama por defecto | `main`                               |
+| Licencia         | MIT                                  |
 
 `main` está protegida: siempre desplegable, siempre verde, nunca se le hace commit directo.
 
@@ -66,45 +66,45 @@ El asunto va en inglés y no pasa de 72 caracteres. El cuerpo, en español de Es
 
 ### Tipos
 
-| Tipo | Cuándo |
-| :--- | :--- |
-| `feat` | Funcionalidad nueva visible para el usuario |
-| `fix` | Corrección de un fallo |
-| `docs` | Documentación, sin tocar código |
-| `style` | Formato: espacios, comas, comillas. Cero cambio de comportamiento |
-| `refactor` | Reescritura que no cambia el comportamiento |
-| `perf` | Mejora de rendimiento |
-| `test` | Pruebas |
-| `build` | Build, dependencias, Vite, PWA |
-| `ci` | GitHub Actions, Netlify |
-| `chore` | Mantenimiento sin efecto en producción |
-| `revert` | Deshace un commit anterior |
+| Tipo       | Cuándo                                                            |
+| :--------- | :---------------------------------------------------------------- |
+| `feat`     | Funcionalidad nueva visible para el usuario                       |
+| `fix`      | Corrección de un fallo                                            |
+| `docs`     | Documentación, sin tocar código                                   |
+| `style`    | Formato: espacios, comas, comillas. Cero cambio de comportamiento |
+| `refactor` | Reescritura que no cambia el comportamiento                       |
+| `perf`     | Mejora de rendimiento                                             |
+| `test`     | Pruebas                                                           |
+| `build`    | Build, dependencias, Vite, PWA                                    |
+| `ci`       | GitHub Actions, Netlify                                           |
+| `chore`    | Mantenimiento sin efecto en producción                            |
+| `revert`   | Deshace un commit anterior                                        |
 
 ### Ámbitos (obligatorios)
 
 Son los módulos del principio P3, más los transversales:
 
-| Ámbito | Qué cubre |
-| :--- | :--- |
-| `auth` | Login con Google, sesión, permisos de acceso |
-| `core` | Club / Equipo / Jugador / Temporada |
-| `rules` | Competición y reglamento configurable |
-| `agenda` | Calendario y eventos |
-| `training` | Entrenamientos |
-| `discipline` | Sanciones y disciplina |
-| `lineup` | Convocatoria y alineación |
-| `match` | MatchEngine: partido en directo |
-| `sync` | Concurrencia, offline, cola de sincronización |
-| `review` | Post-partido y resolución de discordancias |
-| `stats` | Estadísticas, cobertura y fiabilidad |
-| `logging` | `error_logs` y observabilidad |
-| `platform` | PWA, service worker, IndexedDB |
-| `design` | Capa visual, tokens, componentes base |
-| `db` | Migraciones de Supabase, esquema, RLS |
-| `docs` | Documentos de `/docs` |
-| `deps` | Dependencias |
-| `ci` | Integración continua y despliegue |
-| `repo` | Configuración del repositorio y tooling |
+| Ámbito       | Qué cubre                                     |
+| :----------- | :-------------------------------------------- |
+| `auth`       | Login con Google, sesión, permisos de acceso  |
+| `core`       | Club / Equipo / Jugador / Temporada           |
+| `rules`      | Competición y reglamento configurable         |
+| `agenda`     | Calendario y eventos                          |
+| `training`   | Entrenamientos                                |
+| `discipline` | Sanciones y disciplina                        |
+| `lineup`     | Convocatoria y alineación                     |
+| `match`      | MatchEngine: partido en directo               |
+| `sync`       | Concurrencia, offline, cola de sincronización |
+| `review`     | Post-partido y resolución de discordancias    |
+| `stats`      | Estadísticas, cobertura y fiabilidad          |
+| `logging`    | `error_logs` y observabilidad                 |
+| `platform`   | PWA, service worker, IndexedDB                |
+| `design`     | Capa visual, tokens, componentes base         |
+| `db`         | Migraciones de Supabase, esquema, RLS         |
+| `docs`       | Documentos de `/docs`                         |
+| `deps`       | Dependencias                                  |
+| `ci`         | Integración continua y despliegue             |
+| `repo`       | Configuración del repositorio y tooling       |
 
 Ámbito nuevo: se añade a `commitlint.config.mjs`, al patrón de `.husky/pre-commit` y a esta tabla. En el mismo commit.
 
@@ -153,15 +153,15 @@ a `player` antes de desplegar. Script en supabase/migrations/0007.
 
 ## 5. Qué hace cumplir cada cosa
 
-| Regla | Quién la aplica | Cuándo salta |
-| :--- | :--- | :--- |
-| Nada de commits en `main` | `.husky/pre-commit` | Al hacer commit en local |
-| Nombre de rama válido | `.husky/pre-commit` | Al hacer commit en local |
-| Lint y formato de lo commiteado | `.husky/pre-commit` + `lint-staged` | Al hacer commit en local |
-| Formato del mensaje | `.husky/commit-msg` + `commitlint` | Al hacer commit en local |
-| Mensajes de toda la rama | Workflow `CI / commits` | Al abrir el pull request |
-| Lint, formato y build | Workflow `CI / verify` | En cada push y pull request |
-| Nada de push directo a `main` | Protección de rama en GitHub | Al hacer push |
+| Regla                           | Quién la aplica                     | Cuándo salta                |
+| :------------------------------ | :---------------------------------- | :-------------------------- |
+| Nada de commits en `main`       | `.husky/pre-commit`                 | Al hacer commit en local    |
+| Nombre de rama válido           | `.husky/pre-commit`                 | Al hacer commit en local    |
+| Lint y formato de lo commiteado | `.husky/pre-commit` + `lint-staged` | Al hacer commit en local    |
+| Formato del mensaje             | `.husky/commit-msg` + `commitlint`  | Al hacer commit en local    |
+| Mensajes de toda la rama        | Workflow `CI / commits`             | Al abrir el pull request    |
+| Lint, formato y build           | Workflow `CI / verify`              | En cada push y pull request |
+| Nada de push directo a `main`   | Protección de rama en GitHub        | Al hacer push               |
 
 Saltarse un hook (`--no-verify`) es una decisión consciente que deja rastro en el pull request. No es el camino habitual.
 

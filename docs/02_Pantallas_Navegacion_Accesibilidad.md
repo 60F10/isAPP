@@ -20,45 +20,45 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
 
 ### Bloque A — Entrada de datos · prioridad 1
 
-| ID | Pantalla | Ruta | Quién entra | Fase | Épicas |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **A01** | Acceso | `/login` | Todos | MVP | E1-01 |
-| **A02** | Inicio | `/` | Todos | MVP | E4-04 |
-| **A03** | Club | `/club` | Entrenador, Admin | MVP | E2-01 |
-| **A04** | Equipos | `/equipos` | Entrenador, Admin | MVP | E2-02 |
-| **A05** | Plantilla | `/equipos/:id/plantilla` | Entrenador, Delegado | MVP | E2-03, E2-04 |
-| **A06** | Ficha de jugador (edición) | `/jugadores/:id/editar` | Entrenador | MVP | E2-04→06, E6-04 |
-| **A07** | Personas y permisos | `/equipos/:id/personas` | Entrenador | MVP | E1-04→08 |
-| **A08** | Competiciones y reglamento | `/competiciones` · `/competiciones/:id` | Entrenador | MVP | E3 completa |
-| **A09** | Calendario | `/calendario` | Todos | MVP | E4-01→04 |
-| **A10** | Alta / edición de partido | `/partidos/nuevo` · `/partidos/:id/editar` | Entrenador, Delegado | MVP | E4-02, E4-03 |
-| **A11** | Convocatoria y alineación | `/partidos/:id/convocatoria` | Entrenador | MVP | E7-01→06 |
-| **A12** | **Partido en directo** ⭐ | `/partidos/:id/directo` | Con permiso de escritura | MVP | E8 completa |
-| **A13** | Cierre y post-partido | `/partidos/:id/cierre` | Entrenador | MVP | E10 completa |
-| **A14** | Mis aportaciones | `/mis-aportaciones` | Con permiso de escritura | MVP | E9-06 |
-| **A15** | Entrenamiento en directo | `/entrenamientos/:id/lista` | Entrenador, Delegado | MVP | E5-02→04 |
-| **A16** | Disciplina y sanciones | `/disciplina` | Entrenador | MVP | E6 completa |
+| ID      | Pantalla                   | Ruta                                       | Quién entra              | Fase | Épicas          |
+| :------ | :------------------------- | :----------------------------------------- | :----------------------- | :--- | :-------------- |
+| **A01** | Acceso                     | `/login`                                   | Todos                    | MVP  | E1-01           |
+| **A02** | Inicio                     | `/`                                        | Todos                    | MVP  | E4-04           |
+| **A03** | Club                       | `/club`                                    | Entrenador, Admin        | MVP  | E2-01           |
+| **A04** | Equipos                    | `/equipos`                                 | Entrenador, Admin        | MVP  | E2-02           |
+| **A05** | Plantilla                  | `/equipos/:id/plantilla`                   | Entrenador, Delegado     | MVP  | E2-03, E2-04    |
+| **A06** | Ficha de jugador (edición) | `/jugadores/:id/editar`                    | Entrenador               | MVP  | E2-04→06, E6-04 |
+| **A07** | Personas y permisos        | `/equipos/:id/personas`                    | Entrenador               | MVP  | E1-04→08        |
+| **A08** | Competiciones y reglamento | `/competiciones` · `/competiciones/:id`    | Entrenador               | MVP  | E3 completa     |
+| **A09** | Calendario                 | `/calendario`                              | Todos                    | MVP  | E4-01→04        |
+| **A10** | Alta / edición de partido  | `/partidos/nuevo` · `/partidos/:id/editar` | Entrenador, Delegado     | MVP  | E4-02, E4-03    |
+| **A11** | Convocatoria y alineación  | `/partidos/:id/convocatoria`               | Entrenador               | MVP  | E7-01→06        |
+| **A12** | **Partido en directo** ⭐  | `/partidos/:id/directo`                    | Con permiso de escritura | MVP  | E8 completa     |
+| **A13** | Cierre y post-partido      | `/partidos/:id/cierre`                     | Entrenador               | MVP  | E10 completa    |
+| **A14** | Mis aportaciones           | `/mis-aportaciones`                        | Con permiso de escritura | MVP  | E9-06           |
+| **A15** | Entrenamiento en directo   | `/entrenamientos/:id/lista`                | Entrenador, Delegado     | MVP  | E5-02→04        |
+| **A16** | Disciplina y sanciones     | `/disciplina`                              | Entrenador               | MVP  | E6 completa     |
 
 ### Bloque B — Consulta de datos · prioridad 2
 
-| ID | Pantalla | Ruta | Quién entra | Fase | Épicas |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **B01** | Panel de equipo | `/estadisticas` | Todos según permiso | MVP tardío | E11-01, E11-04 |
-| **B02** | Estadísticas de jugador | `/estadisticas/jugador/:id` | Todos según permiso | MVP tardío | E11-02 |
-| **B03** | Informe de partido | `/partidos/:id/informe` | Todos según permiso | MVP tardío | E11-03, E11-08 |
-| **B04** | Historial de entrenamientos | `/entrenamientos` | Entrenador, Delegado | MVP tardío | E5-05 |
-| **B05** | Comparador de jugadores | `/estadisticas/comparar` | Entrenador | V1.1 | E11-06 |
-| **B06** | Vista de invitado | `/publico/:token` | Invitado | V1.1 | E11-07 |
+| ID      | Pantalla                    | Ruta                        | Quién entra          | Fase       | Épicas         |
+| :------ | :-------------------------- | :-------------------------- | :------------------- | :--------- | :------------- |
+| **B01** | Panel de equipo             | `/estadisticas`             | Todos según permiso  | MVP tardío | E11-01, E11-04 |
+| **B02** | Estadísticas de jugador     | `/estadisticas/jugador/:id` | Todos según permiso  | MVP tardío | E11-02         |
+| **B03** | Informe de partido          | `/partidos/:id/informe`     | Todos según permiso  | MVP tardío | E11-03, E11-08 |
+| **B04** | Historial de entrenamientos | `/entrenamientos`           | Entrenador, Delegado | MVP tardío | E5-05          |
+| **B05** | Comparador de jugadores     | `/estadisticas/comparar`    | Entrenador           | V1.1       | E11-06         |
+| **B06** | Vista de invitado           | `/publico/:token`           | Invitado             | V1.1       | E11-07         |
 
 ### Bloque C — Sistema
 
-| ID | Pantalla | Ruta | Quién entra | Fase | Épicas |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **C01** | Ajustes de usuario | `/ajustes` | Todos | MVP | E14-04, accesibilidad |
-| **C02** | Registro de errores | `/admin/logs` | Admin | MVP | E12-05 |
-| **C03** | Error de aplicación | — (Error Boundary) | Todos | MVP | E12-02 |
-| **C04** | Sin conexión | — (estado, no ruta) | Todos | MVP | E9-07, E8-14 |
-| **C05** | Sin permiso | `/403` | Todos | MVP | E1-07 |
+| ID      | Pantalla            | Ruta                | Quién entra | Fase | Épicas                |
+| :------ | :------------------ | :------------------ | :---------- | :--- | :-------------------- |
+| **C01** | Ajustes de usuario  | `/ajustes`          | Todos       | MVP  | E14-04, accesibilidad |
+| **C02** | Registro de errores | `/admin/logs`       | Admin       | MVP  | E12-05                |
+| **C03** | Error de aplicación | — (Error Boundary)  | Todos       | MVP  | E12-02                |
+| **C04** | Sin conexión        | — (estado, no ruta) | Todos       | MVP  | E9-07, E8-14          |
+| **C05** | Sin permiso         | `/403`              | Todos       | MVP  | E1-07                 |
 
 **Total MVP: 21 pantallas.** De ellas, una sola concentra el riesgo: **A12, el partido en directo**.
 
@@ -103,12 +103,12 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
 
 ### 3.1 Patrón de navegación
 
-| Contexto | Patrón |
-| :--- | :--- |
-| **Móvil** | Barra inferior fija de 5 destinos: Inicio · Equipo · Agenda · Datos · Más. Es la zona alcanzable con el pulgar |
-| **Escritorio y tablet** | Rail lateral con los mismos 5 destinos, siempre visible |
-| **Partido en directo** | Toma la pantalla completa y **oculta la barra inferior**. Salir requiere una acción explícita, para evitar abandonos accidentales con el móvil en la mano |
-| **Partido en curso desde otra pantalla** | Banda superior persistente «Partido en directo · 34:12 · Volver». Un toque devuelve al panel |
+| Contexto                                 | Patrón                                                                                                                                                    |
+| :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Móvil**                                | Barra inferior fija de 5 destinos: Inicio · Equipo · Agenda · Datos · Más. Es la zona alcanzable con el pulgar                                            |
+| **Escritorio y tablet**                  | Rail lateral con los mismos 5 destinos, siempre visible                                                                                                   |
+| **Partido en directo**                   | Toma la pantalla completa y **oculta la barra inferior**. Salir requiere una acción explícita, para evitar abandonos accidentales con el móvil en la mano |
+| **Partido en curso desde otra pantalla** | Banda superior persistente «Partido en directo · 34:12 · Volver». Un toque devuelve al panel                                                              |
 
 ### 3.2 Flujo del día de partido
 
@@ -166,43 +166,43 @@ Referencia: **WCAG 2.2 nivel AA**. Si algún día vendes la app como servicio de
 
 ### 5.1 Criterios que condicionan el diseño
 
-| Criterio | Nivel | Qué obliga a hacer aquí |
-| :--- | :--- | :--- |
-| **1.4.3 Contraste mínimo** | AA | 4.5:1 en texto normal, 3:1 en texto grande. El uso al sol pide apuntar más alto: 7:1 en la pantalla de directo |
-| **1.4.11 Contraste no textual** | AA | 3:1 en bordes de botón, iconos de evento y series de las gráficas |
-| **1.4.1 Uso del color** | A | Una tarjeta amarilla se distingue por **color + icono + texto**. Los estados `pending`/`approved`/`rejected` nunca dependen solo del color |
-| **2.5.8 Tamaño del objetivo** | AA | 24×24 px CSS como mínimo legal. En A12 el mínimo real es **48×48 px con 8 px de separación** |
-| **2.5.2 Cancelación del puntero** | A | La acción se dispara al **levantar** el dedo, no al pulsarlo. Permite deslizar fuera para abortar un toque erróneo. Crítico con el móvil en la mano y el partido en marcha |
-| **2.5.7 Movimientos de arrastre** | AA | Si la alineación se coloca arrastrando fichas (E7-03), hace falta alternativa de un solo toque: tocar jugador → tocar posición |
-| **2.5.1 Gestos del puntero** | A | Nada depende de gestos multipunto o de trazado. Todo se resuelve con un toque |
-| **4.1.3 Mensajes de estado** | AA | «Gol registrado», «3 eventos pendientes de sincronizar», «Conexión recuperada» se anuncian con `aria-live="polite"` sin robar el foco |
-| **2.4.11 Foco no oscurecido** | AA | La barra inferior y la banda de partido en curso son fijas: hay que garantizar que no tapen el elemento enfocado. Es el fallo más probable de este diseño |
-| **2.4.7 Foco visible** | AA | Indicador de foco propio, de al menos 2 px y 3:1 de contraste. Jamás `outline: none` sin sustituto |
-| **1.3.4 Orientación** | AA | Sin bloqueo de orientación. En la grada se sujeta el móvil como se puede |
-| **1.4.10 Reflujo** | AA | Legible a 320 px de ancho sin desplazamiento horizontal |
-| **1.4.4 Cambio de tamaño del texto** | AA | Zoom al 200 % sin pérdida de función. Nada de `user-scalable=no` |
-| **3.3.7 Entrada redundante** | AA | El rival, la competición y el campo se arrastran desde el partido a la convocatoria y al directo. No se piden dos veces |
-| **3.3.8 Autenticación accesible** | AA | El login con Google lo cumple: sin captcha ni pruebas de memoria |
-| **3.2.6 Ayuda coherente** | AA | El acceso a ayuda o contacto ocupa siempre la misma posición relativa |
-| **2.1.1 Teclado** | A | Toda función accesible por teclado. El entrenador prepara la convocatoria en el portátil |
-| **1.1.1 Contenido no textual** | A | Alternativa textual en escudos, iconos de evento y **gráficas**: cada gráfica lleva su tabla de datos equivalente |
-| **1.3.1 Información y relaciones** | A | Tablas de estadísticas con `<th>`, `scope` y `caption` reales. Nada de rejillas de `<div>` |
-| **4.1.2 Nombre, función, valor** | A | El campo de juego, las fichas de jugador y la botonera son componentes propios: necesitan rol ARIA, nombre accesible y estado |
-| **2.2.1 Tiempo ajustable** | A | El cronómetro del partido es un evento en tiempo real y queda exento. Lo que sí obliga: avisar antes de expirar la sesión y **nunca perder eventos sin sincronizar** |
+| Criterio                             | Nivel | Qué obliga a hacer aquí                                                                                                                                                    |
+| :----------------------------------- | :---- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1.4.3 Contraste mínimo**           | AA    | 4.5:1 en texto normal, 3:1 en texto grande. El uso al sol pide apuntar más alto: 7:1 en la pantalla de directo                                                             |
+| **1.4.11 Contraste no textual**      | AA    | 3:1 en bordes de botón, iconos de evento y series de las gráficas                                                                                                          |
+| **1.4.1 Uso del color**              | A     | Una tarjeta amarilla se distingue por **color + icono + texto**. Los estados `pending`/`approved`/`rejected` nunca dependen solo del color                                 |
+| **2.5.8 Tamaño del objetivo**        | AA    | 24×24 px CSS como mínimo legal. En A12 el mínimo real es **48×48 px con 8 px de separación**                                                                               |
+| **2.5.2 Cancelación del puntero**    | A     | La acción se dispara al **levantar** el dedo, no al pulsarlo. Permite deslizar fuera para abortar un toque erróneo. Crítico con el móvil en la mano y el partido en marcha |
+| **2.5.7 Movimientos de arrastre**    | AA    | Si la alineación se coloca arrastrando fichas (E7-03), hace falta alternativa de un solo toque: tocar jugador → tocar posición                                             |
+| **2.5.1 Gestos del puntero**         | A     | Nada depende de gestos multipunto o de trazado. Todo se resuelve con un toque                                                                                              |
+| **4.1.3 Mensajes de estado**         | AA    | «Gol registrado», «3 eventos pendientes de sincronizar», «Conexión recuperada» se anuncian con `aria-live="polite"` sin robar el foco                                      |
+| **2.4.11 Foco no oscurecido**        | AA    | La barra inferior y la banda de partido en curso son fijas: hay que garantizar que no tapen el elemento enfocado. Es el fallo más probable de este diseño                  |
+| **2.4.7 Foco visible**               | AA    | Indicador de foco propio, de al menos 2 px y 3:1 de contraste. Jamás `outline: none` sin sustituto                                                                         |
+| **1.3.4 Orientación**                | AA    | Sin bloqueo de orientación. En la grada se sujeta el móvil como se puede                                                                                                   |
+| **1.4.10 Reflujo**                   | AA    | Legible a 320 px de ancho sin desplazamiento horizontal                                                                                                                    |
+| **1.4.4 Cambio de tamaño del texto** | AA    | Zoom al 200 % sin pérdida de función. Nada de `user-scalable=no`                                                                                                           |
+| **3.3.7 Entrada redundante**         | AA    | El rival, la competición y el campo se arrastran desde el partido a la convocatoria y al directo. No se piden dos veces                                                    |
+| **3.3.8 Autenticación accesible**    | AA    | El login con Google lo cumple: sin captcha ni pruebas de memoria                                                                                                           |
+| **3.2.6 Ayuda coherente**            | AA    | El acceso a ayuda o contacto ocupa siempre la misma posición relativa                                                                                                      |
+| **2.1.1 Teclado**                    | A     | Toda función accesible por teclado. El entrenador prepara la convocatoria en el portátil                                                                                   |
+| **1.1.1 Contenido no textual**       | A     | Alternativa textual en escudos, iconos de evento y **gráficas**: cada gráfica lleva su tabla de datos equivalente                                                          |
+| **1.3.1 Información y relaciones**   | A     | Tablas de estadísticas con `<th>`, `scope` y `caption` reales. Nada de rejillas de `<div>`                                                                                 |
+| **4.1.2 Nombre, función, valor**     | A     | El campo de juego, las fichas de jugador y la botonera son componentes propios: necesitan rol ARIA, nombre accesible y estado                                              |
+| **2.2.1 Tiempo ajustable**           | A     | El cronómetro del partido es un evento en tiempo real y queda exento. Lo que sí obliga: avisar antes de expirar la sesión y **nunca perder eventos sin sincronizar**       |
 
 ### 5.2 Requisitos propios del contexto
 
 Estos no salen de WCAG, salen del campo de fútbol.
 
-| Requisito | Por qué |
-| :--- | :--- |
-| Modo de alto contraste conmutable desde Ajustes | Pantalla al sol de mediodía |
-| Texto base de 16 px, nunca por debajo de 14 px | Legibilidad de pie y en movimiento |
-| Botonera principal en el tercio inferior | Zona alcanzable con el pulgar |
-| Respuesta háptica al registrar un evento | Confirma sin obligar a mirar |
-| Confirmación visible durante 2 s tras cada registro | Evita el doble apunte por duda |
-| Respeto a `prefers-reduced-motion` | Animaciones que marean o distraen en pleno partido |
-| Ningún dato se pierde al bloquearse la pantalla | El móvil se apaga solo cada dos minutos |
+| Requisito                                           | Por qué                                            |
+| :-------------------------------------------------- | :------------------------------------------------- |
+| Modo de alto contraste conmutable desde Ajustes     | Pantalla al sol de mediodía                        |
+| Texto base de 16 px, nunca por debajo de 14 px      | Legibilidad de pie y en movimiento                 |
+| Botonera principal en el tercio inferior            | Zona alcanzable con el pulgar                      |
+| Respuesta háptica al registrar un evento            | Confirma sin obligar a mirar                       |
+| Confirmación visible durante 2 s tras cada registro | Evita el doble apunte por duda                     |
+| Respeto a `prefers-reduced-motion`                  | Animaciones que marean o distraen en pleno partido |
+| Ningún dato se pierde al bloquearse la pantalla     | El móvil se apaga solo cada dos minutos            |
 
 ### 5.3 Verificación
 
@@ -219,14 +219,14 @@ Cada pantalla se da por terminada cuando pasa esta lista:
 
 ## 6. Orden de construcción de pantallas
 
-| Sprint | Pantallas | Meta |
-| :--- | :--- | :--- |
-| 1 | A01, C03, C05 | Se entra, y si algo revienta queda registrado |
-| 2 | A03, A04, A05, A06 | Isaac tiene su club, su equipo y su plantilla |
-| 3 | A08, A09, A10 | Reglamento configurado y calendario con partidos |
-| 4 | A11 | Convocatoria lista antes del primer amistoso |
-| 5–6 | **A12** | Partido en directo. Dos sprints completos, es lo más caro |
-| 7 | A13, A14, C04 | Cierre, resolución de discordancias y modo offline probado |
-| 8 | A07, A15, A16 | Alphatesters dentro, entrenamientos y disciplina |
-| 9 | B01, B02, B03, B04 | Ya hay datos reales: llega el momento de verlos |
-| 10 | C01, C02, capa visual | Ajustes, logs y chapa y pintura |
+| Sprint | Pantallas             | Meta                                                       |
+| :----- | :-------------------- | :--------------------------------------------------------- |
+| 1      | A01, C03, C05         | Se entra, y si algo revienta queda registrado              |
+| 2      | A03, A04, A05, A06    | Isaac tiene su club, su equipo y su plantilla              |
+| 3      | A08, A09, A10         | Reglamento configurado y calendario con partidos           |
+| 4      | A11                   | Convocatoria lista antes del primer amistoso               |
+| 5–6    | **A12**               | Partido en directo. Dos sprints completos, es lo más caro  |
+| 7      | A13, A14, C04         | Cierre, resolución de discordancias y modo offline probado |
+| 8      | A07, A15, A16         | Alphatesters dentro, entrenamientos y disciplina           |
+| 9      | B01, B02, B03, B04    | Ya hay datos reales: llega el momento de verlos            |
+| 10     | C01, C02, capa visual | Ajustes, logs y chapa y pintura                            |

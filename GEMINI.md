@@ -12,14 +12,14 @@ y en `/docs`, y esa es la única copia buena. Aquí no se duplica: se importa.
 Este proyecto usa dos asistentes a propósito. El criterio no es «cuál es mejor», es dónde
 se gasta el contexto:
 
-| Va a Gemini CLI | Va a Claude Code |
-| :--- | :--- |
-| Renombrar, mover y reorganizar archivos | Arquitectura, modelo de datos y RLS |
-| Traducir textos de interfaz y revisar la redacción | El motor de partido en directo (`match`) |
-| Convertir un mock a JSON, generar datos de prueba | Capa de sincronización y offline (`sync`) |
-| Escribir tests repetitivos ya con el patrón definido | Depurar un fallo con la traza delante |
-| Resumir un log largo, leer un CSV, buscar en el repo | Decisiones que condicionan otros módulos |
-| Boilerplate de componentes ya especificados | Cualquier cosa marcada `/duro` |
+| Va a Gemini CLI                                      | Va a Claude Code                          |
+| :--------------------------------------------------- | :---------------------------------------- |
+| Renombrar, mover y reorganizar archivos              | Arquitectura, modelo de datos y RLS       |
+| Traducir textos de interfaz y revisar la redacción   | El motor de partido en directo (`match`)  |
+| Convertir un mock a JSON, generar datos de prueba    | Capa de sincronización y offline (`sync`) |
+| Escribir tests repetitivos ya con el patrón definido | Depurar un fallo con la traza delante     |
+| Resumir un log largo, leer un CSV, buscar en el repo | Decisiones que condicionan otros módulos  |
+| Boilerplate de componentes ya especificados          | Cualquier cosa marcada `/duro`            |
 
 Regla práctica: **si la tarea ya tiene la decisión tomada y solo hay que teclearla, es de
 Gemini. Si hay que decidir algo, es de Claude.**

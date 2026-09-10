@@ -15,18 +15,20 @@ Repositorio: `https://github.com/60F10/isAPP.git` (privado, rama por defecto `ma
 
 Hay documentación (`/docs`), configuración del repositorio (Git, commitlint, Husky, Prettier, CI y Netlify) y los comandos de `.claude/`. **Todavía no existe código de aplicación ni `package.json`.** La primera tarea de código es el andamiaje (Fase 1: Vite/PWA + Supabase + login Google + tabla `error_logs`).
 
+**Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite 7 arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
+
 Cuando exista el andamiaje, los comandos habituales serán los estándar de Vite (`npm run dev`, `npm run build`, `npm run preview`) más `npm run lint`; actualiza esta sección en ese momento con los comandos reales.
 
 ## Comandos de sesión (slash commands del proyecto)
 
 Definidos en `.claude/commands/`. Fijan modelo, esfuerzo y encuadre según el tipo de tarea:
 
-| Comando | Para qué | Modelo / esfuerzo |
-| :--- | :--- | :--- |
-| `/rapido` | Tareas mecánicas y acotadas | sonnet / medium |
-| `/normal` | Pantallas, hooks, integraciones con Supabase | opus / high |
-| `/duro` | Arquitectura, modelo de datos, RLS, sincronización offline, bugs atascados | opus / xhigh |
-| `/commit` | Redacta el mensaje de commit de lo que hay en el índice | sonnet / medium |
+| Comando   | Para qué                                                                   | Modelo / esfuerzo |
+| :-------- | :------------------------------------------------------------------------- | :---------------- |
+| `/rapido` | Tareas mecánicas y acotadas                                                | sonnet / medium   |
+| `/normal` | Pantallas, hooks, integraciones con Supabase                               | opus / high       |
+| `/duro`   | Arquitectura, modelo de datos, RLS, sincronización offline, bugs atascados | opus / xhigh      |
+| `/commit` | Redacta el mensaje de commit de lo que hay en el índice                    | sonnet / medium   |
 
 ## Documentación viva
 
@@ -34,9 +36,9 @@ Vive en `/docs`, es la única copia buena. **Léela antes de proponer arquitectu
 
 1. `docs/00_Indice_Documental_y_Herramientas.md` — índice, principios rectores (P1–P5), método de sesiones, orden de construcción por fases.
 2. `docs/03_Decisiones_Pendientes.md` — decisiones **ya cerradas** (✅). No las reabras ni propongas alternativas.
-3. `docs/05_Modelo_Datos.md` — modelo de datos y políticas RLS *(aún no escrito)*.
-4. `docs/08_TAREAS.md` — plan de tareas atómicas *(aún no escrito)*.
-5. `docs/13_HANDOFF.md` — estado real al cerrar la última sesión *(nace con la primera tarea de código)*.
+3. `docs/05_Modelo_Datos.md` — modelo de datos y políticas RLS _(aún no escrito)_.
+4. `docs/08_TAREAS.md` — plan de tareas atómicas _(aún no escrito)_.
+5. `docs/13_HANDOFF.md` — estado real al cerrar la última sesión _(nace con la primera tarea de código)_.
 
 Otros: `01_Backlog_Maestro_Ideas.md` (todas las ideas con ID `Ex-nn`, referencia estable), `02_Pantallas_Navegacion_Accesibilidad.md` (inventario de 21 pantallas del MVP, árbol de rutas, criterios WCAG), `15_Convenciones_Git.md` (ramas, commits y pull requests). `Instrucciones_del_Proyecto.md` es el encuadre pegado en el proyecto de Claude web.
 
@@ -126,17 +128,18 @@ Ejemplos buenos: `feat(match): add internal running clock with manual pause` · 
 
 ## Configuración del repositorio
 
-| Archivo | Qué hace |
-| :--- | :--- |
-| `.gitignore` | Deja fuera `node_modules`, `dist`, `dev-dist`, el service worker generado y **todo `.env*` salvo `.env.example`** |
-| `.gitattributes` | Finales de línea LF. Sin esto, Windows y Netlify generan diffs fantasma |
-| `.env.example` | Plantilla de variables. Si añades una variable nueva, se añade aquí en el mismo commit |
-| `commitlint.config.mjs` | Tipos y ámbitos permitidos |
-| `.husky/commit-msg` | Valida el mensaje |
-| `.husky/pre-commit` | Bloquea `main`, valida el nombre de la rama y pasa `lint-staged` |
-| `.prettierrc.json` · `.editorconfig` | Formato |
-| `.github/workflows/ci.yml` | Lint, formato, build y validación de commits en cada push y PR |
-| `netlify.toml` | Build, redirección SPA y cabeceras de caché de la PWA |
+| Archivo                              | Qué hace                                                                                                          |
+| :----------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
+| `.gitignore`                         | Deja fuera `node_modules`, `dist`, `dev-dist`, el service worker generado y **todo `.env*` salvo `.env.example`** |
+| `.gitattributes`                     | Finales de línea LF. Sin esto, Windows y Netlify generan diffs fantasma                                           |
+| `.env.example`                       | Plantilla de variables. Si añades una variable nueva, se añade aquí en el mismo commit                            |
+| `commitlint.config.mjs`              | Tipos y ámbitos permitidos                                                                                        |
+| `.husky/commit-msg`                  | Valida el mensaje                                                                                                 |
+| `.husky/pre-commit`                  | Bloquea `main`, valida el nombre de la rama y pasa `lint-staged`                                                  |
+| `.prettierrc.json` · `.editorconfig` | Formato                                                                                                           |
+| `.github/workflows/ci.yml`           | Lint, formato, build y validación de commits en cada push y PR                                                    |
+| `netlify.toml`                       | Build, redirección SPA y cabeceras de caché de la PWA                                                             |
+| `.nvmrc`                             | Versión de Node del proyecto: **22**. Vite 7 y `create-vite` no arrancan con Node 18                              |
 
 ## Accesibilidad (condiciona el diseño, no es un repaso final)
 
