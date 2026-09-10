@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Un push nuevo sobre la misma rama cancela la ejecución anterior.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Mientras no exista package.json (antes del andamiaje de Vite),
+      # los pasos de Node se saltan y el workflow queda en verde.
+      - name: Detectar si ya hay proyecto Node
+        id: check
+        run: |
+          if [ -f package.json ]; then
+            echo "node=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "node=false" >> "$GITHUB_OUTPUT"
+            echo "Todavía no hay package.json: se omiten lint y build."
+          fi
+
+      - name: Preparar Node
+        if: steps.check.outputs.node == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        if: steps.check.outputs.node == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.check.outputs.node == 'true'
+        run: npm run lint
+
+      - name: Formato
+        if: steps.check.outputs.node == 'true'
+        run: npx prettier --check .
+
+      - name: Build
+        if: steps.check.outputs.node == 'true'
+        run: npm run build
+
+  commits:
+    name: Mensajes de commit
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 5
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validar la convención de commits
+        run: |
+          npm install --no-save @commitlint/cli @commitlint/config-conventional
+          npx commitlint --from "${{ github.event.pull_request.base.sha }}" \
+                         --to "${{ github.event.pull_request.head.sha }}" --verbose

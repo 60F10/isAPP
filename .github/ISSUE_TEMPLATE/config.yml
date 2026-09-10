@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Backlog de ideas
+    url: https://github.com/60F10/isAPP/blob/main/docs/01_Backlog_Maestro_Ideas.md
+    about: Antes de abrir una idea nueva, mira si ya existe con su ID Ex-nn.

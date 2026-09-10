@@ -1,0 +1,70 @@
+name: Tarea
+description: Una unidad de trabajo con principio y fin, del tamaño de una sesión.
+title: '[tarea]: '
+labels: ['tarea']
+body:
+  - type: dropdown
+    id: modulo
+    attributes:
+      label: Módulo
+      options:
+        - auth
+        - core
+        - rules
+        - agenda
+        - training
+        - discipline
+        - lineup
+        - match
+        - sync
+        - review
+        - stats
+        - logging
+        - platform
+        - design
+        - db
+        - docs
+        - ci
+        - repo
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fase
+    attributes:
+      label: Fase
+      options:
+        - 'Fase 1 — Cimientos'
+        - 'Fase 2 — Meter datos'
+        - 'Fase 3 — Concurrencia'
+        - 'Fase 4 — Ver datos'
+        - 'Fase 5 — Capa visual'
+        - 'Fase 6 — Post-deadline'
+    validations:
+      required: true
+
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+      description: Qué tiene que ser cierto cuando esto esté hecho.
+    validations:
+      required: true
+
+  - type: textarea
+    id: hecho
+    attributes:
+      label: Definición de hecho
+      description: Criterios verificables, uno por línea.
+      placeholder: |
+        - [ ] La pantalla registra el evento en menos de 3 toques
+        - [ ] Sobrevive a una recarga
+        - [ ] Objetivos táctiles de 48 px con 8 px de separación
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependencias
+      description: Tareas, documentos o decisiones que tienen que estar cerradas antes.

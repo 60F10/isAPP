@@ -1,0 +1,26 @@
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+# 1. Nada de commits directos sobre main.
+if [ "$branch" = "main" ]; then
+  echo ""
+  echo "  X  Estas en main. Aqui no se hace commit."
+  echo "     Crea una rama de modulo:  git switch -c feat/match-mi-tarea"
+  echo ""
+  exit 1
+fi
+
+# 2. El nombre de la rama sigue la convencion  tipo/modulo-descripcion.
+patron='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)/(auth|core|rules|agenda|training|discipline|lineup|match|sync|review|stats|logging|platform|design|db|docs|deps|ci|repo)-[a-z0-9-]+$'
+
+if ! echo "$branch" | grep -Eq "$patron"; then
+  echo ""
+  echo "  X  Nombre de rama invalido: $branch"
+  echo "     Formato:  tipo/modulo-descripcion-en-minusculas"
+  echo "     Ejemplo:  feat/match-reloj-interno"
+  echo "     Renombrar:  git branch -m feat/match-reloj-interno"
+  echo ""
+  exit 1
+fi
+
+# 3. Lint y formato solo sobre lo que se va a commitear.
+npx --no -- lint-staged

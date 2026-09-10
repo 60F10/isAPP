@@ -1,0 +1,50 @@
+# Configuración de despliegue en Netlify.
+# Las variables de entorno (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) se
+# ponen en el panel de Netlify, nunca aquí.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Deploy preview por rama: cada rama tiene su URL para probar en el móvil.
+[context.deploy-preview]
+  command = "npm run build"
+
+[context.branch-deploy]
+  command = "npm run build"
+
+# La app es una SPA: cualquier ruta la resuelve el enrutador del cliente.
+# Sin esto, entrar directo a /partidos/12/directo devuelve 404.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# El service worker y el manifiesto nunca se cachean: si no, la PWA se queda
+# clavada en una versión vieja y el usuario no ve las correcciones.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Los assets con hash en el nombre sí se cachean a tope.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

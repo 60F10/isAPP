@@ -1,0 +1,21 @@
+# Normaliza los finales de línea. Sin esto, trabajar en Windows y desplegar
+# en Linux (Netlify) genera diffs fantasma de archivos enteros.
+* text=auto eol=lf
+
+# Los scripts de hooks y shell tienen que ser LF sí o sí.
+*.sh text eol=lf
+.husky/* text eol=lf
+
+# Binarios: que Git no toque nada.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# Los lockfiles no se revisan a mano ni cuentan en las estadísticas.
+package-lock.json linguist-generated=true -diff

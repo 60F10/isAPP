@@ -1,0 +1,71 @@
+name: Fallo
+description: Algo que no funciona como debería.
+title: '[fallo]: '
+labels: ['fallo']
+body:
+  - type: dropdown
+    id: modulo
+    attributes:
+      label: Módulo
+      options:
+        - auth
+        - core
+        - rules
+        - agenda
+        - training
+        - discipline
+        - lineup
+        - match
+        - sync
+        - review
+        - stats
+        - logging
+        - platform
+        - design
+        - db
+        - ci
+        - repo
+    validations:
+      required: true
+
+  - type: dropdown
+    id: gravedad
+    attributes:
+      label: Gravedad
+      options:
+        - 'Bloqueante — se pierden datos o el partido no se puede anotar'
+        - 'Alta — hay que rodearlo con un apaño'
+        - 'Media — molesta pero se convive'
+        - 'Baja — cosmético'
+    validations:
+      required: true
+
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo reproducirlo
+      placeholder: |
+        1. Entro en /partidos/12/directo
+        2. Registro un gol y bloqueo la pantalla
+        3. Al volver, el gol no está
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperaba que pasara
+    validations:
+      required: true
+
+  - type: input
+    id: entorno
+    attributes:
+      label: Dónde pasa
+      placeholder: 'Android 15, Chrome, instalada como PWA, con datos móviles'
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Traza o id de error_logs
+      render: text
