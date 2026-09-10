@@ -30,6 +30,24 @@ Definidos en `.claude/commands/`. Fijan modelo, esfuerzo y encuadre según el ti
 | `/duro`   | Arquitectura, modelo de datos, RLS, sincronización offline, bugs atascados | opus / xhigh      |
 | `/commit` | Redacta el mensaje de commit de lo que hay en el índice                    | sonnet / medium   |
 
+## Subagentes (`.claude/agents/`)
+
+Cada subagente corre en **su propia ventana de contexto**: hace el trabajo y devuelve solo el resultado. Lo que rastrea o escribe no entra en la sesión principal. Delega en ellos por defecto en vez de abrir veinte archivos aquí.
+
+| Agente          | Para qué                                                                                      | Modelo |
+| :-------------- | :-------------------------------------------------------------------------------------------- | :----- |
+| `explorador`    | Localizar archivos, funciones o patrones en el repositorio. Solo lectura                      | haiku  |
+| `implementador` | Ejecutar un cambio **ya especificado**: componente descrito, patrón repetido, datos de prueba | sonnet |
+| `revisor`       | Revisar el diff contra secretos, datos de menores, trazabilidad y WCAG antes del PR           | sonnet |
+
+Cuándo **no** delegar: decisiones de arquitectura, modelo de datos, RLS y sincronización se quedan en la sesión principal, donde está el contexto. El `implementador` para y pregunta si le falta un dato en vez de inventárselo; si te devuelve una pregunta, es que la tarea no estaba bien especificada.
+
+## Gemini
+
+`GEMINI.md` importa este archivo, así que el contexto es uno solo para los dos asistentes.
+
+Gemini va en **sesión aparte**, nunca en paralelo sobre la misma carpeta. Desde aquí solo tiene sentido llamarlo por Bash cuando entra mucho y sale poco (`cat error.log | gemini -p "resume los errores únicos"`) o cuando escribe un archivo que esta sesión no necesita leer. Para lo demás, un subagente sale más barato: mandarle a Gemini una especificación completa ya gasta la ventana que se pretendía ahorrar.
+
 ## Documentación viva
 
 Vive en `/docs`, es la única copia buena. **Léela antes de proponer arquitectura o escribir código.** Orden de lectura:
