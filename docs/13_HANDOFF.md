@@ -5,76 +5,175 @@
 
 ---
 
-## Sesión 11/09/2026 — Tarea: DOC 06, arquitectura frontend y convenciones
+## Sesión 11/09/2026 (noche) — Tarea: aplicar el esquema y montar la conexión con Supabase
 
-Sesión de chat con la carpeta conectada (modo B del DOC 00 §4.1). **No se tocó código: solo `/docs`.**
+Sesión de Cowork con la carpeta conectada, el conector de Supabase, el de Netlify y Chrome. **Sin acceso a terminal ni a Git en el equipo**, así que nada de lo escrito está commiteado: ver «Pendiente de la tarea».
 
 ### HECHO
 
-- **`docs/06_Arquitectura_Frontend.md` (nuevo, v1.0).** Fija estructura de carpetas, límites entre módulos, gestión de estado, cliente de Supabase, capa offline con su cola de sincronización, nomenclatura, manejo de errores, accesibilidad en el código, pruebas y variables de entorno. Veintiuna decisiones numeradas `D06-01` a `D06-21`, cada una con su alternativa descartada y el motivo. Se citan por su identificador desde los commits y desde el DOC 08.
-- **`docs/00_Indice_Documental_y_Herramientas.md` → v1.2.** DOC 06 a ✅; DOC 07 pasa a «desbloqueado, siguiente»; DOC 08 queda bloqueado solo por el 07; DOC 10 desbloqueado; DOC 13 marcado como vivo; la Fase 0 del orden de construcción actualizada.
-- **`docs/13_HANDOFF.md`** — este archivo, reescrito.
-- **Subidos al _Knowledge_** del proyecto de Claude: 00, 06 y 13.
-- **Deuda cerrada de la sesión anterior:** `oxlint` **sí** trae las reglas de `eslint-plugin-jsx-a11y` como plugin integrado, apagado por defecto. Se activa añadiendo `"jsx-a11y"` a `plugins` en `.oxlintrc.json` (DOC 06 §10.2). No hace falta volver a ESLint. La cobertura de reglas es parcial, así que la verificación manual del DOC 02 §5.3 sigue mandando.
+**Base de datos.**
+
+- **La migración inicial, aplicada** al proyecto GavetaStats (registrada como `20260911213846`). Entró entero y a la primera: 23 tablas, las 23 con RLS, 50 políticas, 5 vistas con `security_invoker`, 19 enumeraciones, 25 disparadores y el disparador sobre `auth.users`.
+- **Segunda migración de endurecimiento (nueva, registrada como `20260911214032`)**, escrita y aplicada a partir de lo que destapó el auditor de Supabase. Cuatro bloques, cada uno documentado en el propio archivo:
+  1. `search_path` fijo en `set_updated_at`, la única función que lo tenía variable.
+  2. **El agujero de verdad.** La migración inicial hacía `revoke all on all functions ... from anon` y no bastaba: PostgreSQL concede `EXECUTE` a `PUBLIC` al crear una función y `anon` lo hereda, así que revocar solo de `anon` no quita lo heredado. Cualquiera con la `anon key` —que va en el frontend por diseño— podía llamar a `rebuild_match_stints` y a `flag_duplicate_candidates` por `/rest/v1/rpc` **sin iniciar sesión**, y son `SECURITY DEFINER`: escriben saltándose la RLS. Ahora se revoca de `public` y de `anon`, y se concede solo a `authenticated`.
+  3. Las doce políticas que llamaban a `auth.uid()` por fila pasan a `(select auth.uid())`, que el planificador resuelve una vez por consulta. Importa sobre todo en `match_events`.
+  4. `audit_row()` rellena `club_id`. Lo dejaba nulo, y la política `audit_log_select` lo exige para que quien tiene `members.manage` lea la auditoría de su club: E9-02 se quedaba a medias.
+  5. Índices sobre las trece claves ajenas que sostienen un borrado en cascada o una consulta del día de partido. Las otras veintisiete que marcó el auditor son columnas `created_by` que nadie consulta; ver deuda.
+
+**Prueba de humo.** Se montó un club completo —temporada, dos equipos, dos jugadores, plantilla, competición, partido, dos partes, convocatoria, cambio, gol propio y gol rival—, se recalcularon los tramos y se leyeron las cinco vistas. Todo correcto y comprobado contra el DOC 04:
+
+- Alta de perfil automática desde los metadatos de Google al crear la cuenta.
+- `club_id` de `matches` derivado del equipo por el disparador.
+- Tramos: Chispa 0→1800 (`substitution`), Tanque 1800→2760 y 0→2820. Minutos: 30 y 63.
+- Marcador calculado 1-1, coincidente con el del acta.
+- `v_player_match_stats`, `v_player_season_stats` y `v_team_season_stats` cuadran.
+- Auditoría: siete filas, todas con `club_id`.
+
+Siete invariantes probados **en negativo**, y los siete bloquean: jugador no convocado (I-04), tipo de evento desactivado (R-09), parte inexistente (R-08), tramos solapados (I-03), `client_event_id` repetido (I-08), nombre real sin consentimiento (I-10) y segunda temporada en curso en el mismo club.
+
+Los datos de prueba se borraron. La base queda vacía salvo la fila `duplicate_window_seconds` de `app_settings`.
+
+**Tipos.**
+
+- **`src/types/database.types.ts` (nuevo, 1.959 líneas)**, generado desde el esquema aplicado.
+- **`.prettierignore`**: se añade ese archivo. Prettier lo reformatearía entero —3.538 líneas de diferencia comprobadas— y cada regeneración traería un diff falso de ese tamaño, además de romper `format:check` en CI. `oxlint` sí pasa limpio sobre él.
+- **`package.json`**: script `db:types`. Necesita `npm i -D supabase`, que todavía no está instalado (DOC 06 §2.3).
+
+**Configuración.**
+
+- **Supabase → Auth → URL Configuration.** Site URL a `https://gavetastats.netlify.app` (estaba en el `http://localhost:3000` por defecto). Tres URL de redirección: la de producción, `http://localhost:5173/**` para desarrollo y `https://*--gavetastats.netlify.app/**` para los deploy previews por rama que menciona el DOC 15 §2.
+- **Netlify → gavetastats → Environment variables.** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_APP_ENV=production`, todas en todos los ámbitos y contextos, ninguna marcada como secreta. **El conector de Netlify respondió «Environment variable upserted» tres veces sin guardar nada**; se detectó al verificar en el panel y se metieron a mano. No te fíes de ese conector sin comprobar.
 
 ### ESTADO DEL REPOSITORIO
 
-Sin cambios desde la sesión del 10/09. Se repite aquí porque es el estado real de partida de la próxima sesión:
+**Nada de esto está commiteado.** Lo que espera en el árbol de trabajo:
 
-- React 19 + Vite 8 + TypeScript 6 con la plantilla `react-ts`. **`src/` sigue siendo la plantilla de Vite**, sin código de la aplicación.
-- Herramientas completas: `oxlint`, Prettier, Husky (`pre-commit`, `commit-msg`, `pre-push`), commitlint, CI de GitHub, plantillas de PR y de _issue_, subagentes de `.claude/agents/` y el comando `/commit`.
-- Netlify conectado al repositorio. Sitio en `https://gavetastats.netlify.app`. **Sin variables de entorno todavía.**
-- Supabase: proyecto **GavetaStats** (West EU, Irlanda) dado de alta. El esquema está escrito y probado contra PostgreSQL en `supabase/migrations/0001_initial_schema.sql`, **sin aplicar al proyecto**.
-- Login con Google **sin configurar** en Google Cloud Console.
-- Documentación escrita: 00, 01, 02, 03, 04, 05, 06, 13, 14, 15. Faltan: 07, 08, 09, 10, 11, 12.
+| Archivo                                                           | Estado     |
+| :---------------------------------------------------------------- | :--------- |
+| `supabase/migrations/20260911213846_initial_schema.sql`           | Renombrado |
+| `supabase/migrations/20260911214032_hardening_rls_y_permisos.sql` | Nuevo      |
+| `src/types/database.types.ts`                                     | Nuevo      |
+| `package.json`                                                    | Modificado |
+| `.prettierignore`                                                 | Modificado |
+| `docs/05_Modelo_Datos_RLS.md`                                     | Modificado |
+| `docs/00_Indice_Documental_y_Herramientas.md`                     | Modificado |
+| `docs/13_HANDOFF.md`                                              | Modificado |
+
+El renombrado lo hace `git mv` en los comandos del final; los dos documentos salen ya corregidos de esta sesión.
+
+El resto del repositorio, sin cambios respecto a la sesión anterior: `src/` sigue siendo la plantilla de Vite, ninguna de las dependencias del DOC 06 §2.3 está instalada, y no existen `src/shared/lib/supabase.ts` ni `env.ts`.
+
+**No se crearon esos dos archivos a propósito.** Sin `@supabase/supabase-js` instalado, `tsc -b` falla, y con él el `pre-push` y el workflow de CI. Entran en la primera tarea de código, junto a las dependencias.
 
 ### PENDIENTE DE LA TAREA
 
-Del DOC 06, nada. Quedan dos arreglos de documentación que esta sesión destapó y que caen fuera del alcance:
+1. **Commit y merge.** Sin terminal en esta sesión. El equipo solo concede terminales en modo «clic», sin teclado, así que Git queda fuera de alcance. Comandos en el apartado final.
 
-1. **`CLAUDE.md`, apartado «Documentación viva», está desfasado.** Cita `docs/05_Modelo_Datos.md`, que no es el nombre real del archivo, y da los DOC 04, 05 y 06 por no escritos. Como lo lee cada sesión de Claude Code al arrancar, conviene corregirlo pronto y en su propio commit.
-2. **El DOC 14 sigue sin mencionar los subagentes.** Su apartado 6 reparte el trabajo solo entre Claude Code y el chat web. Viene de la sesión anterior.
+2. **`.env.local`.** No se pudo escribir: el puente con el equipo bloquea la escritura sobre archivos `.env` por política, y es una protección razonable. Hazlo tú:
+
+   ```powershell
+   cd D:\Documentos\Proyectos\ProyectoSASI\App
+   Copy-Item .env.example .env.local
+   ```
+
+   Y rellena:
+
+   ```
+   VITE_SUPABASE_URL=https://rsbahpngpkvafnhejjfj.supabase.co
+   VITE_SUPABASE_ANON_KEY=<la anon public del panel: Project Settings → API Keys>
+   ```
+
+3. **Login con Google, sin empezar.** Requiere crear el cliente de OAuth en Google Cloud Console con tu cuenta, y el _client secret_ no lo manejo yo. Pasos en el apartado final.
+
+4. **Cubos de Storage (`crests`, `docs`) sin crear.** DOC 05 §13. No bloquean nada hasta que haya escudos que subir.
+
+### AVISO DE SEGURIDAD
+
+Al abrir el panel del proveedor de Google en Supabase, **Chrome autorrellenó el formulario con credenciales guardadas**: el campo «Client IDs» con `GavetaStats` y el «Client Secret» con una contraseña. El gestor de contraseñas trata ese panel como un formulario de acceso. Se canceló sin guardar. Si se pulsa «Save» ahí, tu contraseña acaba escrita en la configuración del proveedor. Revisa esos dos campos cada vez que abras el panel.
 
 ### DEUDA TÉCNICA
 
-La del frontend vive en el **DOC 06 §13** y no se repite aquí. Lo que sigue abierto del repositorio:
+Nueva, de esta sesión:
 
-| Deuda                                                                            | Estado                                        |
-| :------------------------------------------------------------------------------- | :-------------------------------------------- |
-| La protección de `main` vive solo en los hooks locales, no en reglas de GitHub   | Abierta. Con un desarrollador basta           |
-| CI no es un _check_ obligatorio: se puede fusionar en rojo                       | Abierta. Disciplina, no garantía              |
-| `README.md` sigue siendo el genérico de Vite                                     | Abierta                                       |
-| Sin detección de secretos en CI, sin accesibilidad automatizada y sin Dependabot | Abierta                                       |
-| `.claude/settings.json` no existe                                                | Abierta                                       |
-| El DOC 14 no menciona los subagentes                                             | Abierta                                       |
-| El linter no cubre las reglas de accesibilidad de JSX                            | **Cerrada** en esta sesión (DOC 06 §10.2)     |
-| Sin estrategia de pruebas                                                        | **Cerrada** en esta sesión (DOC 06 §11)       |
-| Sin migraciones de Supabase versionadas                                          | **Cerrada**: `supabase/migrations/` ya existe |
+| Deuda                                                                                                                                                                  | Estado                                                                              |
+| :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- |
+| `btree_gist` instalado en el esquema `public` en vez de en `extensions`                                                                                                | Abierta. Moverlo obliga a tirar y rehacer la restricción de exclusión de los tramos |
+| Veintisiete claves ajenas siguen sin índice, casi todas columnas `created_by`                                                                                          | Abierta. Ninguna se consulta hoy                                                    |
+| Trece tablas con dos políticas permisivas para `SELECT`, porque las políticas `for all` también cubren la lectura                                                      | Abierta. Se paga separando `insert`/`update`/`delete`                               |
+| Se usa la `anon key` heredada (JWT) y no la clave publicable `sb_publishable_…`, que es la que Supabase recomienda para proyectos nuevos por su rotación independiente | Abierta. Se eligió la heredada por coincidir con el DOC 05 y el `.env.example`      |
+| Borrar un club falla mientras haya filas en `match_squad`: la cascada `clubs → players` choca con el `on delete restrict` de `match_squad.player_id`                   | Abierta. Protege el histórico, pero conviene saberlo                                |
 
-### SIGUIENTE TAREA SUGERIDA
-
-**DOC 07 — Sistema de diseño y tokens.** Rama `docs/design-sistema-de-diseno`. El DOC 06 ya fija dónde viven los tokens (`src/styles/tokens.css`), cómo se inyecta `--color-team` y que cada componente lleva su CSS Module, así que el 07 arranca con el terreno preparado.
-
-Antes conviene cerrar el **bloque F del DOC 03**: confirmar o descartar «GavetaStats» como nombre de la aplicación (F1). El logo y la paleta base cuelgan de esa decisión, y el proyecto de Supabase y el sitio de Netlify ya se llaman así.
-
-Si prefieres volver al código en vez de seguir documentando, la tarea de la Fase 1 sigue siendo la misma y no depende de nada de esto: **PWA y metadatos de la aplicación**, rama `feat/platform-pwa-y-metadatos`.
+La del repositorio sigue igual que en la sesión anterior, más las dos correcciones de documentación que aquella dejó abiertas: **`CLAUDE.md` cita `docs/05_Modelo_Datos.md`, que no es el nombre real**, y **el DOC 14 no menciona los subagentes**.
 
 ### DECISIONES TOMADAS
 
-Las veintiuna del DOC 06, con su alternativa descartada, en el propio documento. Las cuatro que respondió Raúl en la sesión y que gobiernan el resto:
+**Las migraciones se nombran con marca de tiempo, no con número correlativo.** Se aplicaron por el conector, que las registró como `20260911213846` y `20260911214032`, mientras que los archivos se llamaban `0001_` y `0002_`. El CLI de Supabase deriva la versión del prefijo del nombre, así que un `supabase db push` las habría dado por aplicar y habría intentado repetirlas.
 
-- **React Router + TanStack Query** como enrutador y única caché de lectura.
-- **CSS Modules + variables CSS** para los estilos. Condiciona el DOC 07.
-- **Dexie** sobre IndexedDB para el almacén local y la cola de salida.
-- **Vitest + Testing Library desde la primera tarea de código**, con el alcance acotado en el DOC 06 §11 para que no se coma la ruta crítica.
+Se renombran los archivos a las versiones reales. Es la convención del propio CLI —`supabase migration new` pone la marca de tiempo sola—, deja `db push` funcionando de serie y evita tener que acordarse de `supabase migration repair` en cada entorno nuevo. Se descartó dejar los nombres y reparar el historial: respeta el documento, pero mete un paso manual que algún día se olvidará.
 
-Ninguna decisión cerrada del DOC 03 se reabrió. El bloque H sigue intacto.
+Consecuencia: **el DOC 05 §14 y el DOC 00 quedaban desfasados y se han corregido en esta misma sesión.** El §14 pasa a explicar la convención, a listar las dos migraciones con su versión y a recoger, en un §14.1 nuevo, qué corrigió el endurecimiento y la regla que deja: revocar de una función se hace siempre de `public` además de `anon`.
 
-### COMANDOS PARA VERIFICAR
+**Sobre el ámbito del commit.** La rama toca `db` y `docs`, y el DOC 15 §2 pide una rama por módulo. Aquí es una sola tarea: los documentos corregidos son los que nombran los archivos que se acaban de renombrar, no un trabajo de documentación aparte. Van en la misma rama, en su propio commit, y el título del pull request manda con ámbito `db`.
+
+### SIGUIENTE TAREA SUGERIDA
+
+Con el esquema aplicado y los tipos generados, la Fase 1 está desbloqueada. En orden:
+
+1. **Cerrar esta tarea**: commit, merge y `.env.local`.
+2. **Login con Google**, rama `feat/auth-login-google`. Es lo que falta para que la aplicación pueda tener sesión, y todo lo demás cuelga de ahí.
+3. **PWA y metadatos**, rama `feat/platform-pwa-y-metadatos`, que sigue siendo la primera tarea de código del DOC 06 y no depende de nada de esto.
+
+El **DOC 07** (sistema de diseño) sigue bloqueado por el bloque F del DOC 03: confirmar «GavetaStats» como nombre. A estas alturas el proyecto de Supabase, el sitio de Netlify, las variables de entorno y la Site URL se llaman todos así; cambiarlo ahora ya cuesta.
+
+### COMANDOS PARA CERRAR LA TAREA
 
 ```powershell
 cd D:\Documentos\Proyectos\ProyectoSASI\App
 
-npm run format:check     # los tres documentos ya pasan Prettier
-git status               # solo docs/00, docs/06 y docs/13
+git switch main
+git pull
+git switch -c feat/db-aplicar-esquema-inicial
+
+# 1 · Renombrar las migraciones a su versión real
+git mv supabase/migrations/0001_initial_schema.sql `
+       supabase/migrations/20260911213846_initial_schema.sql
+git mv supabase/migrations/0002_hardening_rls_y_permisos.sql `
+       supabase/migrations/20260911214032_hardening_rls_y_permisos.sql
+
+# 2 · El esquema y los tipos
+git add supabase/migrations src/types/database.types.ts package.json .prettierignore
+git commit -m "feat(db): apply initial schema and harden rls on supabase"
+
+# 3 · Los documentos que describen lo anterior
+git add docs/05_Modelo_Datos_RLS.md docs/00_Indice_Documental_y_Herramientas.md docs/13_HANDOFF.md
+git commit -m "docs(db): align migration naming and record hardening in doc 05"
+
+npm run format:check    # debe pasar: database.types.ts va ignorado
+git push -u origin feat/db-aplicar-esquema-inicial
 ```
+
+Pull request en GitHub con el mismo título que el commit, CI en verde, squash merge, y la rama se borra sola (DOC 15 §4).
+
+### PASOS DEL LOGIN CON GOOGLE
+
+En **Google Cloud Console**, con tu cuenta:
+
+1. Crea un proyecto, o reutiliza uno.
+2. **APIs y servicios → Pantalla de consentimiento de OAuth.** Tipo **Externo**. Nombre de la aplicación, correo de asistencia y correo de contacto. Ámbitos: los tres básicos (`userinfo.email`, `userinfo.profile`, `openid`) y ninguno más — la aplicación no necesita nada del usuario salvo nombre, correo y avatar.
+3. Mientras esté en modo de prueba, añade tu correo y el de Isaac como usuarios de prueba. Publicarla puede esperar.
+4. **Credenciales → Crear credenciales → ID de cliente de OAuth → Aplicación web.**
+   - Orígenes autorizados de JavaScript: `https://gavetastats.netlify.app` y `http://localhost:5173`
+   - URI de redirección autorizado, exactamente este:
+     ```
+     https://rsbahpngpkvafnhejjfj.supabase.co/auth/v1/callback
+     ```
+5. Copia el **Client ID** y el **Client Secret**.
+
+En **Supabase → Authentication → Sign In / Providers → Google**:
+
+6. **Vacía primero los dos campos**: Chrome los autorrellena con tus credenciales (ver el aviso de seguridad).
+7. Pega el Client ID en «Client IDs» y el secreto en «Client Secret».
+8. Activa «Enable Sign in with Google» y guarda.
+
+La Site URL y las URL de redirección ya están puestas, así que no hay nada más que tocar en Supabase.
