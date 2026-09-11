@@ -3,7 +3,7 @@
 > **Versión:** 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
-> **Anexo:** `supabase/migrations/0001_initial_schema.sql` — guion completo de creación, listo para pegar en el editor SQL de Supabase
+> **Anexo:** `supabase/migrations/20260911213846_initial_schema.sql` — guion completo de creación, aplicado al proyecto el 11/09/2026
 
 ---
 
@@ -568,7 +568,24 @@ Dos cubos de Storage, ambos privados:
 
 Todo cambio de esquema entra como archivo de migración numerado en `supabase/migrations`, nunca escribiendo a mano en el panel de Supabase. El panel sirve para mirar, no para cambiar: lo que se toca ahí no queda en Git y se pierde al recrear el entorno.
 
-El anexo `05a_schema.sql` es la migración inicial. Va como `0001_initial_schema.sql`.
+**Nombres de archivo: marca de tiempo, no número correlativo.** El CLI de Supabase deriva la versión de la migración del prefijo del nombre, y el historial remoto guarda esa misma versión. Si los dos no coinciden, `supabase db push` da por aplicar migraciones que ya están dentro e intenta repetirlas.
+
+| Archivo                                       | Versión registrada | Qué hace                                              |
+| :-------------------------------------------- | :----------------- | :---------------------------------------------------- |
+| `20260911213846_initial_schema.sql`           | `20260911213846`   | Esquema inicial: el anexo de este documento           |
+| `20260911214032_hardening_rls_y_permisos.sql` | `20260911214032`   | Endurecimiento tras el primer auditor (ver más abajo) |
+
+Ambas están aplicadas al proyecto GavetaStats desde el 11/09/2026.
+
+Las migraciones siguientes las crea el propio CLI con `supabase migration new <nombre>`, que pone la marca de tiempo sola. **Nunca renombres una migración ya aplicada**: el historial remoto dejaría de encontrarla.
+
+### 14.1 Qué corrigió el endurecimiento
+
+El auditor de Supabase destapó tres cosas al aplicar el esquema inicial, y una era un agujero:
+
+- **Las funciones del proyecto eran ejecutables sin sesión.** El `revoke all on all functions ... from anon` del esquema inicial no bastaba: PostgreSQL concede `EXECUTE` a `PUBLIC` al crear cada función y `anon` lo hereda, así que revocar solo de `anon` no quita lo heredado. Cualquiera con la `anon key` podía llamar a `rebuild_match_stints` y a `flag_duplicate_candidates` por `/rest/v1/rpc` sin iniciar sesión, y las dos son `SECURITY DEFINER`: escriben saltándose la RLS. **Regla que deja: revocar de una función se hace siempre de `public` además de `anon`.**
+- **`auth.uid()` se evaluaba por fila** en doce políticas. Envuelto en `(select auth.uid())` pasa a ser un InitPlan que el planificador resuelve una vez por consulta. En `match_events`, que es la tabla que crece, la diferencia se nota en la pantalla de directo.
+- **`audit_row()` dejaba `club_id` nulo**, y la política `audit_log_select` lo exige para que quien tiene `members.manage` lea la auditoría de su club. Ahora el club se deduce de la fila auditada, del partido o del equipo, según la tabla.
 
 ---
 

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "prepare": "husky",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:types": "supabase gen types typescript --project-id rsbahpngpkvafnhejjfj > src/types/database.types.ts"
   },
   "dependencies": {
     "react": "^19.2.8",
