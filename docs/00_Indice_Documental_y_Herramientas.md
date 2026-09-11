@@ -3,7 +3,7 @@
 > **Proyecto:** App de gestión y estadísticas de fútbol base (nombre sin decidir → ver DOC 12)
 > **Deadline MVP:** 25 de octubre de 2026 (inicio de liga). Amistosos antes como banco de pruebas.
 > **Presupuesto:** 0 € extra sobre las suscripciones ya contratadas.
-> **Versión:** 1.0 — 08/09/2026
+> **Versión:** 1.1 — 11/09/2026 (DOC 04 y DOC 05 entregados)
 
 ---
 
@@ -33,24 +33,24 @@ Estas cinco reglas mandan sobre cualquier decisión posterior. Si un documento l
 
 ### 3.1 Estado actual
 
-| Código | Documento                             | Qué contiene                                                                                      | Estado                                                |
-| :----- | :------------------------------------ | :------------------------------------------------------------------------------------------------ | :---------------------------------------------------- |
-| **00** | Índice documental y herramientas      | Este archivo. Mapa de docs, tooling y método de sesiones                                          | ✅ v1.0                                               |
-| **01** | Backlog maestro de ideas              | Todas las ideas (tuyas y de Gemini) con ID, origen, módulo y fase                                 | ✅ v1.0                                               |
-| **02** | Pantallas, navegación y accesibilidad | Inventario de pantallas, árbol de rutas, patrones de navegación y criterios WCAG                  | ✅ v1.0                                               |
-| **03** | Decisiones pendientes                 | Preguntas que bloquean los documentos siguientes                                                  | ✅ v1.0                                               |
-| **04** | Reglas de negocio y glosario          | Reglamento configurable, cálculo de minutos, casos límite, estados de evento                      | ⏳ Bloqueado por 03                                   |
-| **05** | Modelo de datos y políticas RLS       | Tablas, relaciones, índices, trazabilidad y seguridad a nivel de fila                             | ⏳ Bloqueado por 04                                   |
-| **06** | Arquitectura frontend y convenciones  | Estructura de carpetas, gestión de estado, capa offline, nomenclatura                             | ⏳ Bloqueado por 02 + 05                              |
-| **07** | Sistema de diseño y tokens            | Variables CSS, escala tipográfica, color de equipo inyectable, componentes base                   | ⏳ Bloqueado por 02                                   |
-| **08** | `TAREAS.md` — plan de tareas          | Lista atómica de tareas con ID, dependencia, estimación y estado                                  | ⏳ Bloqueado por 04–07                                |
-| **09** | Observabilidad y registro de errores  | Tabla `error_logs`, Error Boundary global, qué se captura y qué no                                | ⏳ Bloqueado por 05                                   |
-| **10** | Entornos y despliegue                 | Variables de entorno, deploy previews, checklist de release. El modelo de ramas ya vive en DOC 15 | ⏳ Bloqueado por 06                                   |
-| **11** | RGPD y política de datos              | Base legal, minimización, entidades `Player` sin datos sensibles, retención                       | ⏳ Bloqueado por 04                                   |
-| **12** | Identidad corporativa                 | Nombre, logo SVG, paleta base                                                                     | ⏳ No bloqueante. Se puede hacer en cualquier momento |
-| **13** | `HANDOFF.md` — traspaso vivo          | Estado real del desarrollo al cerrar cada sesión                                                  | ⏳ Nace con la primera tarea de código                |
-| **14** | Guía de arranque de Claude Code       | Instalación en Windows, `CLAUDE.md`, método de trabajo y reparto con el chat web                  | ✅ v1.0                                               |
-| **15** | Convenciones de Git                   | Ramas por módulo, commits por tarea, pull requests y qué hace cumplir cada hook                   | ✅ v1.0                                               |
+| Código | Documento                             | Qué contiene                                                                                                                            | Estado                                                |
+| :----- | :------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
+| **00** | Índice documental y herramientas      | Este archivo. Mapa de docs, tooling y método de sesiones                                                                                | ✅ v1.0                                               |
+| **01** | Backlog maestro de ideas              | Todas las ideas (tuyas y de Gemini) con ID, origen, módulo y fase                                                                       | ✅ v1.0                                               |
+| **02** | Pantallas, navegación y accesibilidad | Inventario de pantallas, árbol de rutas, patrones de navegación y criterios WCAG                                                        | ✅ v1.0                                               |
+| **03** | Decisiones pendientes                 | Preguntas que bloquean los documentos siguientes                                                                                        | ✅ v1.0                                               |
+| **04** | Reglas de negocio y glosario          | Reglamento configurable, cálculo de minutos, casos límite, estados de evento                                                            | ✅ v1.0                                               |
+| **05** | Modelo de datos y políticas RLS       | Tablas, relaciones, índices, trazabilidad y seguridad a nivel de fila. El esquema vive en `supabase/migrations/0001_initial_schema.sql` | ✅ v1.0                                               |
+| **06** | Arquitectura frontend y convenciones  | Estructura de carpetas, gestión de estado, capa offline, nomenclatura                                                                   | ⏳ **Desbloqueado. Siguiente**                        |
+| **07** | Sistema de diseño y tokens            | Variables CSS, escala tipográfica, color de equipo inyectable, componentes base                                                         | ⏳ Bloqueado por 02                                   |
+| **08** | `TAREAS.md` — plan de tareas          | Lista atómica de tareas con ID, dependencia, estimación y estado                                                                        | ⏳ Bloqueado por 06 y 07                              |
+| **09** | Observabilidad y registro de errores  | Tabla `error_logs`, Error Boundary global, qué se captura y qué no                                                                      | ⏳ Desbloqueado. La tabla ya existe en el DOC 05      |
+| **10** | Entornos y despliegue                 | Variables de entorno, deploy previews, checklist de release. El modelo de ramas ya vive en DOC 15                                       | ⏳ Bloqueado por 06                                   |
+| **11** | RGPD y política de datos              | Base legal, minimización, entidades `Player` sin datos sensibles, retención                                                             | ⏳ Desbloqueado                                       |
+| **12** | Identidad corporativa                 | Nombre, logo SVG, paleta base                                                                                                           | ⏳ No bloqueante. Se puede hacer en cualquier momento |
+| **13** | `HANDOFF.md` — traspaso vivo          | Estado real del desarrollo al cerrar cada sesión                                                                                        | ⏳ Nace con la primera tarea de código                |
+| **14** | Guía de arranque de Claude Code       | Instalación en Windows, `CLAUDE.md`, método de trabajo y reparto con el chat web                                                        | ✅ v1.0                                               |
+| **15** | Convenciones de Git                   | Ramas por módulo, commits por tarea, pull requests y qué hace cumplir cada hook                                                         | ✅ v1.0                                               |
 
 ### 3.2 Dónde vive cada documento
 
@@ -92,15 +92,15 @@ Claves de Supabase (`service_role`), secretos de OAuth de Google, tokens de Netl
 
 ### 4.4 Servicios externos a dar de alta
 
-| Servicio                 | Para qué                                                    | Coste             | Ojo con                                                                                                   |
-| :----------------------- | :---------------------------------------------------------- | :---------------- | :-------------------------------------------------------------------------------------------------------- |
-| **GitHub**               | Repositorio y despliegue continuo                           | Gratis            | Decide público o privado antes del primer commit                                                          |
-| **Netlify**              | Hosting del frontend, variables de entorno, deploy previews | Gratis            | El _deploy preview_ de cada rama sirve para probar en el móvil sin tocar producción                       |
-| **Supabase**             | PostgreSQL, autenticación, RLS, Storage, Edge Functions     | Gratis            | El plan gratuito pausa proyectos tras inactividad prolongada. Con uso semanal real no es problema         |
-| **Google Cloud Console** | Cliente OAuth para el login con Google                      | Gratis            | Paso que se olvida siempre. Hay que registrar los _redirect URI_ de Supabase, de Netlify y de `localhost` |
-| **Node.js LTS + npm**    | Entorno de desarrollo local                                 | Gratis            | —                                                                                                         |
-| **VS Code + Git**        | Editor y control de versiones                               | Gratis            | —                                                                                                         |
-| **Dominio propio**       | `loquesea.app` en vez del subdominio de Netlify             | **≈ 10–15 €/año** | Única partida que rompe el 0 €. El subdominio de Netlify funciona igual de bien para el MVP               |
+| Servicio                 | Para qué                                                    | Coste             | Ojo con                                                                                                                                                             |
+| :----------------------- | :---------------------------------------------------------- | :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **GitHub**               | Repositorio y despliegue continuo                           | Gratis            | Decide público o privado antes del primer commit                                                                                                                    |
+| **Netlify**              | Hosting del frontend, variables de entorno, deploy previews | Gratis            | El _deploy preview_ de cada rama sirve para probar en el móvil sin tocar producción                                                                                 |
+| **Supabase** ✅          | PostgreSQL, autenticación, RLS, Storage, Edge Functions     | Gratis            | Dado de alta: proyecto **GavetaStats**, región West EU (Irlanda). El plan gratuito pausa proyectos tras inactividad prolongada; con uso semanal real no es problema |
+| **Google Cloud Console** | Cliente OAuth para el login con Google                      | Gratis            | Paso que se olvida siempre. Hay que registrar los _redirect URI_ de Supabase, de Netlify y de `localhost`                                                           |
+| **Node.js LTS + npm**    | Entorno de desarrollo local                                 | Gratis            | —                                                                                                                                                                   |
+| **VS Code + Git**        | Editor y control de versiones                               | Gratis            | —                                                                                                                                                                   |
+| **Dominio propio**       | `loquesea.app` en vez del subdominio de Netlify             | **≈ 10–15 €/año** | Única partida que rompe el 0 €. El subdominio de Netlify funciona igual de bien para el MVP                                                                         |
 
 ### 4.5 Herramientas de apoyo
 
@@ -170,7 +170,7 @@ Una tarea se considera terminada cuando cumple las cinco condiciones:
 ## 7. Orden de construcción
 
 ```
-FASE 0 · Documentación        DOC 00→03 (hoy) → DOC 04→08
+FASE 0 · Documentación        DOC 00→05 hechos → pendientes DOC 06, 07 y 08
 FASE 1 · Cimientos            Repo + Vite/PWA + Supabase + login Google + error_logs
 FASE 2 · Meter datos (P1)     Club → Equipo → Jugadores → Competición → Calendario
                               → Convocatoria → PARTIDO EN DIRECTO → Post-partido
