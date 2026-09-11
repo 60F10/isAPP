@@ -7,7 +7,7 @@
 
 ## Sesión 11/09/2026 (noche) — Tarea: aplicar el esquema y montar la conexión con Supabase
 
-Sesión de Cowork con la carpeta conectada, el conector de Supabase, el de Netlify y Chrome. **Sin acceso a terminal ni a Git en el equipo**, así que nada de lo escrito está commiteado: ver «Pendiente de la tarea».
+Sesión de Cowork con la carpeta conectada, el conector de Supabase, el de Netlify y Chrome. **Sin acceso a terminal ni a Git en el equipo**, así que el commit lo lanza Raúl a mano: ver «Pendiente de la tarea».
 
 ### HECHO
 
@@ -84,7 +84,7 @@ El resto del repositorio, sin cambios respecto a la sesión anterior: `src/` sig
    VITE_SUPABASE_ANON_KEY=<la anon public del panel: Project Settings → API Keys>
    ```
 
-3. **Login con Google, sin empezar.** Requiere crear el cliente de OAuth en Google Cloud Console con tu cuenta, y el _client secret_ no lo manejo yo. Pasos en el apartado final.
+3. ~~Login con Google~~ — **terminado y probado de punta a punta.** Cliente de OAuth creado en un proyecto propio de Google Cloud (`gavetastats`), proveedor activado en Supabase y login real completado: `auth.users` y `profiles` creados, `display_name` y `avatar_url` rellenos por el disparador `handle_new_user`. Raúl queda con `is_platform_admin = true`. Toda la configuración, sin el secreto, en el **DOC 10 §4**.
 
 4. **Cubos de Storage (`crests`, `docs`) sin crear.** DOC 05 §13. No bloquean nada hasta que haya escudos que subir.
 
@@ -155,7 +155,13 @@ git push -u origin feat/db-aplicar-esquema-inicial
 
 Pull request en GitHub con el mismo título que el commit, CI en verde, squash merge, y la rama se borra sola (DOC 15 §4).
 
-### PASOS DEL LOGIN CON GOOGLE
+### DOC 10 NUEVO
+
+Se abre **`docs/10_Entornos_y_Despliegue.md` v0.1, parcial a propósito**. Registra el inventario de servicios, dónde vive cada variable de entorno, dónde vive cada secreto y dónde no, toda la configuración de la autenticación y una lista de comprobación de entorno. Lo que falta —deploy previews, checklist de publicación, vuelta atrás— está listado en su §7. El DOC 00 pasa el 10 a 🚧.
+
+Ahí queda también anotado que el dominio feo de la pantalla de Google solo se arregla con el add-on de Custom Domains, unos 10 $/mes más el plan Pro: fuera del presupuesto de 0 €, y por tanto asumido.
+
+### PASOS DEL LOGIN CON GOOGLE (hechos, se dejan como referencia)
 
 En **Google Cloud Console**, con tu cuenta:
 
