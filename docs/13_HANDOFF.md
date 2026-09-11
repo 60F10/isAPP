@@ -5,80 +5,76 @@
 
 ---
 
-## Sesión 10/09/2026 — Tarea: montaje del repositorio y andamiaje (Fase 1, parcial)
+## Sesión 11/09/2026 — Tarea: DOC 06, arquitectura frontend y convenciones
+
+Sesión de chat con la carpeta conectada (modo B del DOC 00 §4.1). **No se tocó código: solo `/docs`.**
 
 ### HECHO
 
-**Repositorio enlazado** con `https://github.com/60F10/isAPP` (privado, `main` por defecto, licencia MIT). Tres pull requests fusionados con squash, CI en verde en todos.
+- **`docs/06_Arquitectura_Frontend.md` (nuevo, v1.0).** Fija estructura de carpetas, límites entre módulos, gestión de estado, cliente de Supabase, capa offline con su cola de sincronización, nomenclatura, manejo de errores, accesibilidad en el código, pruebas y variables de entorno. Veintiuna decisiones numeradas `D06-01` a `D06-21`, cada una con su alternativa descartada y el motivo. Se citan por su identificador desde los commits y desde el DOC 08.
+- **`docs/00_Indice_Documental_y_Herramientas.md` → v1.2.** DOC 06 a ✅; DOC 07 pasa a «desbloqueado, siguiente»; DOC 08 queda bloqueado solo por el 07; DOC 10 desbloqueado; DOC 13 marcado como vivo; la Fase 0 del orden de construcción actualizada.
+- **`docs/13_HANDOFF.md`** — este archivo, reescrito.
+- **Subidos al _Knowledge_** del proyecto de Claude: 00, 06 y 13.
+- **Deuda cerrada de la sesión anterior:** `oxlint` **sí** trae las reglas de `eslint-plugin-jsx-a11y` como plugin integrado, apagado por defecto. Se activa añadiendo `"jsx-a11y"` a `plugins` en `.oxlintrc.json` (DOC 06 §10.2). No hace falta volver a ESLint. La cobertura de reglas es parcial, así que la verificación manual del DOC 02 §5.3 sigue mandando.
 
-- **Convención de Git** — `docs/15_Convenciones_Git.md` (nuevo): Conventional Commits con asunto en inglés y ámbito obligatorio, ramas `tipo/modulo-descripcion`, un commit por tarea, squash merge.
-- **Hooks que la aplican** — `.husky/pre-commit` (bloquea `main`, valida el nombre de rama, pasa `lint-staged`), `.husky/commit-msg` (commitlint), `.husky/pre-push` (bloquea el push a `main`). Configuración en `commitlint.config.mjs` y `.lintstagedrc.json`.
-- **Higiene del repositorio** — `.gitignore`, `.gitattributes` (LF), `.editorconfig`, `.env.example`, `.nvmrc` (Node 22), `.prettierrc.json`, `.prettierignore`.
-- **CI** — `.github/workflows/ci.yml`: job `Lint y build` (`npm ci`, `oxlint`, `prettier --check`, `tsc -b && vite build`) en cada push y PR, y job `Mensajes de commit` (commitlint sobre la rama) en cada PR. Acciones en v5.
-- **Plantillas** — `.github/pull_request_template.md` con la lista de comprobación del proyecto (accesibilidad, datos de menores, trazabilidad, secretos) y `.github/ISSUE_TEMPLATE/` con `tarea.yml` y `fallo.yml`.
-- **Andamiaje** — React 19 + Vite 8 + TypeScript 6, plantilla `react-ts`. Scripts: `dev`, `build`, `preview`, `lint`, `format`, `format:check`.
-- **Despliegue** — Netlify conectado por su GitHub App al repositorio. Sitio `gavetastats` en `https://gavetastats.netlify.app`. `netlify.toml` con build, redirección de SPA y cabeceras de caché de la PWA. **Sin variables de entorno todavía**: no hay proyecto de Supabase.
-- **Subagentes** — `.claude/agents/`: `explorador` (haiku, solo lectura), `implementador` (sonnet, ejecuta lo ya especificado y pregunta si le falta un dato), `revisor` (sonnet, revisa el diff contra las reglas no negociables).
-- **Comando** — `.claude/commands/commit.md` (`/commit`): redacta el mensaje del índice según la convención.
-- **`CLAUDE.md`** actualizado: estado real, comandos reales, apartado de Git, tabla de configuración del repositorio, subagentes y reparto con Gemini.
-- **`GEMINI.md`** (nuevo): importa `CLAUDE.md` con `@CLAUDE.md`, sin duplicar contexto.
-- **Formato** — Prettier aplicado a todo el markdown existente en un commit aparte. Los docs 00, 01, 02, 03 y 14 se resubieron al _Knowledge_ del proyecto de Claude ya reformateados.
+### ESTADO DEL REPOSITORIO
+
+Sin cambios desde la sesión del 10/09. Se repite aquí porque es el estado real de partida de la próxima sesión:
+
+- React 19 + Vite 8 + TypeScript 6 con la plantilla `react-ts`. **`src/` sigue siendo la plantilla de Vite**, sin código de la aplicación.
+- Herramientas completas: `oxlint`, Prettier, Husky (`pre-commit`, `commit-msg`, `pre-push`), commitlint, CI de GitHub, plantillas de PR y de _issue_, subagentes de `.claude/agents/` y el comando `/commit`.
+- Netlify conectado al repositorio. Sitio en `https://gavetastats.netlify.app`. **Sin variables de entorno todavía.**
+- Supabase: proyecto **GavetaStats** (West EU, Irlanda) dado de alta. El esquema está escrito y probado contra PostgreSQL en `supabase/migrations/0001_initial_schema.sql`, **sin aplicar al proyecto**.
+- Login con Google **sin configurar** en Google Cloud Console.
+- Documentación escrita: 00, 01, 02, 03, 04, 05, 06, 13, 14, 15. Faltan: 07, 08, 09, 10, 11, 12.
 
 ### PENDIENTE DE LA TAREA
 
-La Fase 1 **no está cerrada**. Falta todo esto, y en este orden:
+Del DOC 06, nada. Quedan dos arreglos de documentación que esta sesión destapó y que caen fuera del alcance:
 
-1. **`vite-plugin-pwa` y metadatos de la app.** `index.html` sigue con `<title>scaffold</title>`, `lang="en"` y el favicon de Vite. Título, idioma, `theme-color`, descripción, icono y manifiesto van juntos en esta tarea. **No depende de Supabase: es la primera tarea de mañana.**
-2. **Proyecto de Supabase.** Hay que crearlo a mano (cuenta y organización). Sin él no hay cliente, ni login, ni `error_logs`.
-3. **Cliente de Supabase** en el frontend, leyendo `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` de `.env.local`, y las mismas variables en el panel de Netlify.
-4. **Login con Google.**
-5. **Tabla `error_logs`** y Error Boundary global (DOC 09, sin escribir).
+1. **`CLAUDE.md`, apartado «Documentación viva», está desfasado.** Cita `docs/05_Modelo_Datos.md`, que no es el nombre real del archivo, y da los DOC 04, 05 y 06 por no escritos. Como lo lee cada sesión de Claude Code al arrancar, conviene corregirlo pronto y en su propio commit.
+2. **El DOC 14 sigue sin mencionar los subagentes.** Su apartado 6 reparte el trabajo solo entre Claude Code y el chat web. Viene de la sesión anterior.
 
-**Bloqueo documental:** los documentos **04, 05, 06, 07 y 08 no existen**. No hay modelo de datos ni lista de tareas atómicas, así que no se puede «hacer la tarea 1» del DOC 08 porque el DOC 08 está vacío. La tarea 1 de arriba se puede especificar sola; de la 3 en adelante hace falta el DOC 05.
+### DEUDA TÉCNICA
 
-### DEUDA TÉCNICA GENERADA
+La del frontend vive en el **DOC 06 §13** y no se repite aquí. Lo que sigue abierto del repositorio:
 
-- **La protección de `main` vive solo en los hooks locales.** Los rulesets de GitHub no se aplican en repositorio privado con cuenta personal gratuita. Quien clone tiene que ejecutar `npm install` para que los hooks se activen. Con un desarrollador basta; con dos, no.
-- **CI no es un check obligatorio.** Se puede fusionar en rojo. Disciplina, no garantía.
-- **El linter es `oxlint`, no ESLint.** Es lo que trae la plantilla de Vite. Hay que comprobar si cubre las reglas de accesibilidad de JSX que exige el principio P5; `eslint-plugin-jsx-a11y` no tiene equivalente directo. **Decisión pendiente antes de construir la primera pantalla.**
-- **`README.md` es el genérico de Vite.** Hay que escribir uno real.
-- **Sin estrategia de pruebas.** Vitest y Testing Library son lo natural con Vite, pero no está decidido.
-- **Sin migraciones de Supabase versionadas.** En cuanto exista el proyecto, el esquema y las RLS tienen que vivir en `supabase/migrations/` dentro del repositorio, o no serán reproducibles ni revisables en un PR.
-- **Sin detección de secretos en CI**, sin accesibilidad automatizada (axe o Lighthouse) y sin Dependabot.
-- **El DOC 14 no menciona los subagentes.** Su apartado 6 reparte el trabajo solo entre Claude Code y el chat web.
-- **`.claude/settings.json` no existe.** Permitir `git status`/`diff`/`log` sin preguntar y denegar `git push` quitaría fricción y cerraría una puerta.
+| Deuda                                                                            | Estado                                        |
+| :------------------------------------------------------------------------------- | :-------------------------------------------- |
+| La protección de `main` vive solo en los hooks locales, no en reglas de GitHub   | Abierta. Con un desarrollador basta           |
+| CI no es un _check_ obligatorio: se puede fusionar en rojo                       | Abierta. Disciplina, no garantía              |
+| `README.md` sigue siendo el genérico de Vite                                     | Abierta                                       |
+| Sin detección de secretos en CI, sin accesibilidad automatizada y sin Dependabot | Abierta                                       |
+| `.claude/settings.json` no existe                                                | Abierta                                       |
+| El DOC 14 no menciona los subagentes                                             | Abierta                                       |
+| El linter no cubre las reglas de accesibilidad de JSX                            | **Cerrada** en esta sesión (DOC 06 §10.2)     |
+| Sin estrategia de pruebas                                                        | **Cerrada** en esta sesión (DOC 06 §11)       |
+| Sin migraciones de Supabase versionadas                                          | **Cerrada**: `supabase/migrations/` ya existe |
 
 ### SIGUIENTE TAREA SUGERIDA
 
-**PWA y metadatos de la aplicación**: instalar y configurar `vite-plugin-pwa`, escribir el manifiesto y corregir `index.html` (título, `lang="es"`, `theme-color`, descripción, icono). Rama `feat/platform-pwa-y-metadatos`. No necesita Supabase ni el DOC 05.
+**DOC 07 — Sistema de diseño y tokens.** Rama `docs/design-sistema-de-diseno`. El DOC 06 ya fija dónde viven los tokens (`src/styles/tokens.css`), cómo se inyecta `--color-team` y que cada componente lleva su CSS Module, así que el 07 arranca con el terreno preparado.
+
+Antes conviene cerrar el **bloque F del DOC 03**: confirmar o descartar «GavetaStats» como nombre de la aplicación (F1). El logo y la paleta base cuelgan de esa decisión, y el proyecto de Supabase y el sitio de Netlify ya se llaman así.
+
+Si prefieres volver al código en vez de seguir documentando, la tarea de la Fase 1 sigue siendo la misma y no depende de nada de esto: **PWA y metadatos de la aplicación**, rama `feat/platform-pwa-y-metadatos`.
 
 ### DECISIONES TOMADAS
 
-Ninguna de arquitectura ni de modelo de datos: el DOC 03 sigue intacto. Las de proceso, para el DOC 10 cuando se escriba:
+Las veintiuna del DOC 06, con su alternativa descartada, en el propio documento. Las cuatro que respondió Raúl en la sesión y que gobiernan el resto:
 
-- **Mensajes de commit con el asunto en inglés** y el cuerpo en español. Corrige lo que decía `CLAUDE.md`.
-- **Repositorio privado.** Se descartó hacerlo público para conseguir rulesets: mal cambio. Ojo con la licencia MIT el día que se abra — autoriza a cualquiera a cerrar el código y venderlo.
-- **Solo squash merge** habilitado, con el título del PR como mensaje, y borrado automático de rama.
-- **Node 22**, fijado en `.nvmrc`, `netlify.toml` y el workflow de CI. Los tres tienen que decir lo mismo.
-- **Gemini en sesión aparte**, nunca en paralelo sobre la misma carpeta. Desde Claude Code solo por Bash cuando entra mucho y sale poco.
-- **Delegar lo decidido, no lo que hay que decidir.** Arquitectura, modelo de datos, RLS y sincronización se quedan en la sesión principal.
+- **React Router + TanStack Query** como enrutador y única caché de lectura.
+- **CSS Modules + variables CSS** para los estilos. Condiciona el DOC 07.
+- **Dexie** sobre IndexedDB para el almacén local y la cola de salida.
+- **Vitest + Testing Library desde la primera tarea de código**, con el alcance acotado en el DOC 06 §11 para que no se coma la ruta crítica.
+
+Ninguna decisión cerrada del DOC 03 se reabrió. El bloque H sigue intacto.
 
 ### COMANDOS PARA VERIFICAR
 
 ```powershell
 cd D:\Documentos\Proyectos\ProyectoSASI\App
 
-git switch main
-git pull                 # main al día
-npm ci                   # dependencias exactas del lockfile
-npm run lint             # oxlint
-npm run format:check     # Prettier, lo mismo que corre en CI
-npm run build            # tsc -b && vite build
-npm run dev              # arranca en local
-```
-
-Comprobar que los hooks siguen vivos:
-
-```powershell
-git config core.hooksPath      # tiene que devolver  .husky/_
+npm run format:check     # los tres documentos ya pasan Prettier
+git status               # solo docs/00, docs/06 y docs/13
 ```

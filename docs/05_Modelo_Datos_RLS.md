@@ -1,0 +1,590 @@
+# DOC 05 — Modelo de datos y políticas RLS
+
+> **Versión:** 1.0 — 11/09/2026
+> **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
+> **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
+> **Anexo:** `supabase/migrations/0001_initial_schema.sql` — guion completo de creación, listo para pegar en el editor SQL de Supabase
+
+---
+
+## 1. Para qué sirve este documento
+
+Describe cada tabla, cada relación y cada política de seguridad, con el porqué de cada decisión. El SQL del anexo es la implementación; este documento es el motivo.
+
+**Proyecto de Supabase:** GavetaStats · región West EU (Irlanda) · plan gratuito.
+La región es la correcta: Irlanda es lo más cercano a Canarias dentro de la UE, y mantiene los datos en territorio europeo, que es lo que pide el DOC 11.
+
+---
+
+## 2. Convenciones
+
+| Convención            | Regla                                                                                                                              |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
+| **Idioma**            | Inglés en `snake_case` para tablas, columnas, enumeraciones y funciones (decisión H1)                                              |
+| **Nombres de tabla**  | En plural: `matches`, `players`, `teams`                                                                                           |
+| **Claves primarias**  | `uuid` generado con `gen_random_uuid()`. Nunca enteros correlativos: el dispositivo genera identificadores antes de tener conexión |
+| **Fechas**            | `timestamptz` siempre. La app se usa en Canarias, que cambia de hora y no va en horario peninsular                                 |
+| **Momentos de juego** | Nunca `timestamptz`: parte más segundos. Ver DOC 04 §5                                                                             |
+| **Borrado**           | `on delete cascade` hacia abajo en la jerarquía, `on delete restrict` hacia los catálogos                                          |
+| **Trazabilidad**      | `created_by`, `created_at`, `updated_at` en toda tabla con datos de negocio                                                        |
+| **Enumeraciones**     | Tipos `enum` de PostgreSQL, no texto libre ni tablas de catálogo                                                                   |
+| **Esquema**           | Todo en `public`. Las funciones auxiliares de seguridad, en `public` con `search_path` fijado                                      |
+
+> **Sobre los enumerados.** Añadir un valor a un `enum` en PostgreSQL es barato y no bloquea; quitarlo no se puede. Por eso todos los tipos de evento nacen declarados aunque estén apagados (DOC 04 §7.1): así encender los pases o los tiros no requiere migración de tipo.
+
+---
+
+## 3. Mapa de entidades
+
+```mermaid
+erDiagram
+    profiles ||--o{ team_members : "es"
+    profiles ||--o{ team_followers : "sigue"
+    clubs ||--o{ seasons : ""
+    clubs ||--o{ teams : ""
+    clubs ||--o{ players : ""
+    clubs ||--o{ competitions : ""
+    teams ||--o{ team_members : ""
+    teams ||--o{ team_followers : ""
+    teams ||--o{ squad_memberships : ""
+    teams ||--o{ matches : "gestionado"
+    teams ||--o{ training_sessions : ""
+    team_members ||--o{ team_member_permissions : ""
+    seasons ||--o{ squad_memberships : ""
+    seasons ||--o{ competitions : ""
+    seasons ||--o{ matches : ""
+    players ||--o{ squad_memberships : ""
+    players ||--o{ match_squad : ""
+    players ||--o{ sanctions : ""
+    competitions ||--o{ matches : ""
+    matches ||--o{ match_periods : ""
+    matches ||--o{ match_squad : ""
+    matches ||--o{ match_events : ""
+    matches ||--o{ player_match_stints : "derivado"
+    matches ||--o{ coverage_declarations : ""
+    training_sessions ||--o{ training_attendance : ""
+```
+
+La columna vertebral es `club → season → team → match → event`. Toda política de seguridad sube por esa cadena.
+
+---
+
+## 4. Enumeraciones
+
+| Tipo                  | Valores                                                                                                                                                                                                                                                             |
+| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `team_kind`           | `managed`, `reference`                                                                                                                                                                                                                                              |
+| `team_role`           | `coach`, `delegate`, `scout`, `spectator`                                                                                                                                                                                                                           |
+| `app_permission`      | `team.manage`, `roster.manage`, `competition.manage`, `schedule.manage`, `lineup.manage`, `match.live.write`, `match.close`, `discipline.manage`, `training.manage`, `stats.view`, `members.manage`                                                                 |
+| `competition_kind`    | `league`, `cup`, `friendly`                                                                                                                                                                                                                                         |
+| `clock_mode`          | `running`, `stopped`                                                                                                                                                                                                                                                |
+| `substitution_type`   | `fixed`, `rolling`                                                                                                                                                                                                                                                  |
+| `match_status`        | `scheduled`, `called`, `live`, `suspended`, `finished`, `closed`                                                                                                                                                                                                    |
+| `call_status`         | `starter`, `substitute`, `not_called`                                                                                                                                                                                                                               |
+| `position_code`       | `GK`, `DF`, `MF`, `FW`                                                                                                                                                                                                                                              |
+| `event_type`          | `goal`, `own_goal`, `yellow_card`, `second_yellow`, `red_card`, `foul_committed`, `foul_received`, `corner`, `substitution`, `position_change`, `note`, `pass`, `key_pass`, `shot_on_target`, `shot_off_target`, `offside`, `recovery`, `turnover`, `player_rating` |
+| `event_status`        | `pending`, `approved`, `rejected`                                                                                                                                                                                                                                   |
+| `stint_boundary`      | `period_start`, `period_end`, `substitution`, `sent_off`, `match_end`, `suspended`                                                                                                                                                                                  |
+| `substitution_reason` | `tactical`, `fatigue`, `other`                                                                                                                                                                                                                                      |
+| `coverage_scope`      | `full_team`, `single_player`, `goals_cards`, `custom`                                                                                                                                                                                                               |
+| `availability_status` | `available`, `unavailable`, `sanctioned`                                                                                                                                                                                                                            |
+| `sanction_type`       | `yellow_accumulation`, `red_card`, `club_decision`                                                                                                                                                                                                                  |
+| `sanction_status`     | `proposed`, `active`, `served`, `cancelled`                                                                                                                                                                                                                         |
+| `attendance_status`   | `present`, `absent`, `late`                                                                                                                                                                                                                                         |
+| `invitation_status`   | `pending`, `accepted`, `revoked`, `expired`                                                                                                                                                                                                                         |
+
+`substitution_reason` no incluye lesión. Es una decisión de privacidad, no un olvido (DOC 04 §12.4).
+
+---
+
+## 5. Identidad y organización
+
+### 5.1 `profiles`
+
+Espejo de `auth.users`. Supabase guarda las credenciales en su propio esquema; aquí vive lo que la aplicación necesita consultar y relacionar.
+
+| Columna             | Tipo        | Notas                                             |
+| :------------------ | :---------- | :------------------------------------------------ |
+| `id`                | uuid PK     | Igual que `auth.users.id`, con borrado en cascada |
+| `display_name`      | text        | Del perfil de Google                              |
+| `avatar_url`        | text        | —                                                 |
+| `is_platform_admin` | boolean     | Solo tú. Mantenimiento y registro de errores      |
+| `created_at`        | timestamptz | —                                                 |
+
+Una fila nace sola con cada alta, mediante un disparador sobre `auth.users`.
+
+### 5.2 `clubs`
+
+| Columna      | Tipo    | Notas                    |
+| :----------- | :------ | :----------------------- |
+| `id`         | uuid PK | —                        |
+| `name`       | text    | —                        |
+| `short_name` | text    | Para cabeceras estrechas |
+| `crest_url`  | text    | Ruta en Storage          |
+| `created_by` | uuid    | → `profiles`             |
+
+### 5.3 `seasons`
+
+| Columna      | Tipo    | Notas                                             |
+| :----------- | :------ | :------------------------------------------------ |
+| `id`         | uuid PK | —                                                 |
+| `club_id`    | uuid    | → `clubs`, cascada                                |
+| `name`       | text    | `2026/27`. Único dentro del club                  |
+| `starts_on`  | date    | —                                                 |
+| `ends_on`    | date    | Posterior a `starts_on`                           |
+| `is_current` | boolean | Solo una por club, garantizado por índice parcial |
+
+La temporada pertenece al club y no es global: cada club decide sus fechas sin pisar a los demás.
+
+### 5.4 `teams`
+
+| Columna         | Tipo      | Notas                                                     |
+| :-------------- | :-------- | :-------------------------------------------------------- |
+| `id`            | uuid PK   | —                                                         |
+| `club_id`       | uuid      | → `clubs`, cascada                                        |
+| `name`          | text      | Único dentro del club                                     |
+| `category`      | text      | `Cadete`, `Infantil`…                                     |
+| `kind`          | team_kind | `managed` con plantilla, `reference` solo nombre y escudo |
+| `crest_url`     | text      | —                                                         |
+| `primary_color` | text      | Hexadecimal. Lo consume la variable CSS `--color-team`    |
+
+**El equipo no lleva temporada.** El cadete sigue siendo el mismo equipo el año que viene; lo que cambia es su plantilla, y eso vive en `squad_memberships`.
+
+> **Deuda técnica.** Los rivales se dan de alta dentro del club de Isaac. Si mañana otro club usa la aplicación, tendrá su propia copia del mismo rival. Resolverlo pide un catálogo global de equipos, que es trabajo de la fase multiclub (E17-03). Mientras haya un club, no molesta.
+
+### 5.5 `team_members`
+
+| Columna      | Tipo      | Notas                                        |
+| :----------- | :-------- | :------------------------------------------- |
+| `id`         | uuid PK   | —                                            |
+| `team_id`    | uuid      | → `teams`, cascada                           |
+| `user_id`    | uuid      | → `profiles`. Único junto con `team_id`      |
+| `role`       | team_role | Etiqueta informativa y plantilla de permisos |
+| `is_active`  | boolean   | Dar de baja sin perder el historial          |
+| `invited_by` | uuid      | → `profiles`                                 |
+
+### 5.6 `team_member_permissions`
+
+Clave primaria compuesta por `team_member_id` y `permission`. **Los permisos son filas, no un rol rígido** (decisión C4): la matriz configurable del futuro será una pantalla, no una migración.
+
+### 5.7 `team_followers`
+
+| Columna      | Tipo | Notas                                        |
+| :----------- | :--- | :------------------------------------------- |
+| `team_id`    | uuid | → `teams`, cascada. Clave primaria compuesta |
+| `user_id`    | uuid | → `profiles`                                 |
+| `granted_by` | uuid | Quién le dio acceso                          |
+
+Decisión H4. Solo lectura de datos aprobados, sin permisos y fuera de la pantalla de personas.
+
+### 5.8 `invitations`
+
+| Columna       | Tipo              | Notas                                       |
+| :------------ | :---------------- | :------------------------------------------ |
+| `id`          | uuid PK           | —                                           |
+| `team_id`     | uuid              | → `teams`                                   |
+| `email`       | text              | Correo al que se invita                     |
+| `role`        | team_role         | Plantilla de permisos que se aplicará       |
+| `permissions` | app_permission[]  | Permisos concretos, si se afinan al invitar |
+| `as_follower` | boolean           | Si en lugar de miembro entra como seguidor  |
+| `token`       | text              | Único                                       |
+| `status`      | invitation_status | —                                           |
+| `expires_at`  | timestamptz       | —                                           |
+
+---
+
+## 6. Plantilla
+
+### 6.1 `players`
+
+| Columna             | Tipo        | Notas                                                              |
+| :------------------ | :---------- | :----------------------------------------------------------------- |
+| `id`                | uuid PK     | —                                                                  |
+| `club_id`           | uuid        | → `clubs`, cascada. **El jugador pertenece al club, no al equipo** |
+| `nickname`          | text        | Identificación habitual. Obligatorio                               |
+| `full_name`         | text        | **Nulo por defecto y oculto**                                      |
+| `name_consent_at`   | timestamptz | Momento del consentimiento expreso                                 |
+| `name_consent_note` | text        | Quién lo otorga y cómo                                             |
+| `is_active`         | boolean     | —                                                                  |
+
+Sin fecha de nacimiento, sin documento de identidad, sin fotografía, sin dato de salud. El nombre real solo se muestra con `name_consent_at` relleno, y una restricción impide guardarlo sin consentimiento.
+
+### 6.2 `squad_memberships`
+
+La inscripción de un jugador en un equipo durante una temporada.
+
+| Columna            | Tipo                | Notas                                                     |
+| :----------------- | :------------------ | :-------------------------------------------------------- |
+| `id`               | uuid PK             | —                                                         |
+| `team_id`          | uuid                | → `teams`                                                 |
+| `season_id`        | uuid                | → `seasons`                                               |
+| `player_id`        | uuid                | → `players`. Único junto con equipo y temporada           |
+| `shirt_number`     | smallint            | De 1 a 99. Único por equipo y temporada entre los activos |
+| `default_position` | position_code       | Posición habitual, distinta de la de cada partido         |
+| `availability`     | availability_status | Condiciona la convocatoria                                |
+| `joined_on`        | date                | —                                                         |
+| `left_on`          | date                | Nulo mientras esté en la plantilla                        |
+
+El dorsal vive aquí y no en el jugador: cambia de temporada en temporada y las estadísticas antiguas tienen que seguir mostrando el de entonces.
+
+---
+
+## 7. Competición
+
+### 7.1 `competitions`
+
+| Columna                 | Tipo              | Por defecto      |
+| :---------------------- | :---------------- | :--------------- |
+| `id`                    | uuid PK           | —                |
+| `club_id`               | uuid              | —                |
+| `season_id`             | uuid              | —                |
+| `name`                  | text              | —                |
+| `kind`                  | competition_kind  | `league`         |
+| `periods_count`         | smallint          | 2                |
+| `period_minutes`        | smallint          | 45               |
+| `halftime_minutes`      | smallint          | 15               |
+| `clock_mode`            | clock_mode        | `running`        |
+| `substitution_type`     | substitution_type | `fixed`          |
+| `substitutions_max`     | smallint          | 5                |
+| `squad_max`             | smallint          | 18               |
+| `players_on_pitch`      | smallint          | 11               |
+| `yellow_cards_for_ban`  | smallint          | 5                |
+| `red_card_default_bans` | smallint          | 1                |
+| `enabled_event_types`   | event_type[]      | Los once del MVP |
+
+Todo el reglamento del DOC 04 §4.1 en columnas explícitas y no en un JSON. Así se validan con restricciones y se consultan sin desempaquetar nada.
+
+---
+
+## 8. Partido
+
+### 8.1 `matches`
+
+| Columna                   | Tipo         | Notas                                                     |
+| :------------------------ | :----------- | :-------------------------------------------------------- |
+| `id`                      | uuid PK      | —                                                         |
+| `club_id`                 | uuid         | Denormalizado a propósito: acorta todas las políticas RLS |
+| `season_id`               | uuid         | → `seasons`                                               |
+| `competition_id`          | uuid         | → `competitions`                                          |
+| `team_id`                 | uuid         | Equipo gestionado                                         |
+| `opponent_team_id`        | uuid         | Equipo referencia. Distinto de `team_id`                  |
+| `is_home`                 | boolean      | —                                                         |
+| `kickoff_at`              | timestamptz  | —                                                         |
+| `venue`                   | text         | Campo y zona                                              |
+| `status`                  | match_status | —                                                         |
+| `is_retroactive`          | boolean      | Partido introducido en diferido                           |
+| `suspended_period`        | smallint     | Solo si se suspendió                                      |
+| `suspended_seconds`       | integer      | —                                                         |
+| `confirmed_goals_for`     | smallint     | Resultado del acta, confirmado en el cierre               |
+| `confirmed_goals_against` | smallint     | —                                                         |
+| `closed_at` / `closed_by` | —            | Quién cerró y cuándo                                      |
+| `notes`                   | text         | Comentarios generales del cierre                          |
+
+El marcador calculado sale de los eventos (DOC 04 §7.3). El confirmado se guarda aparte porque es el del acta federativa, y cuando los dos difieren hay que poder verlo.
+
+### 8.2 `match_periods`
+
+| Columna           | Tipo        | Notas                                              |
+| :---------------- | :---------- | :------------------------------------------------- |
+| `match_id`        | uuid        | → `matches`, cascada                               |
+| `period_number`   | smallint    | Único junto con el partido                         |
+| `planned_seconds` | integer     | `period_minutes × 60` en el momento de abrirla     |
+| `actual_seconds`  | integer     | **Manda en todos los cálculos**. Incluye descuento |
+| `started_at`      | timestamptz | Hora real, solo informativa                        |
+| `ended_at`        | timestamptz | —                                                  |
+
+Decisión H5: las partes no son eventos. Las escribe quien lleva el reloj, no entran en la cola de anotaciones y no admiten discordancia.
+
+### 8.3 `match_squad`
+
+| Columna        | Tipo          | Notas                            |
+| :------------- | :------------ | :------------------------------- |
+| `match_id`     | uuid          | → `matches`, cascada             |
+| `player_id`    | uuid          | Único junto con el partido       |
+| `call_status`  | call_status   | Titular, suplente o no convocado |
+| `shirt_number` | smallint      | Dorsal de ese partido            |
+| `position`     | position_code | Posición inicial de ese partido  |
+
+### 8.4 `match_events`
+
+El corazón del sistema. Una sola tabla para todos los tipos.
+
+| Columna                       | Tipo         | Notas                                                                |
+| :---------------------------- | :----------- | :------------------------------------------------------------------- |
+| `id`                          | uuid PK      | —                                                                    |
+| `client_event_id`             | uuid         | **Único.** Lo genera el dispositivo antes de enviar. Da idempotencia |
+| `match_id`                    | uuid         | → `matches`, cascada                                                 |
+| `event_type`                  | event_type   | —                                                                    |
+| `period`                      | smallint     | Entre 1 y el número de partes de la competición                      |
+| `seconds`                     | integer      | Segundos dentro de esa parte. Nunca negativo                         |
+| `is_opponent`                 | boolean      | Si el hecho es del rival                                             |
+| `player_id`                   | uuid         | Nulo si es del rival                                                 |
+| `secondary_player_id`         | uuid         | Asistente, o jugador que entra en una sustitución                    |
+| `details`                     | jsonb        | Lo propio de cada tipo: motivo del cambio, posición nueva, texto     |
+| `status`                      | event_status | —                                                                    |
+| `duplicate_group_id`          | uuid         | Agrupa candidatos a duplicado                                        |
+| `created_by`                  | uuid         | Quién lo apuntó                                                      |
+| `reviewed_by` / `reviewed_at` | —            | Quién lo aprobó o rechazó                                            |
+
+**Por qué una sola tabla y no una por tipo.** El directo escribe siempre la misma forma de fila, la cola offline reintenta un único tipo de operación, y las políticas de seguridad se escriben una vez. Tablas separadas obligarían a mantener trece colas, trece conjuntos de políticas y trece caminos de sincronización, que es justo lo que rompe a pie de campo.
+
+Lo específico de cada tipo vive en `details`, que no se consulta para filtrar ni para agregar: los campos que alimentan estadísticas son columnas de verdad.
+
+**Restricciones que impone la base de datos:**
+
+| Restricción                                                                           | Invariante |
+| :------------------------------------------------------------------------------------ | :--------- |
+| Si `is_opponent`, entonces `player_id` es nulo                                        | —          |
+| `goal`, `own_goal`, `foul_committed` y las tarjetas exigen jugador si no es del rival | I-04       |
+| `substitution` exige jugador que sale y jugador que entra, y distintos                | —          |
+| El jugador del evento está convocado en ese partido                                   | I-04       |
+| `seconds` mayor o igual que cero, `period` mayor o igual que uno                      | I-02       |
+
+### 8.5 `player_match_stints`
+
+Tabla **derivada**. Nadie la edita a mano: la reconstruye la función `rebuild_match_stints` a partir de la convocatoria y los eventos aprobados (DOC 04 §6.1).
+
+| Columna         | Tipo           | Notas                         |
+| :-------------- | :------------- | :---------------------------- |
+| `match_id`      | uuid           | —                             |
+| `player_id`     | uuid           | —                             |
+| `period`        | smallint       | El tramo nunca cruza de parte |
+| `start_seconds` | integer        | —                             |
+| `end_seconds`   | integer        | Mayor que `start_seconds`     |
+| `start_reason`  | stint_boundary | —                             |
+| `end_reason`    | stint_boundary | —                             |
+
+Una restricción de exclusión impide que un mismo jugador tenga dos tramos solapados en la misma parte. Es el invariante I-03 vigilado por la base de datos, no por confianza.
+
+### 8.6 `coverage_declarations`
+
+| Columna                          | Tipo           | Notas                                                    |
+| :------------------------------- | :------------- | :------------------------------------------------------- |
+| `id`                             | uuid PK        | —                                                        |
+| `match_id`                       | uuid           | → `matches`, cascada                                     |
+| `user_id`                        | uuid           | Anotador                                                 |
+| `scope`                          | coverage_scope | —                                                        |
+| `target_player_id`               | uuid           | Obligatorio si el alcance es de un solo jugador          |
+| `covered_event_types`            | event_type[]   | Se materializa al declarar, a partir del alcance elegido |
+| `start_period` / `start_seconds` | —              | Desde cuándo sigue el partido                            |
+| `end_period` / `end_seconds`     | —              | Nulos mientras siga dentro                               |
+| `is_retroactive`                 | boolean        | Cobertura de un partido metido en diferido               |
+
+Guardar la lista de tipos cubiertos, en vez de deducirla del alcance al leer, protege el histórico: si mañana cambia lo que significa `goals_cards`, las fiabilidades ya calculadas no se mueven.
+
+---
+
+## 9. Disciplina, entrenamientos y sistema
+
+### 9.1 `sanctions`
+
+| Columna                 | Tipo            | Notas                                              |
+| :---------------------- | :-------------- | :------------------------------------------------- |
+| `id`                    | uuid PK         | —                                                  |
+| `club_id`               | uuid            | —                                                  |
+| `player_id`             | uuid            | —                                                  |
+| `season_id`             | uuid            | —                                                  |
+| `competition_id`        | uuid            | Nulo si es decisión de club                        |
+| `type`                  | sanction_type   | —                                                  |
+| `matches_total`         | smallint        | **Editable a mano.** Lo dicta el comité, no la app |
+| `matches_served`        | smallint        | —                                                  |
+| `starts_on` / `ends_on` | date            | Para arrestos medidos en fechas y no en partidos   |
+| `status`                | sanction_status | `proposed` hasta que el entrenador la confirma     |
+| `origin_event_id`       | uuid            | La tarjeta que la originó                          |
+| `notes`                 | text            | —                                                  |
+
+Una restricción exige que la sanción se mida **o** en partidos **o** en fechas, nunca en nada.
+
+### 9.2 `training_sessions` y `training_attendance`
+
+Sesión con equipo, temporada, fecha, lugar y observación global. Asistencia con estado (presente, ausente, retraso) y observación por jugador, única por sesión y jugador.
+
+### 9.3 `app_settings`
+
+Tabla de clave y valor `jsonb` para las constantes que el DOC 04 pide configurables y que no pertenecen al reglamento. Primera entrada: `duplicate_window_seconds = 30`.
+
+### 9.4 `audit_log`
+
+| Columna      | Tipo  | Notas                                          |
+| :----------- | :---- | :--------------------------------------------- |
+| `table_name` | text  | —                                              |
+| `record_id`  | uuid  | —                                              |
+| `action`     | text  | `insert`, `update`, `delete`                   |
+| `diff`       | jsonb | Solo los campos que cambiaron                  |
+| `actor_id`   | uuid  | —                                              |
+| `club_id`    | uuid  | Denormalizado para que la política sea directa |
+
+Un disparador genérico lo rellena en las tablas sensibles: eventos, convocatoria, sanciones, permisos y partidos. Cubre E9-02.
+
+### 9.5 `error_logs`
+
+Ruta, mensaje, traza, datos del dispositivo, versión de la aplicación, usuario y club. **Nunca guarda el contenido del formulario que falló**, para no filtrar datos por la puerta de atrás. Cubre E12-01 y E12-03.
+
+---
+
+## 10. Índices
+
+Además de los de clave primaria y unicidad:
+
+| Índice                                                           | Para qué                                          |
+| :--------------------------------------------------------------- | :------------------------------------------------ |
+| `match_events (match_id, period, seconds)`                       | Cronología del partido y recálculo de tramos      |
+| `match_events (match_id, status)`                                | Panel de discordancias                            |
+| `match_events (player_id, event_type)` con estado aprobado       | Estadísticas de jugador                           |
+| `match_events (client_event_id)` único                           | Idempotencia de la cola offline                   |
+| `matches (team_id, season_id, status)`                           | Calendario y agregados de temporada               |
+| `matches (club_id, kickoff_at)`                                  | Próximo evento en la pantalla de inicio           |
+| `player_match_stints (match_id, player_id)`                      | Minutos                                           |
+| `team_members (user_id)`                                         | **Crítico.** Lo consultan todas las políticas RLS |
+| `team_member_permissions (team_member_id, permission)`           | **Crítico.** Idem                                 |
+| `team_followers (user_id)`                                       | Idem                                              |
+| `coverage_declarations (match_id)`                               | Cálculo de fiabilidad                             |
+| `squad_memberships (team_id, season_id)` único por dorsal activo | I-05                                              |
+
+Los tres marcados como críticos deciden el rendimiento de toda la aplicación: si una política tiene que recorrer la tabla de miembros en cada fila, se nota en cada pantalla.
+
+---
+
+## 11. La única puerta de lectura
+
+El DOC 04 §14.2 lo exige y aquí se implementa: **ninguna pantalla agrega por su cuenta.**
+
+| Objeto                           | Qué devuelve                                                   |
+| :------------------------------- | :------------------------------------------------------------- |
+| `v_match_scores`                 | Marcador calculado y confirmado de cada partido                |
+| `v_player_match_minutes`         | Minutos y segundos por jugador y partido, desde los tramos     |
+| `v_player_match_stats`           | Eventos aprobados agregados por jugador y partido              |
+| `v_player_season_stats`          | Agregado de temporada, solo partidos cerrados                  |
+| `v_team_season_stats`            | Agregado de equipo                                             |
+| `metric_reliability(...)`        | Fiabilidad de una métrica en un partido, según DOC 04 §10.3    |
+| `player_metric_reliability(...)` | Lo mismo para una métrica individual de un jugador             |
+| `rebuild_match_stints(match_id)` | Reconstruye los tramos del partido                             |
+| `flag_duplicate_candidates(...)` | Agrupa candidatos a duplicado dentro de la ventana configurada |
+
+**Todas las vistas se crean con `security_invoker = true`.** Sin esa opción, una vista se ejecuta con los permisos de quien la creó y **se salta las políticas RLS de quien la consulta**: sería un agujero por el que un seguidor vería datos de otro club. Es el error más caro que se puede cometer en este modelo.
+
+---
+
+## 12. Seguridad a nivel de fila
+
+### 12.1 Principio
+
+**RLS activo en todas las tablas, sin excepción.** Una tabla sin RLS en un proyecto de Supabase es pública para cualquiera que tenga la `anon key`, que va en el frontend por diseño.
+
+### 12.2 Funciones auxiliares
+
+Las políticas no consultan `team_members` directamente: si lo hicieran, la política de `team_members` se consultaría a sí misma y PostgreSQL abortaría por recursión infinita. Se resuelve con funciones `security definer`, que se saltan la RLS de forma controlada:
+
+| Función                                    | Devuelve                                                   |
+| :----------------------------------------- | :--------------------------------------------------------- |
+| `is_platform_admin()`                      | Si el usuario es administrador de la plataforma            |
+| `is_team_member(team_id)`                  | Si tiene función activa en el equipo                       |
+| `has_team_permission(team_id, permission)` | Si tiene ese permiso concreto en ese equipo                |
+| `is_team_follower(team_id)`                | Si sigue el equipo                                         |
+| `can_read_team(team_id)`                   | Miembro, seguidor o administrador                          |
+| `is_club_member(club_id)`                  | Si tiene función en algún equipo del club                  |
+| `team_of_match(match_id)`                  | El equipo gestionado del partido, para subir por la cadena |
+
+Todas se declaran `stable` y con `search_path` fijado a `public`. Lo primero permite a PostgreSQL evaluarlas una vez por consulta en lugar de una vez por fila; lo segundo evita que alguien las engañe con un esquema falso.
+
+### 12.3 Matriz de políticas
+
+| Tabla                     | Lectura                                              | Escritura                                                                                        |
+| :------------------------ | :--------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
+| `profiles`                | El propio, y los miembros de sus equipos             | Solo el propio                                                                                   |
+| `clubs`                   | Miembros y seguidores del club                       | `team.manage` en algún equipo del club                                                           |
+| `seasons`                 | Igual que el club                                    | `competition.manage`                                                                             |
+| `teams`                   | Miembros y seguidores                                | `team.manage`                                                                                    |
+| `team_members`            | Miembros del equipo                                  | `members.manage`                                                                                 |
+| `team_member_permissions` | Miembros del equipo                                  | `members.manage`                                                                                 |
+| `team_followers`          | El propio y quien tenga `members.manage`             | `members.manage`                                                                                 |
+| `invitations`             | `members.manage`                                     | `members.manage`                                                                                 |
+| `players`                 | Miembros del club                                    | `roster.manage`                                                                                  |
+| `squad_memberships`       | Miembros y seguidores del equipo                     | `roster.manage`                                                                                  |
+| `competitions`            | Miembros y seguidores                                | `competition.manage`                                                                             |
+| `matches`                 | Miembros y seguidores                                | `schedule.manage`; el cierre exige `match.close`                                                 |
+| `match_periods`           | Miembros y seguidores                                | `match.live.write`                                                                               |
+| `match_squad`             | Miembros y seguidores                                | `lineup.manage`                                                                                  |
+| `match_events`            | Miembros ven todo; **seguidores solo los aprobados** | Insertar: `match.live.write`. Editar y borrar: el autor mientras esté pendiente, o `match.close` |
+| `player_match_stints`     | Miembros y seguidores                                | Nadie. Solo la función de recálculo                                                              |
+| `coverage_declarations`   | Miembros                                             | La propia, con `match.live.write`                                                                |
+| `sanctions`               | Miembros                                             | `discipline.manage`                                                                              |
+| `training_sessions`       | Miembros                                             | `training.manage`                                                                                |
+| `training_attendance`     | Miembros                                             | `training.manage`                                                                                |
+| `app_settings`            | Cualquiera autenticado                               | Administrador de la plataforma                                                                   |
+| `audit_log`               | `members.manage` del club                            | Nadie. Solo los disparadores                                                                     |
+| `error_logs`              | Administrador de la plataforma                       | Cualquiera autenticado puede insertar los suyos                                                  |
+
+Dos reglas merecen atención:
+
+**El seguidor solo ve eventos aprobados.** Es la razón de ser de la separación entre miembros y seguidores: la grada no tiene por qué ver el barullo de discordancias sin resolver.
+
+**Los tramos no los escribe nadie.** Ni el entrenador. Los escribe la función de recálculo, que se ejecuta con permisos elevados. Así se garantiza que los minutos siempre se corresponden con los eventos.
+
+### 12.4 Lo que la RLS por sí sola no puede distinguir
+
+Una política de actualización ve la fila vieja en su cláusula `using` y la nueva en su `with check`, pero **nunca las dos a la vez**. Por eso no puede diferenciar «empezar el partido» de «cerrar el partido»: las dos son una actualización de `matches` hecha por alguien con permiso de escritura.
+
+La primera versión de estas políticas dejaba que un ojeador con `match.live.write` cerrara el partido y confirmara el resultado. Lo destapó la prueba de permisos, no la lectura del código.
+
+Se resuelve con el disparador `enforce_match_changes`, que compara ambas versiones de la fila y exige el permiso que corresponde a cada cambio:
+
+| Cambio                                    | Permiso exigido    |
+| :---------------------------------------- | :----------------- |
+| Cerrar o reabrir el partido               | `match.close`      |
+| Confirmar el resultado del acta           | `match.close`      |
+| Cambiar fecha, campo, rival o competición | `schedule.manage`  |
+| Empezar, suspender o terminar el partido  | `match.live.write` |
+
+La regla general que deja: **cuando un permiso depende de qué cambia y no de qué fila es, la RLS marca el perímetro y un disparador afina dentro.**
+
+### 12.4 Lo que la RLS no resuelve
+
+| Riesgo                                         | Mitigación                                                         |
+| :--------------------------------------------- | :----------------------------------------------------------------- |
+| La `anon key` va en el frontend                | Es pública por diseño. La RLS es la que protege, no la clave       |
+| La clave `service_role` se salta toda la RLS   | **No sale del servidor jamás.** Ni en `.env.local` del frontend    |
+| Un miembro con permiso puede borrar datos      | Queda en la auditoría. El borrado real se restringe donde se puede |
+| Un fallo en una política abre datos de un club | Se prueba con dos clubes de mentira antes de meter datos reales    |
+
+**Prueba obligatoria antes de la Fase 2:** crear un segundo club con otro usuario y comprobar que no ve absolutamente nada del primero. Sin esa prueba, la multitenencia es una intención.
+
+---
+
+## 13. Almacenamiento
+
+Dos cubos de Storage, ambos privados:
+
+| Cubo     | Contenido                   | Acceso                                      |
+| :------- | :-------------------------- | :------------------------------------------ |
+| `crests` | Escudos de club y de equipo | Lectura para miembros y seguidores del club |
+| `docs`   | Actas y fichas en fase 2    | Lectura para miembros con `match.close`     |
+
+**Ninguna fotografía de jugadores.** No existe el cubo que las guardaría.
+
+---
+
+## 14. Migraciones
+
+Todo cambio de esquema entra como archivo de migración numerado en `supabase/migrations`, nunca escribiendo a mano en el panel de Supabase. El panel sirve para mirar, no para cambiar: lo que se toca ahí no queda en Git y se pierde al recrear el entorno.
+
+El anexo `05a_schema.sql` es la migración inicial. Va como `0001_initial_schema.sql`.
+
+---
+
+## 15. Deuda técnica de este modelo
+
+| Deuda                                                                          | Cuándo se paga                                                |
+| :----------------------------------------------------------------------------- | :------------------------------------------------------------ |
+| Los rivales se duplican entre clubes                                           | Cuando haya un segundo club de verdad                         |
+| `club_id` denormalizado en varias tablas                                       | Se asume: acorta las políticas y se mantiene con disparadores |
+| `details` en `jsonb` sin validación de esquema                                 | Si algún tipo de evento crece, pasa a columnas                |
+| Los tramos se reconstruyen enteros, sin cálculo incremental                    | Solo si se nota. A esta escala, no                            |
+| La fiabilidad se calcula al vuelo con un barrido temporal                      | Si crece el volumen, se materializa por partido al cerrarlo   |
+| Sin catálogo de posiciones detallado: solo portero, defensa, medio y delantero | Cuando E7-04 traiga los sistemas tácticos                     |
+
+---
+
+## 16. Qué desbloquea este documento
+
+El **DOC 06** (arquitectura frontend), el **DOC 09** (observabilidad) y todas las tareas de la Fase 1 del DOC 08. Con el esquema aplicado y los tipos de TypeScript generados, la primera tarea de código puede arrancar.

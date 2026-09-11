@@ -1,6 +1,6 @@
 # DOC 03 — Decisiones pendientes
 
-> **Versión:** 1.0 — 08/09/2026
+> **Versión:** 1.1 — 11/09/2026 (bloque H añadido al escribir el DOC 04 y el DOC 05)
 > **Para qué sirve:** cada decisión de esta lista bloquea un documento posterior. Respóndelas y los DOC 04 a 08 salen del tirón, sin suposiciones mías.
 > **Cómo usarlo:** responde en la columna vacía o pega las respuestas en la siguiente sesión. Las marcadas 🔴 bloquean el modelo de datos, así que van primero.
 
@@ -48,14 +48,13 @@
 
 ## D · Alcance y plataforma → bloquea DOC 06, 08 y 10
 
-| #     | Decisión                                                                                 | Por qué importa                                                                                                     | Mi recomendación                                                                                                                |
-| :---- | :--------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------ |
-| D1 ✅ | **Modo de trabajo**                                                                      | **Resuelto:** Claude Code para desarrollo, chat web para diseño y documentación                                     | Instalación y método de trabajo en el **DOC 14**                                                                                |
-| D2 ✅ | **Visibilidad del repositorio**                                                          | **Resuelto: privado**                                                                                               | Sin efecto sobre Claude Code, que trabaja en local                                                                              |
-| D3 ✅ | **Dominio**                                                                              | **Resuelto:** subdominio de Netlify por ahora                                                                       | Presupuesto intacto en 0 €. El dominio propio espera a que haya nombre (F1)                                                     |
-| D5 ✅ | **Partidos a posteriori**                                                                | **Resuelto: sí.** La pantalla de partido admite crearlo y rellenarlo en diferido                                    | Misma pantalla con el reloj parado y el minuto introducido a mano en cada evento                                                |
-| D4 ✅ | **Arquitectura multitenant**                                                             | **Resuelto: sí, desde el MVP.** La base de datos se estructura para varios clubes aunque solo se cargue el de Isaac | Jerarquía `Club → Equipo → Jugador` como columna vertebral. Las políticas RLS se escriben una sola vez y no se rehacen          |
-| D5    | Empiezas la liga el 25/10: ¿qué pasa con los **partidos ya jugados** si algo se retrasa? | Puede hacer falta un modo de carga manual a posteriori                                                              | Que la pantalla de partido admita crearlo y rellenarlo en diferido desde el principio. Es la misma pantalla con el reloj parado |
+| #     | Decisión                        | Por qué importa                                                                                                     | Mi recomendación                                                                                                       |
+| :---- | :------------------------------ | :------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------- |
+| D1 ✅ | **Modo de trabajo**             | **Resuelto:** Claude Code para desarrollo, chat web para diseño y documentación                                     | Instalación y método de trabajo en el **DOC 14**                                                                       |
+| D2 ✅ | **Visibilidad del repositorio** | **Resuelto: privado**                                                                                               | Sin efecto sobre Claude Code, que trabaja en local                                                                     |
+| D3 ✅ | **Dominio**                     | **Resuelto:** subdominio de Netlify por ahora                                                                       | Presupuesto intacto en 0 €. El dominio propio espera a que haya nombre (F1)                                            |
+| D5 ✅ | **Partidos a posteriori**       | **Resuelto: sí.** La pantalla de partido admite crearlo y rellenarlo en diferido                                    | Misma pantalla con el reloj parado y el minuto introducido a mano en cada evento                                       |
+| D4 ✅ | **Arquitectura multitenant**    | **Resuelto: sí, desde el MVP.** La base de datos se estructura para varios clubes aunque solo se cargue el de Isaac | Jerarquía `Club → Equipo → Jugador` como columna vertebral. Las políticas RLS se escriben una sola vez y no se rehacen |
 
 ---
 
@@ -92,12 +91,28 @@ Idea nueva de Raúl: cada métrica muestra al lado un indicador de cuánto se pu
 
 ---
 
+## H · Decisiones cerradas al escribir el DOC 04 y el DOC 05 (11/09/2026)
+
+Cinco cuestiones que aparecieron al bajar las decisiones anteriores a reglas y a tablas. Todas resueltas en esa sesión.
+
+| #     | Decisión                           | Resolución                                                                                                                                                       | Consecuencia técnica                                                                                                                                                                              |
+| :---- | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| H1 ✅ | **Idioma del esquema**             | **Inglés en `snake_case`** para tablas, columnas, enumeraciones y funciones. Los documentos siguen en español                                                    | Coherente con los commits en inglés (DOC 15) y con la documentación de PostgreSQL y Supabase                                                                                                      |
+| H2 ✅ | **Los pases (cierra B1)**          | **Fuera del MVP.** Registrar 400 o 500 pases a mano no se sostiene, y un contador a medias da cifras que no se pueden comparar entre jugadores ni entre jornadas | Los tipos `pass` y `key_pass` existen en el esquema desde el primer día, apagados en `competitions.enabled_event_types`. Encenderlos es marcar una casilla, no migrar. Se empezará por `key_pass` |
+| H3 ✅ | **Unidad de pertenencia para RLS** | **El equipo.** `team_members` con los permisos como filas                                                                                                        | Un usuario puede estar en varios equipos sin migración (E2-07). El delegado del cadete no ve al infantil                                                                                          |
+| H4 ✅ | **Espectador que solo mira**       | **Tabla aparte, `team_followers`.** Seguir un equipo y tener función en él son cosas distintas                                                                   | El seguidor solo ve eventos **aprobados**, no la pantalla de personas ni el barullo de discordancias. Coste asumido: duplica las políticas de lectura                                             |
+| H5 ✅ | **Registro de las partes**         | **Las partes no son eventos**, son filas de `match_periods` que solo escribe quien lleva el reloj                                                                | Cada parte guarda su duración **real**, con descuento incluido, y esa es la que manda en el cálculo de minutos. No entran en la cola de anotaciones ni admiten discordancia                       |
+
+**Errata corregida en esta versión:** el identificador D5 figuraba dos veces en el bloque D, una resuelta y otra abierta con el mismo contenido. Se ha eliminado la duplicada.
+
+---
+
 ## Resumen: estado de las decisiones
 
-**Todas las decisiones bloqueantes están cerradas.** Veintitrés de veinticinco.
+**Todas las decisiones bloqueantes están cerradas.** Veintiocho de treinta, contando el bloque H.
 
-**Abiertas y no bloqueantes:** el bloque F (nombre de la app, logo y paleta base). Se deciden cuando toque, sin coste para el desarrollo.
+**Abiertas y no bloqueantes:** el bloque F (nombre de la app, logo y paleta base). El proyecto de Supabase y el sitio de Netlify se llaman **GavetaStats**, así que el nombre tiene un candidato de hecho; conviene confirmarlo o descartarlo antes del DOC 07.
 
-**Siguiente paso:** DOC 04 (reglas de negocio) y DOC 05 (modelo de datos y políticas RLS). Ya no falta ningún dato para escribirlos.
+**Hecho desde entonces:** DOC 04 (reglas de negocio y glosario) y DOC 05 (modelo de datos y políticas RLS), con el esquema probado contra PostgreSQL en `supabase/migrations/0001_initial_schema.sql`.
 
-Con G1 y G2 respondidas salen el DOC 04 (reglas de negocio) y el DOC 05 (modelo de datos y RLS) en una sola sesión.
+**Siguiente paso:** DOC 06 (arquitectura frontend) y DOC 07 (sistema de diseño), que desbloquean el DOC 08.
