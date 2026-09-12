@@ -53,37 +53,33 @@ La v1.0 salió con la aritmética mal: daba 17 sesiones para la ruta mínima, y 
 
 ### ESTADO DEL REPOSITORIO
 
-**La T-100 está cerrada.** Lo de la sesión del 11/09 se fusionó en los PR #9 y #10: migraciones renombradas, tipos generados y documentos alineados ya están en `main`. `.env.local` también existe.
+**Todo lo de esta sesión está en `main`.** Tres fusiones: #10 cerró la T-100 con el esquema y el endurecimiento, #11 subió los ocho documentos y #12 los tokens, los 21 iconos y el logo. Árbol limpio, ramas borradas y `.env.local` creado.
 
-Lo de esta sesión, en el árbol de trabajo:
-
-| Archivo                                     | Estado     | Sesión |
+| Archivo                                     | Estado     | Fusión |
 | :------------------------------------------ | :--------- | :----- |
-| `docs/03_Decisiones_Pendientes.md`          | Modificado | 12/09  |
-| `docs/04_Reglas_Negocio_Glosario.md` (v1.1) | Modificado | 12/09  |
-| `docs/05_Modelo_Datos_RLS.md` (v1.1)        | Modificado | 12/09  |
-| `docs/06_Arquitectura_Frontend.md` (v1.1)   | Modificado | 12/09  |
-| `docs/10_Entornos_y_Despliegue.md` (v0.2)   | Modificado | 12/09  |
-| `docs/07_Sistema_de_Diseno.md`              | Nuevo      | 12/09  |
-| `docs/08_TAREAS.md`                         | Nuevo      | 12/09  |
-| `docs/13_HANDOFF.md`                        | Modificado | 12/09  |
-| `src/styles/tokens.css`                     | Nuevo      | 12/09  |
-| `src/shared/ui/icons/*.svg` (21 archivos)   | Nuevos     | 12/09  |
-| `src/assets/logo.svg`                       | Nuevo      | 12/09  |
+| `docs/03_Decisiones_Pendientes.md`          | Modificado | #11    |
+| `docs/04_Reglas_Negocio_Glosario.md` (v1.1) | Modificado | #11    |
+| `docs/05_Modelo_Datos_RLS.md` (v1.1)        | Modificado | #11    |
+| `docs/06_Arquitectura_Frontend.md` (v1.1)   | Modificado | #11    |
+| `docs/10_Entornos_y_Despliegue.md` (v0.2)   | Modificado | #11    |
+| `docs/07_Sistema_de_Diseno.md`              | Nuevo      | #11    |
+| `docs/08_TAREAS.md`                         | Nuevo      | #11    |
+| `docs/13_HANDOFF.md`                        | Modificado | #11    |
+| `src/styles/tokens.css`                     | Nuevo      | #12    |
+| `src/shared/ui/icons/*.svg` (21 archivos)   | Nuevos     | #12    |
+| `src/assets/logo.svg`                       | Nuevo      | #12    |
 
 Aparte de eso, `src/` sigue siendo la plantilla de Vite: ninguna dependencia del DOC 06 §2.3 está instalada y no existen `src/shared/lib/supabase.ts` ni `env.ts`.
 
-**`tokens.css`, los iconos y el logo no van con los documentos.** Están colocados en su sitio, pero son código y entran con la rama de la **T-103**, junto a los componentes que los importan. En `main` sin nadie que los use solo estorban.
+**Los tokens, los iconos y el logo se commitearon antes de tener quien los use.** El criterio inicial era dejarlos para la T-103, y se cambió por un motivo mejor: tres o cuatro horas de dibujo sin seguimiento, viviendo solo en un disco, se pierden con un `git clean` despistado. Un SVG sin usar en el repositorio no molesta a nadie.
 
 ### PENDIENTE DE LA TAREA
 
-1. **Fusionar el pull request de documentación** de esta sesión.
-2. ~~Confirmar el recorte del MVP~~ — **confirmado (Raúl, 12/09/2026).** Fuera entrenamiento en directo (A15), disciplina (A16) y todo el Bloque B. El MVP termina donde termina la entrada de datos de partido. Queda una corrección de documentación pendiente: la columna «Fase» del DOC 02 §2 sigue marcando esas pantallas como MVP.
-3. **Descargar la fuente.** `InterVariable-latin.woff2` a `public/fonts/`, y añadir `woff2` a los `globPatterns` del plugin de PWA, o la fuente no estará disponible sin red. Va dentro de la T-102.
-4. **Commitear `tokens.css`, los 21 iconos y el logo**, que están colocados en `src/` pero fuera del commit de documentación. Entran con la rama de la T-103.
-5. **Escribir la migración de la T-100b** con el esquema aplicado delante, nunca de memoria: toca restricciones, políticas y funciones que ya existen, y adivinar un nombre de política rompe la migración. Los cinco cambios, listados en el DOC 05 §14.2.
-6. **Marcar `event.approve` a quien lleve el registro** cuando exista la pantalla de personas (T-301). Hasta entonces, la fila se siembra a mano junto con el resto de permisos.
-7. **Cubos de Storage (`crests`, `docs`) sin crear.** DOC 05 §13. No bloquean nada todavía.
+1. **Corregir la columna «Fase» del DOC 02 §2**, que sigue marcando A15, A16 y el Bloque B como MVP pese al recorte confirmado el 12/09. Tres celdas.
+2. **Descargar la fuente.** `InterVariable-latin.woff2` a `public/fonts/`, y añadir `woff2` a los `globPatterns` del plugin de PWA, o la fuente no estará disponible sin red. Va dentro de la T-102.
+3. **Escribir la migración de la T-100b** con el esquema aplicado delante, nunca de memoria: toca restricciones, políticas y funciones que ya existen, y adivinar un nombre de política rompe la migración. Los cinco cambios, listados en el DOC 05 §14.2.
+4. **Marcar `event.approve` a quien lleve el registro** cuando exista la pantalla de personas (T-301). Hasta entonces, la fila se siembra a mano junto con el resto de permisos.
+5. **Cubos de Storage (`crests`, `docs`) sin crear.** DOC 05 §13. No bloquean nada todavía.
 
 ### AVISO DE SEGURIDAD
 
@@ -150,22 +146,15 @@ Si la próxima sesión vuelve a caer en el móvil, hay trabajo sin código: revi
 
 ```powershell
 cd D:\Documentos\Proyectos\ProyectoSASI\App
-
-# ---- Rama de documentación de esta sesión ----
 git switch main
 git pull
-git switch -c docs/docs-bloque-f-diseno-y-tareas
-
-git add docs/03_Decisiones_Pendientes.md docs/04_Reglas_Negocio_Glosario.md `
-        docs/05_Modelo_Datos_RLS.md docs/06_Arquitectura_Frontend.md `
-        docs/07_Sistema_de_Diseno.md docs/08_TAREAS.md `
-        docs/10_Entornos_y_Despliegue.md docs/13_HANDOFF.md
-git commit -m "docs: close decision block f, add design system, task plan and audit fixes"
-
-npm run format:check
-git push -u origin docs/docs-bloque-f-diseno-y-tareas
 ```
 
-`src/styles/tokens.css` se queda sin commitear hasta la T-103. Guárdalo donde va —`src/styles/`— y déjalo fuera de estos dos commits.
+Nada más que ejecutar: las tres ramas de la sesión están fusionadas y borradas.
 
-Pull request por rama con el mismo título que el commit, CI en verde, squash merge, y la rama se borra sola (DOC 15 §4). Y al fusionar, sube al _Knowledge_ del proyecto las versiones nuevas del 00, 03, 07, 08 y 13: un documento desactualizado ahí hace más daño que su ausencia.
+**Dos avisos aprendidos a base de tropezar**, porque los hooks no perdonan:
+
+- El nombre de rama tiene que casar con `tipo/modulo-descripcion`, con el módulo de la lista cerrada del `pre-commit`. `docs/bloque-f-...` fue rechazado; `docs/docs-bloque-f-...` pasó.
+- El asunto del commit admite 72 caracteres y **exige ámbito**: `docs(docs): ...`, no `docs: ...`.
+
+Pull request por rama, CI en verde, squash merge, y la rama se borra sola (DOC 15 §4). Al fusionar, sube al _Knowledge_ del proyecto las versiones nuevas del 00, 03, 04, 05, 06, 07, 08, 10 y 13: un documento desactualizado ahí hace más daño que su ausencia.
