@@ -118,28 +118,32 @@ máquina de Raúl y no entraba en esta tarea.
 
 ### ESTADO DEL REPOSITORIO
 
-**La PR #18 ya está fusionada en `main`, en `6321b98`**, con su rama remota borrada. Se cerró
-desde la conversación de la que salió esta tarea, después de que la sesión automática dejara
-de responder con el CI de la #19 encolado. La #19 es esta misma, rebasada sobre ese `main`:
+**Las dos pull requests están fusionadas.** Se cerraron desde la conversación de la que salió
+esta tarea, después de que la sesión automática dejara de responder con el CI de la #19
+encolado:
 
 | PR  | Rama                             | Contenido                                                                                                        | CI                             |
 | :-- | :------------------------------- | :--------------------------------------------------------------------------------------------------------------- | :----------------------------- |
 | #18 | `feat/platform-cliente-supabase` | `build(deps)` · `build(platform)` los alias · `feat(platform)` env y cliente · `refactor(platform)` la plantilla | Verde · fusionada en `6321b98` |
-| #19 | `docs/docs-traspaso-t-101`       | `docs(docs)` los DOC 00, 06, 08, 13 y `CLAUDE.md`                                                                | Rebasada sobre `6321b98`       |
+| #19 | `docs/docs-traspaso-t-101`       | `docs(docs)` los DOC 00, 06, 08, 13 y `CLAUDE.md`                                                                | Verde · fusionada en `ff64d33` |
 
-**Las dos se fusionan con squash**, que es la única estrategia habilitada. Después se borran
-las ramas remota y local de cada una.
+**Las dos con squash**, que es la única estrategia habilitada, y con las ramas remotas y
+locales ya borradas. El CI de `main` quedó en verde en los dos merges.
+
+La #19 hubo que **rebasarla sobre `6321b98`** antes de fusionarla, y de paso se corrigió este
+mismo documento, que daba las dos pull requests por abiertas.
 
 **El CI se quedó encolado 35 minutos** en el run del `docs/docs-traspaso-t-101` de las 21:13,
 con los dos trabajos en `queued` y sin runner que los cogiera. No era un fallo del código: el
 run anterior de esa misma rama había pasado en verde. Un push nuevo sobre la rama lo cancela
 por el `concurrency` del workflow y lanza otro, que es la salida cuando vuelva a pasar.
 
-**Las once ramas locales viejas siguen ahí, y no por descuido.** El repositorio fusiona con
-**squash**, así que los commits de una rama nunca llegan a ser antepasados de `main` y
-`git branch -d` las da todas por «not fully merged». Que están fusionadas se comprueba por
-otro lado: sus ramas remotas ya no existen, porque GitHub las borra al fusionar. La única
-forma de limpiarlas es forzar el borrado, y eso no lo hace una sesión autónoma:
+**Las once ramas locales viejas ya están borradas**, con Raúl delante dando el visto bueno.
+No salían con `git branch -d`, y no por descuido: el repositorio fusiona con **squash**, así
+que los commits de una rama nunca llegan a ser antepasados de `main` y `git branch -d` las da
+todas por «not fully merged». Que están fusionadas se comprueba por otro lado: sus ramas
+remotas ya no existen, porque GitHub las borra al fusionar. La única salida es forzar, y eso
+no lo hace una sesión autónoma sin preguntar:
 
 ```powershell
 git branch -D chore/repo-cerrar-proteccion-main chore/repo-subagentes `
@@ -155,15 +159,19 @@ no devuelve nada, la rama se fusionó y se puede borrar.
 
 ### PENDIENTE DE LA TAREA
 
-1. **Fusionar la PR #19** con squash y borrar su rama. La #18 ya está dentro. Es lo único que
-   separa la T-101 de estar cerrada del todo.
-2. **Resincronizar el _Knowledge_** del proyecto desde `/docs` con los DOC 00, 06, 08 y 13 ya
-   fusionados. El DOC 15 no sube, a propósito.
-3. Comprobar en el navegador lo que la sesión no pudo comprobar: `npm run dev`, que la página
-   carga sin errores de consola, y que renombrar `VITE_SUPABASE_URL` en `.env.local` produce
-   el error con el nombre de la variable. Son las condiciones 1 y 2 del DOC 00 §6.
-4. **Borrar las once ramas locales viejas** con el `git branch -D` de arriba, y las dos de
-   esta tarea cuando se fusionen.
+**Nada. La T-101 queda cerrada**, con las cinco condiciones del DOC 00 §6 cumplidas. Lo que
+seguía abierto al apagarse la sesión automática se remató esa misma noche:
+
+- Las dos pull requests, fusionadas y con sus ramas borradas, arriba.
+- **_Knowledge_ resincronizado** desde `/docs` con los DOC 00, 06, 08 y 13. El 15 no sube, a
+  propósito.
+- **Condiciones 1 y 2 comprobadas en el navegador**, con `npm run dev` levantado en la máquina
+  de Raúl. La página sirve «GavetaStats — Andamiaje de la Fase 1. Entorno: development.» y la
+  consola sale limpia: solo el enganche de Vite y el aviso de React DevTools. Renombrando
+  `VITE_SUPABASE_URL` a `VITE_SUPABASE_URL_ROTO`, el arranque se detiene en `env.ts:68` con
+  «VITE_SUPABASE_URL: falta o está vacía.» y deja la pantalla en blanco: **el error nombra la
+  variable**, que era lo que había que verificar. El `.env.local` quedó restaurado, y sigue
+  ignorado por `.gitignore:20`.
 
 ### DEUDA TÉCNICA GENERADA
 
