@@ -7,7 +7,7 @@
 
 ## Sesión 12/09/2026 — Tarea: T-100b · migración de correcciones de la auditoría
 
-Primera sesión con el repositorio, la terminal y Supabase conectados. Se leyeron las dos migraciones aplicadas antes de escribir una línea: los nombres de política, restricción y función salen de ahí. **La tarea queda terminada de punta a punta: escrita, validada, aplicada, commiteada y subida.**
+Primera sesión con el repositorio, la terminal y Supabase conectados. Se leyeron las dos migraciones aplicadas antes de escribir una línea: los nombres de política, restricción y función salen de ahí. **La tarea queda terminada de punta a punta: escrita, validada, aplicada, commiteada, subida y fusionada.**
 
 ### HECHO
 
@@ -73,17 +73,21 @@ Lo demás que marca el auditor ya estaba: `btree_gist` en `public`, veintisiete 
 
 ### ESTADO DEL REPOSITORIO
 
-`main` estaba un commit por detrás del remoto y la rama `docs/docs-estado-tras-fusiones` seguía viva en local: la PR #13 ya se había fusionado. Se actualizó `main` antes de ramificar. **La rama local `docs/docs-estado-tras-fusiones` sigue ahí y se puede borrar sin perder nada.**
+**Todo lo de esta sesión está en `main`.** Dos fusiones, las dos con el CI entero en verde, y las ramas borradas.
 
-| Rama                             | Commits                                                                         |
-| :------------------------------- | :------------------------------------------------------------------------------ |
-| `feat/db-correcciones-auditoria` | `feat(db)` la enumeración · `feat(db)` las correcciones · `chore(db)` los tipos |
-| `docs/docs-traspaso-t-100b`      | `docs(docs)` los DOC 05, 08 y 13                                                |
+| PR  | Rama                             | Contenido                                                                       |
+| :-- | :------------------------------- | :------------------------------------------------------------------------------ |
+| #14 | `feat/db-correcciones-auditoria` | `feat(db)` la enumeración · `feat(db)` las correcciones · `chore(db)` los tipos |
+| #15 | `docs/docs-traspaso-t-100b`      | `docs(docs)` los DOC 05, 08 y 13                                                |
+
+Al empezar, `main` iba un commit por detrás del remoto y la rama `docs/docs-estado-tras-fusiones` seguía viva en local pese a que la PR #13 ya estaba fusionada. Se actualizó `main` antes de ramificar.
 
 ### PENDIENTE DE LA TAREA
 
-1. **Revisar y fusionar las dos pull requests.** Squash merge, la rama se borra sola.
-2. **Decidir qué hacer con `rls_auto_enable`**, arriba.
+Nada de la T-100b: queda cerrada. Lo que sigue abierto es de fuera de la tarea:
+
+1. **Decidir qué hacer con `rls_auto_enable`**, arriba.
+2. **Quitar el `grant execute` a `authenticated` de las siete funciones de disparador**, que no lo necesitan. Siete líneas en la próxima migración de endurecimiento.
 3. Lo que ya venía de la sesión anterior: la columna «Fase» del DOC 02 §2, la descarga de `InterVariable-latin.woff2`, marcar `event.approve` a quien lleve el registro cuando exista la T-301, y los cubos de Storage `crests` y `docs`.
 
 ### DEUDA TÉCNICA GENERADA
@@ -109,19 +113,15 @@ Ojo con una cosa al escribirla: el DOC 13 anterior daba por buena la ruta `src/s
 
 ```powershell
 cd D:\Documentos\Proyectos\ProyectoSASI\App
-git log --oneline main..feat/db-correcciones-auditoria
-git log --oneline main..docs/docs-traspaso-t-100b
-```
-
-Tras fusionar:
-
-```powershell
 git switch main
 git pull
-git branch -d feat/db-correcciones-auditoria docs/docs-traspaso-t-100b docs/docs-estado-tras-fusiones
+git log --oneline -3
+git ls-files supabase/migrations
 ```
 
-Sube al _Knowledge_ del proyecto las versiones nuevas del 05, 08 y 13.
+Deben salir las cuatro migraciones y los dos merges, `b0ff7cb` y `9632e22`.
+
+Los DOC 05, 08 y 13 están subidos al _Knowledge_ del proyecto en su versión fusionada.
 
 ### AVISO DE SEGURIDAD
 
