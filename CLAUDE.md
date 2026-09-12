@@ -13,11 +13,30 @@ Deadline del MVP: **25 de octubre de 2026** (inicio de liga). Presupuesto: 0 €
 
 Repositorio: `https://github.com/60F10/isAPP.git` (privado, rama por defecto `main`).
 
-Hay documentación (`/docs`), configuración del repositorio (Git, commitlint, Husky, Prettier, CI y Netlify) y los comandos de `.claude/`. **Todavía no existe código de aplicación ni `package.json`.** La primera tarea de código es el andamiaje (Fase 1: Vite/PWA + Supabase + login Google + tabla `error_logs`).
+Hay documentación (`/docs`), configuración del repositorio (Git, commitlint, Husky, Prettier, CI y Netlify), los comandos de `.claude/`, el esquema de Supabase en `supabase/migrations/` (cuatro migraciones aplicadas) y, desde la **T-101**, el andamiaje de la aplicación: React 19 + Vite 8 + TypeScript 6, punto de entrada en `src/app/main.tsx`, `src/shared/lib/env.ts` y `src/shared/lib/supabase.ts`. Los restos de la plantilla de Vite ya no están.
 
-**Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite 7 arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
+Siguiente tarea de código: **T-102**, PWA y metadatos.
 
-Cuando exista el andamiaje, los comandos habituales serán los estándar de Vite (`npm run dev`, `npm run build`, `npm run preview`) más `npm run lint`; actualiza esta sección en ese momento con los comandos reales.
+**Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
+
+**Ojo con `NODE_ENV` en la máquina de desarrollo.** Está puesta a `production` en el entorno del sistema, y eso rompe dos cosas en silencio: `npm ci` y `npm install` se saltan las devDependencies —te quedas sin Vite, sin TypeScript, sin oxlint y sin Prettier— y, al revés, con `NODE_ENV=development` un `vite build` empaqueta React en modo desarrollo y mide un 50 % de más. Antes de instalar o de construir, en la terminal de la sesión:
+
+```powershell
+Remove-Item Env:\NODE_ENV
+```
+
+Comandos:
+
+| Comando                | Qué hace                                                |
+| :--------------------- | :------------------------------------------------------ |
+| `npm run dev`          | Servidor de desarrollo en `localhost:5173`              |
+| `npm run build`        | `tsc -b` y después `vite build`                         |
+| `npm run preview`      | Sirve `dist/` para probar el build                      |
+| `npm run lint`         | `oxlint`                                                |
+| `npm run format:check` | Prettier en modo comprobación, que es lo que mira el CI |
+| `npm run db:types`     | Regenera `src/types/database.types.ts` desde Supabase   |
+
+Alias de importación: `@app/*`, `@modules/*`, `@shared/*` y `@app-types/*`. El último **no** es `@types/*`: TypeScript reserva ese prefijo para los paquetes de declaraciones y rechaza la importación con TS6137. Los alias viven a la vez en `tsconfig.app.json` y en `vite.config.ts`, y se tocan los dos o ninguno.
 
 ## Comandos de sesión (slash commands del proyecto)
 

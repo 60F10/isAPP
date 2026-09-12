@@ -5,143 +5,246 @@
 
 ---
 
-## Sesión 12/09/2026 — Tarea: T-100b · migración de correcciones de la auditoría
+## Sesión 12/09/2026 — Tarea: T-101 · dependencias, `env.ts` y `supabase.ts`
 
-Primera sesión con el repositorio, la terminal y Supabase conectados. Se leyeron las dos migraciones aplicadas antes de escribir una línea: los nombres de política, restricción y función salen de ahí. **La tarea queda terminada de punta a punta: escrita, validada, aplicada, commiteada, subida y fusionada.**
+Primera tarea que escribe código de aplicación. Sesión autónoma, con Raúl fuera.
+
+> **Aviso que manda sobre todo lo demás: la tarea está hecha y verificada, pero NO fusionada.**
+> Las dos pull requests están abiertas, con el CI entero en verde y sin conflictos. La sesión
+> no tenía permiso para fusionar sin revisión humana, así que los dos «Squash and merge» los
+> tiene que dar Raúl. Hasta entonces, `main` sigue en `6f2ad7d` y el _Knowledge_ del proyecto
+> sigue en la versión anterior a propósito: la copia buena es `/docs`, y subir arriba lo que
+> aún no está fusionado abajo produce exactamente el desfase que el DOC 00 §3.2 prohíbe.
 
 ### HECHO
 
-**Dos migraciones nuevas, escritas y aplicadas al proyecto GavetaStats.**
+**Dependencias del DOC 06 §2.3, las trece y ni una más** (regla D06-01). Cuatro de producción
+—`react-router`, `@tanstack/react-query`, `@supabase/supabase-js`, `dexie`— y nueve de
+desarrollo —`vite-plugin-pwa`, `vitest`, `@vitest/coverage-v8`, `jsdom`, `fake-indexeddb`,
+las tres de Testing Library y el CLI `supabase`, que es el que ejecuta `npm run db:types`—.
 
-| Archivo                                     | Versión          | Qué lleva                                                   |
-| :------------------------------------------ | :--------------- | :---------------------------------------------------------- |
-| `20260912142001_permiso_event_approve.sql`  | `20260912142001` | Solo el `alter type ... add value 'event.approve'`          |
-| `20260912142131_correcciones_auditoria.sql` | `20260912142131` | Los cinco cambios del §14.2 y las dos políticas del permiso |
+**Fuera la plantilla de Vite.** Se borraron `src/App.tsx`, `src/App.css`, `src/index.css`,
+`src/main.tsx`, `src/assets/react.svg` y `src/assets/vite.svg`. Se quedan el logo, el hero,
+los veintiún iconos de `src/shared/ui/icons/`, `src/styles/tokens.css` y
+`src/types/database.types.ts`.
 
-Van separadas porque PostgreSQL admite añadir un valor de enumeración dentro de una transacción, pero **no deja usarlo en esa misma transacción**. El `before 'match.close'` mantiene el orden documentado en el DOC 05 §3.
+**Archivos nuevos y tocados:**
 
-**Validadas contra un PostgreSQL 16 de verdad antes de tocar el proyecto.** Se levantó una base local con las tablas `auth.users` y la función `auth.uid()` fingidas, se aplicaron las cuatro migraciones en orden y se pasaron once comprobaciones. Todas en verde:
+| Archivo                      | Qué lleva                                                                   |
+| :--------------------------- | :-------------------------------------------------------------------------- |
+| `src/app/main.tsx`           | Punto de entrada del §3.1. Monta React, valida el entorno y crea el cliente |
+| `src/shared/lib/env.ts`      | Lectura y validación de las tres variables `VITE_` al arrancar (D06-21)     |
+| `src/shared/lib/supabase.ts` | Cliente único tipado con `Database`, tal cual el §7.1                       |
+| `tsconfig.app.json`          | `paths` con los cuatro alias del §4.3                                       |
+| `vite.config.ts`             | El mismo mapa en `resolve.alias`, resuelto desde `import.meta.url`          |
+| `index.html`                 | Apunta a `/src/app/main.tsx` y declara `lang="es"`                          |
 
-| Comprobación                                                                              | Resultado |
-| :---------------------------------------------------------------------------------------- | :-------- |
-| Orden de `app_permission` con `event.approve` entre `match.live.write` y `match.close`    | Correcto  |
-| `occurred_at` creada, `seconds` anulable, restricción `match_events_time_present` viva    | Correcto  |
-| Relleno al llegar: evento a 20 min → 1200 s; evento 2 s antes del arranque → 0            | Correcto  |
-| Relleno en diferido: al escribir `started_at` de la parte 2, el evento pasa de nulo a 600 | Correcto  |
-| Sustitución duplicada: se ignora, devuelve su `id` y los tramos se construyen enteros     | Correcto  |
-| Ventana por tipo: dos córners a 15 s no agrupan; dos goles a 15 s sí                      | Correcto  |
-| Fiabilidad: cobertura total = 1,0000; 95 % corroborado = **0,9548** (antes daba 1,0000)   | Correcto  |
-| Ninguna función nueva o rehecha ejecutable por `public` ni por `anon`                     | Correcto  |
-| El seguidor de Cadete A ve a los jugadores de Cadete A, no a los de Cadete B              | Correcto  |
-| Editar lo ajeno con `event.approve` sí; solo con `match.close` no                         | Correcto  |
-| Un evento sin `occurred_at` ni `seconds` se rechaza                                       | Correcto  |
+**Verificado en local, los tres en verde:** `npm run lint` (0 avisos, 0 errores),
+`npx prettier --check .` y `npm run build` (`tsc -b` incluido). Y en remoto: los dos trabajos
+del CI de la PR #18, más el deploy preview de Netlify.
 
-Un hallazgo lateral: la sustitución duplicada **también** la marca `flag_duplicate_candidates`, porque las dos caen dentro de la ventana de 30 s por defecto. El descarte del recálculo y el candidato a duplicado apuntan al mismo par, y eso está bien: la primera lo evita, la segunda lo enseña.
+**Peso del paquete, medido y contrastado con el presupuesto del DOC 06 §10.3.** Lo que entra
+hoy pesa **436,08 kB en crudo y 124,10 kB comprimidos**. Por debajo de los 200 kB, sí, pero
+la cifra que importa es otra: con las cuatro dependencias de producción dentro del grafo
+—que es lo que pasa en cuanto la T-104 monte el enrutador— la medición sube a **190,27 kB
+comprimidos**, el 95 % del presupuesto, con un `main.tsx` que no pinta nada. Las tres salidas
+posibles, con sus consecuencias, quedan escritas en el DOC 06 §10.3.
 
-**Aplicadas al proyecto y comprobadas allí.** Las cuatro versiones están en el historial remoto y el esquema responde lo esperado: enumeración con `event.approve` en su sitio, `occurred_at` creada, `seconds` anulable, los dos disparadores y el índice parcial vivos, `rebuild_match_stints` devolviendo `jsonb`, las dos políticas de `match_events` citando el permiso nuevo, el mapa de ventanas en `app_settings` y **las veintiuna funciones del proyecto cerradas a `public` y a `anon`**.
-
-**Tipos de TypeScript regenerados** en `src/types/database.types.ts` —esa es la ruta real, no `src/shared/types/`— con `occurred_at`, `seconds: number | null`, `rebuild_match_stints` devolviendo `Json` y `event.approve` en la enumeración.
-
-**DOC 05 v1.2, DOC 08 v1.3 y este DOC 13**, con el §14.2 reescrito de «pendiente» a «qué corrigió» y cinco deudas nuevas en el §15.
+**Documentación al día:** DOC 00 v1.4, DOC 06 v1.2, DOC 08 v1.4 (T-101 en ✅), este DOC 13
+y `CLAUDE.md`, que seguía diciendo que no existía `package.json`.
 
 ### DECISIONES TOMADAS
 
-**Las migraciones se renombraron para casar con el historial remoto.** Se aplicaron sin CLI de Supabase —no está instalado ni el proyecto está enlazado—, y la API registra su propia marca de tiempo. Salieron `20260912142001` y `20260912142131`, así que se renombraron los archivos a esas versiones antes de commitearlos. Es lo que exige el §14: si la versión registrada y el prefijo del archivo no coinciden, un `supabase db push` futuro intenta reaplicar lo que ya está dentro. La otra salida —editar `supabase_migrations.schema_migrations`— se descartó por tocar estado interno para ahorrar un renombrado.
+**Alias de importación, no ruta relativa.** Es lo que fija el DOC 06 §4.3 y no había motivo
+para desviarse: el propio `import` enseña el límite entre módulos. `@modules/match` se lee
+como un contrato; `../../../match/model/clock` canta que alguien se saltó la valla.
 
-**El reloj se rellena en los dos sentidos, no solo al llegar el evento.** El §14.2 pedía un disparador «al llegar», y ese resuelve la mitad: si el evento llega **antes** de que se sincronice `started_at`, no hay de dónde calcular los segundos y el evento se queda sin cronología para siempre. Es el caso del anotador sin cobertura durante el arranque, que es para quien existe toda la capa offline. Van dos: `match_events_set_seconds` al llegar el evento y `match_periods_backfill_seconds` al escribir el arranque de la parte.
+**El §4.3 estaba mal escrito y se ha corregido con la herramienta delante.** Dos cosas, las
+dos descubiertas al compilar, no al leer:
 
-**`rebuild_match_stints` cambia su retorno de `integer` a `jsonb`.** Devuelve `{"stints": n, "skipped": [ids]}`. El DOC 04 §6.3 pide que el descarte de la sustitución repetida «se registre» y no dice dónde. Las otras dos salidas se descartaron: escribir en `match_events.details` obliga a cada recálculo a disparar `validate_match_event`, `set_updated_at` y `audit_row` sobre el evento, y llena el partido de auditoría de cambios que nadie hizo; escribir en `audit_log` deja el descarte donde el panel de discordancias no mira y con una RLS que exige `members.manage`. Romper la firma salía gratis hoy y caro en noviembre.
+- **`baseUrl` fuera.** TypeScript 6 lo da por obsoleto y aborta con **TS5101**. Quitarlo
+  obliga a que las rutas de `paths` sean relativas a la carpeta del `tsconfig` (**TS5090**),
+  de ahí el `./src/...` de cada entrada.
+- **`@types/*` pasa a `@app-types/*`.** TypeScript rechaza con **TS6137** toda importación
+  que empiece por `@types/`, porque reserva ese prefijo para los paquetes de declaraciones.
+  No es una manía del linter: no compila. El nombre nuevo se ha aplicado en el código, en el
+  DOC 06 §4.3 y §7.1, y en `CLAUDE.md`.
 
-**La lectura de `players` se afina, no se amplía, y el A-05 estaba mal enunciado.** El resumen decía «los seguidores no podían leer `players`». Con el esquema delante, `can_read_club` ya dejaba a cualquier seguidor de cualquier equipo del club leer la plantilla entera: el problema era el contrario, leía de más. La política nueva sigue al pie de la letra el §12.3, que es lo que manda.
+**`env.ts` lee con acceso estático, no dinámico.** Un `import.meta.env[nombre]` habría
+quedado más corto, pero Vite solo sustituye el acceso estático `import.meta.env.VITE_X` por
+su valor literal al compilar. El dinámico funciona en `npm run dev` y llega vacío a
+producción, que es justo el fallo que la decisión D06-21 quiere evitar.
 
-**`greatest(0, ...)` al derivar los segundos.** El DOC 04 §5.1.1 asume que el reloj de pared de cada móvil se desvía uno o dos segundos. Sin el `greatest`, un evento anotado dos segundos antes del arranque produce un negativo que rompe `match_events_seconds`. Se colapsa al segundo cero.
+**Los fallos de entorno se acumulan y se lanzan juntos.** Arrancar, corregir una variable,
+volver a arrancar y descubrir que falta otra es una pérdida de tiempo evitable. El valor de
+la `anon key` no se imprime nunca, aunque sea público.
 
-**Restricción `match_events_time_present` nueva, no pedida en el §14.2.** Un evento sin `occurred_at` **y** sin `seconds` no se puede ordenar, ni recalcular, ni comparar. En diferido llega `seconds`; en directo, `occurred_at`. Al menos uno.
+**`VITE_APP_ENV` con lista cerrada: `development` o `production`.** Son los dos valores que
+define el DOC 10 §3. Un tercero rompe al arrancar, a propósito. Si algún día hace falta uno
+para los deploy previews, se añade a `env.ts`, a `.env.example` y a Netlify en el mismo
+commit, que es la regla del DOC 06 §12.
 
-### AVISO DEL AUDITOR: ALGO QUE NO ES NUESTRO
+**`main.tsx` importa el cliente de Supabase por su efecto.** Sin esa línea, Vite lo sacaría
+del paquete por no usarse y la medición del peso saldría optimista y falsa. Además es lo que
+hace que la validación del entorno corra de verdad al arrancar.
 
-El auditor de seguridad de Supabase marca **`public.rls_auto_enable()` como ejecutable por `anon` vía `/rest/v1/rpc`**, siendo `SECURITY DEFINER`. No está en ninguna migración del repositorio: la creó la plataforma, es propiedad de `postgres` y la usa un disparador de eventos que activa la RLS al crear una tabla.
+**`index.html` pasa a `lang="es"`.** La interfaz va en español y el idioma de la página es el
+criterio 3.1.1 de WCAG, que el principio P5 manda aplicar al construir. El título, el
+manifiesto y los iconos **no** se han tocado: son de la T-102.
 
-El riesgo práctico es bajo: devuelve `event_trigger`, tipo que PostgREST no expone, y fuera del contexto de un disparador de eventos falla. Pero conviene decidirlo a conciencia y no dejarlo pasar:
+**Ni `npm run test` ni configuración de Vitest.** `vitest` está instalado porque la lista del
+§2.3 se instala de una vez, pero el bloque `test` de `vite.config.ts` y el paso de CI del
+DOC 06 §11 quedan fuera del alcance de esta tarea. Un `npm run test` sin un solo archivo de
+prueba falla, así que ni siquiera se ha añadido el script: se añade con la primera prueba.
 
-- **Revocarla desde una migración** cierra el aviso, pero mete en el repositorio una función que la plataforma gestiona: si Supabase la recrea, el `revoke` se pierde, y en un proyecto nuevo donde no exista, la migración falla.
-- **Dejarla y documentarla** es lo que se ha hecho hoy. Queda aquí escrito para que la próxima auditoría no lo redescubra como hallazgo nuevo.
+### HALLAZGO DEL ENTORNO: `NODE_ENV=production` en la máquina
 
-El auditor marca además diecinueve funciones del proyecto como ejecutables por `authenticated`. Eso es deliberado y viene del endurecimiento del 11/09. Aun así hay margen: las siete funciones de disparador —`audit_row`, `validate_match_event`, `enforce_match_changes`, `set_match_club_id`, `handle_new_user`, `set_event_seconds` y `backfill_event_seconds`— **no necesitan el `grant` a `authenticated` para nada**, porque un disparador ejecuta su función con independencia de los permisos. Quitárselo es una línea por función y cierra siete avisos. No entra hoy por no desviar la T-100b.
+La máquina de desarrollo tiene **`NODE_ENV=production`** puesta en el entorno del sistema.
+Con esa variable delante, `npm ci` y `npm install` **se saltan las devDependencies**: la
+primera instalación de esta sesión dejó el proyecto sin Vite, sin TypeScript, sin oxlint y
+sin Prettier, y npm no dijo ni una palabra. Y al revés, poner `NODE_ENV=development` para
+sortearlo hace que `vite build` empaquete React en modo desarrollo: la primera medición del
+paquete dio 185 kB comprimidos cuando la real eran 124.
 
-Lo demás que marca el auditor ya estaba: `btree_gist` en `public`, veintisiete claves ajenas sin índice, trece tablas con dos políticas permisivas de `SELECT`, y la protección de contraseñas filtradas desactivada (irrelevante: solo se entra con Google).
+Ninguna de las dos cosas falla de forma ruidosa, y las dos mienten. Queda escrito en
+`CLAUDE.md` y en el DOC 06 §10.3. Antes de instalar o de medir, en la terminal de la sesión:
+
+```powershell
+Remove-Item Env:\NODE_ENV
+```
+
+Lo suyo sería quitarla del entorno del sistema, pero eso es tocar la configuración de la
+máquina de Raúl y no entraba en esta tarea.
 
 ### ESTADO DEL REPOSITORIO
 
-**Todo lo de esta sesión está en `main`.** Dos fusiones, las dos con el CI entero en verde, y las ramas borradas.
+**La PR #18 ya está fusionada en `main`, en `6321b98`**, con su rama remota borrada. Se cerró
+desde la conversación de la que salió esta tarea, después de que la sesión automática dejara
+de responder con el CI de la #19 encolado. La #19 es esta misma, rebasada sobre ese `main`:
 
-| PR  | Rama                             | Contenido                                                                       |
-| :-- | :------------------------------- | :------------------------------------------------------------------------------ |
-| #14 | `feat/db-correcciones-auditoria` | `feat(db)` la enumeración · `feat(db)` las correcciones · `chore(db)` los tipos |
-| #15 | `docs/docs-traspaso-t-100b`      | `docs(docs)` los DOC 05, 08 y 13                                                |
+| PR  | Rama                             | Contenido                                                                                                        | CI                             |
+| :-- | :------------------------------- | :--------------------------------------------------------------------------------------------------------------- | :----------------------------- |
+| #18 | `feat/platform-cliente-supabase` | `build(deps)` · `build(platform)` los alias · `feat(platform)` env y cliente · `refactor(platform)` la plantilla | Verde · fusionada en `6321b98` |
+| #19 | `docs/docs-traspaso-t-101`       | `docs(docs)` los DOC 00, 06, 08, 13 y `CLAUDE.md`                                                                | Rebasada sobre `6321b98`       |
 
-Al empezar, `main` iba un commit por detrás del remoto y la rama `docs/docs-estado-tras-fusiones` seguía viva en local pese a que la PR #13 ya estaba fusionada. Se actualizó `main` antes de ramificar.
+**Las dos se fusionan con squash**, que es la única estrategia habilitada. Después se borran
+las ramas remota y local de cada una.
+
+**El CI se quedó encolado 35 minutos** en el run del `docs/docs-traspaso-t-101` de las 21:13,
+con los dos trabajos en `queued` y sin runner que los cogiera. No era un fallo del código: el
+run anterior de esa misma rama había pasado en verde. Un push nuevo sobre la rama lo cancela
+por el `concurrency` del workflow y lanza otro, que es la salida cuando vuelva a pasar.
+
+**Las once ramas locales viejas siguen ahí, y no por descuido.** El repositorio fusiona con
+**squash**, así que los commits de una rama nunca llegan a ser antepasados de `main` y
+`git branch -d` las da todas por «not fully merged». Que están fusionadas se comprueba por
+otro lado: sus ramas remotas ya no existen, porque GitHub las borra al fusionar. La única
+forma de limpiarlas es forzar el borrado, y eso no lo hace una sesión autónoma:
+
+```powershell
+git branch -D chore/repo-cerrar-proteccion-main chore/repo-subagentes `
+  docs/docs-arquitectura-frontend docs/docs-estado-tras-fusiones docs/docs-readme `
+  docs/docs-reglas-negocio-y-modelo-datos docs/docs-traspaso-sesion `
+  docs/docs-traspaso-t-100b feat/db-aplicar-esquema-inicial `
+  feat/db-correcciones-auditoria feat/db-esquema-inicial
+```
+
+Conviene saberlo porque va a pasar con todas: **con squash merge, `git branch -d` no sirve
+nunca.** La comprobación buena antes de forzar es `git ls-remote --heads origin <rama>`: si
+no devuelve nada, la rama se fusionó y se puede borrar.
 
 ### PENDIENTE DE LA TAREA
 
-Nada de la T-100b: queda cerrada. Lo que sigue abierto es de fuera de la tarea:
-
-1. **Decidir qué hacer con `rls_auto_enable`**, arriba.
-2. **Quitar el `grant execute` a `authenticated` de las siete funciones de disparador**, que no lo necesitan. Siete líneas en la próxima migración de endurecimiento.
-3. Lo que ya venía de la sesión anterior: la columna «Fase» del DOC 02 §2, la descarga de `InterVariable-latin.woff2`, marcar `event.approve` a quien lleve el registro cuando exista la T-301, y los cubos de Storage `crests` y `docs`.
+1. **Fusionar la PR #19** con squash y borrar su rama. La #18 ya está dentro. Es lo único que
+   separa la T-101 de estar cerrada del todo.
+2. **Resincronizar el _Knowledge_** del proyecto desde `/docs` con los DOC 00, 06, 08 y 13 ya
+   fusionados. El DOC 15 no sube, a propósito.
+3. Comprobar en el navegador lo que la sesión no pudo comprobar: `npm run dev`, que la página
+   carga sin errores de consola, y que renombrar `VITE_SUPABASE_URL` en `.env.local` produce
+   el error con el nombre de la variable. Son las condiciones 1 y 2 del DOC 00 §6.
+4. **Borrar las once ramas locales viejas** con el `git branch -D` de arriba, y las dos de
+   esta tarea cuando se fusionen.
 
 ### DEUDA TÉCNICA GENERADA
 
-| Deuda                                                                                                          | Estado                                                                                    |
-| :------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
-| Un evento con `seconds` nulo escapa a la detección de duplicados y el recálculo lo coloca al final de la parte | Se corrige solo al llegar el arranque. Si nunca llega, lo arrastra el partido entero      |
-| El relleno en diferido dispara `validate_match_event` y `audit_row` por cada evento rellenado                  | Asumida: la traza es deseable y son pocos eventos                                         |
-| `rebuild_match_stints` no comprueba que el jugador que **sale** esté en el campo                               | Abierta. El que entra sí se comprueba, que es el que rompía la restricción                |
-| El descarte de sustituciones repetidas solo vive en el retorno de la función                                   | Abierta hasta la T-210                                                                    |
-| Siete funciones de disparador con `grant execute` a `authenticated` que no necesitan                           | Abierta. Siete líneas en la próxima migración de endurecimiento                           |
-| `coverage_update` y `matches_update` siguen citando `match.close`                                              | Correcto a propósito: el acta es del cierre. Anotado para que nadie lo cambie por inercia |
+| Deuda                                                                                                          | Estado                                                                                                         |
+| :------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- |
+| El presupuesto de 200 kB del DOC 06 §10.3 se queda en 10 kB de margen en cuanto entren las cuatro dependencias | Abierta. Se decide en la **T-104**, con las tres salidas escritas en el §10.3                                  |
+| `vitest` y `@vitest/coverage-v8` instalados, sin bloque `test` en `vite.config.ts` ni paso de CI               | Abierta. Entra con la primera prueba, que por el DOC 06 §11 será del `model/` de `match`                       |
+| `vite-plugin-pwa` instalado y sin configurar                                                                   | Abierta hasta la T-102, que es la tarea que lo configura                                                       |
+| `src/styles/tokens.css` sigue sin engancharse a nada: nadie lo importa                                         | Abierta hasta la T-103, que monta el sistema de diseño                                                         |
+| Los alias viven duplicados en `tsconfig.app.json` y en `vite.config.ts`, sincronizados a mano                  | Asumida. Es la forma que tiene Vite; una desviación entre los dos compila pero no arranca                      |
+| `index.html` mantiene `<title>scaffold</title>` y el favicon de la plantilla                                   | A propósito: los metadatos son de la T-102                                                                     |
+| El error de entorno se lanza sin interfaz: pantalla en blanco y mensaje en consola                             | Asumida hasta la T-106, que trae el Error Boundary. En despliegue el fallo es de configuración, no del usuario |
 
-Las de sesiones anteriores siguen abiertas, menos la de `CLAUDE.md`, cerrada hoy: `btree_gist` en `public`, claves ajenas sin índice, trece tablas con dos políticas permisivas de `SELECT`, la `anon key` heredada, el borrado de club bloqueado por `match_squad`, el DOC 14 sin subagentes, el subconjunto de Inter sin afinar y el tema oscuro fuera del MVP.
+### LO QUE SIGUE ABIERTO DE SESIONES ANTERIORES
 
-### AUDITORÍA DE SINCRONÍA (añadido al cierre)
+Nada de esto se ha tocado hoy, y se pierde si no se arrastra:
 
-Se comparó documento a documento el repositorio contra el _Knowledge_ del proyecto. El desfase de fondo no estaba arriba: **estaba en el propio DOC 00**, que seguía describiendo un proyecto de hace dos días.
-
-| Dónde                  | Qué estaba mal                                                                                                        |
-| :--------------------- | :-------------------------------------------------------------------------------------------------------------------- |
-| DOC 00 §3.1            | 07 «desbloqueado, siguiente» y 08 «bloqueado por 07», estando los dos escritos. 03, 04, 05, 06 y 10 con versión vieja |
-| DOC 00 §7              | La Fase 0 daba por pendientes el 07 y el 08                                                                           |
-| DOC 00 §4.4            | GitHub «decide público o privado antes del primer commit», decidido hace días                                         |
-| DOC 00, las dos copias | La del _Knowledge_ y la de `/docs` decían v1.2 y **no eran el mismo archivo**: una celda distinta                     |
-| `CLAUDE.md`            | Citaba `docs/05_Modelo_Datos.md`, que no existe, y daba el 05, el 08 y el 13 por no escritos                          |
-| _Knowledge_            | Sin el **07**. Con el **03**, el **04**, el **06** y el **10** en versiones anteriores al 12/09                       |
-
-Corregido todo: DOC 00 a v1.3, `CLAUDE.md` al día, y el _Knowledge_ resincronizado desde el repositorio.
-
-**La regla que se saltó, y que ahora está escrita en el §3.2:** la copia buena es `/docs`. Editar solo la copia del _Knowledge_ produce exactamente lo que se encontró hoy, dos archivos con el mismo número de versión y distinto contenido.
-
-El **15** no sube al _Knowledge_ a propósito: su resumen vive en `CLAUDE.md` y los hooks lo aplican solos.
+1. **Decidir qué hacer con `public.rls_auto_enable()`**, la función de la plataforma que el
+   auditor de Supabase marca como ejecutable por `anon`. Riesgo práctico bajo; la salida
+   —revocarla desde una migración— mete en el repositorio una función que gestiona Supabase.
+2. **Quitar el `grant execute` a `authenticated` de las siete funciones de disparador**, que
+   no lo necesitan. Siete líneas en la próxima migración de endurecimiento.
+3. La columna «Fase» del DOC 02 §2 sigue desfasada en A15, A16 y el Bloque B.
+4. La descarga de `InterVariable-latin.woff2` y el subconjunto sin afinar.
+5. Marcar `event.approve` a quien lleve el registro, cuando exista la T-301.
+6. Los cubos de Storage `crests` y `docs`, sin crear.
+7. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
+   índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
+   comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones
+   repetidas viviendo solo en el retorno de la función.
 
 ### SIGUIENTE TAREA SUGERIDA
 
-**T-101**: dependencias del DOC 06 §2.3, `shared/lib/env.ts` y `shared/lib/supabase.ts`, con `tsc -b` y CI en verde. Es la primera tarea que escribe código de aplicación, y los tipos que necesita ya están regenerados y commiteados.
+**T-102**: PWA y metadatos —`vite-plugin-pwa` con `registerType: 'prompt'` (D06-14),
+manifiesto, iconos, precaché de la fuente y Lighthouse ≥ 90 en PWA—. El paquete ya está
+instalado, así que la tarea empieza por la configuración.
 
-Ojo con una cosa al escribirla: el DOC 13 anterior daba por buena la ruta `src/shared/types/database.types.ts`. La real es **`src/types/database.types.ts`**.
+Dos avisos para quien la coja:
+
+- **El título, el idioma y el favicon de `index.html` son suyos.** Hoy solo se cambió el
+  `lang` y la referencia al punto de entrada; el resto sigue siendo de la plantilla.
+- **El nombre visible sale de una sola constante** (decisión F1 del DOC 03). El manifiesto es
+  el primer sitio donde aparece «GavetaStats»: conviene que no se escriba a mano en dos
+  sitios desde el primer día.
+
+La **T-103** también está desbloqueada y no depende de la T-102. Si la T-102 se atasca con
+Lighthouse, se puede adelantar la T-103 sin romper nada.
 
 ### COMANDOS PARA VERIFICAR
 
 ```powershell
 cd D:\Documentos\Proyectos\ProyectoSASI\App
+Remove-Item Env:\NODE_ENV          # imprescindible, ver el hallazgo de arriba
 git switch main
 git pull
 git log --oneline -3
-git ls-files supabase/migrations
+
+npm ci
+npm run lint
+npx prettier --check .
+npm run build
 ```
 
-Deben salir las cuatro migraciones y los dos merges, `b0ff7cb` y `9632e22`.
+El build tiene que terminar en verde y decir `436.08 kB` en crudo y `124.10 kB` comprimidos.
+Si sale bastante más, `NODE_ENV` volvió a colarse.
 
-Los DOC 05, 08 y 13 están subidos al _Knowledge_ del proyecto en su versión fusionada.
+Después, la comprobación que no se pudo hacer sin navegador:
+
+```powershell
+npm run dev
+```
+
+1. Abrir `http://localhost:5173`: se ve «GavetaStats» y la línea con el entorno leído de
+   `.env.local`. La consola, limpia.
+2. Renombrar `VITE_SUPABASE_URL` a cualquier otra cosa en `.env.local`, reiniciar el
+   servidor y recargar: la consola tiene que lanzar «Configuración de entorno incompleta o
+   incorrecta» nombrando la variable que falta. Devolver el nombre bueno después.
 
 ### AVISO DE SEGURIDAD
 
-Sigue vigente: al abrir el panel del proveedor de Google en Supabase, **Chrome autorrellena «Client IDs» y «Client Secret»** con credenciales guardadas. Vacía los dos campos antes de tocar nada; si se pulsa «Save» con eso dentro, tu contraseña acaba escrita en la configuración del proveedor.
+Sigue vigente: al abrir el panel del proveedor de Google en Supabase, **Chrome autorrellena
+«Client IDs» y «Client Secret»** con credenciales guardadas. Vacía los dos campos antes de
+tocar nada; si se pulsa «Save» con eso dentro, tu contraseña acaba escrita en la
+configuración del proveedor.
