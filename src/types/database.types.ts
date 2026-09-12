@@ -387,12 +387,13 @@ export type Database = {
           id: string
           is_opponent: boolean
           match_id: string
+          occurred_at: string | null
           period: number
           player_id: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           secondary_player_id: string | null
-          seconds: number
+          seconds: number | null
           status: Database["public"]["Enums"]["event_status"]
           updated_at: string
         }
@@ -406,12 +407,13 @@ export type Database = {
           id?: string
           is_opponent?: boolean
           match_id: string
+          occurred_at?: string | null
           period: number
           player_id?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           secondary_player_id?: string | null
-          seconds: number
+          seconds?: number | null
           status?: Database["public"]["Enums"]["event_status"]
           updated_at?: string
         }
@@ -425,12 +427,13 @@ export type Database = {
           id?: string
           is_opponent?: boolean
           match_id?: string
+          occurred_at?: string | null
           period?: number
           player_id?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           secondary_player_id?: string | null
-          seconds?: number
+          seconds?: number | null
           status?: Database["public"]["Enums"]["event_status"]
           updated_at?: string
         }
@@ -1697,7 +1700,7 @@ export type Database = {
         }
         Returns: number
       }
-      rebuild_match_stints: { Args: { p_match_id: string }; Returns: number }
+      rebuild_match_stints: { Args: { p_match_id: string }; Returns: Json }
       team_of_match: { Args: { p_match_id: string }; Returns: string }
     }
     Enums: {
@@ -1708,6 +1711,7 @@ export type Database = {
         | "schedule.manage"
         | "lineup.manage"
         | "match.live.write"
+        | "event.approve"
         | "match.close"
         | "discipline.manage"
         | "training.manage"
@@ -1896,6 +1900,7 @@ export const Constants = {
         "schedule.manage",
         "lineup.manage",
         "match.live.write",
+        "event.approve",
         "match.close",
         "discipline.manage",
         "training.manage",
