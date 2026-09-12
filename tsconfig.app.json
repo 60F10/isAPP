@@ -8,6 +8,16 @@
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
+    /* Alias de importación (DOC 06 §4.3). El mismo mapa vive en vite.config.ts.
+       Sin `baseUrl`: TypeScript 6 lo da por obsoleto y falla con TS5101. Las
+       rutas de `paths` se resuelven contra la carpeta de este tsconfig. */
+    "paths": {
+      "@app/*": ["./src/app/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@app-types/*": ["./src/types/*"]
+    },
+
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
