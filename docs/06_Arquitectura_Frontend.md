@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.1 — 12/09/2026 (auditoría: cola con `match`, almacén persistente, ancla del reloj, wake lock) · anterior 1.0 — 11/09/2026
+> **Versión:** 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -22,20 +22,22 @@ Las decisiones llevan identificador `D06-nn`. Se citan desde los commits, desde 
 
 React 19 + Vite 8 + TypeScript 6 con la plantilla `react-ts`, `oxlint`, Prettier, Husky, commitlint, CI de GitHub y `netlify.toml` con la redirección de SPA y las cabeceras de caché. Node 22 fijado en `.nvmrc`.
 
-`src/` sigue con el contenido de la plantilla: `App.tsx`, `App.css`, `index.css`, `main.tsx` y los recursos de ejemplo. Todo eso se borra en la primera tarea de código.
+`src/` seguía con el contenido de la plantilla: `App.tsx`, `App.css`, `index.css`, `main.tsx` y los recursos de ejemplo. **Se borró en la T-101**, que movió el punto de entrada a `src/app/main.tsx`.
 
 ### 2.2 Lo que falta y este documento decide
 
-| Pieza                | Estado                                           |
-| :------------------- | :----------------------------------------------- |
-| Enrutador            | Sin instalar. Se decide en §6                    |
-| Cliente de Supabase  | Sin instalar. Se decide en §7                    |
-| Caché de lectura     | Sin instalar. Se decide en §5                    |
-| Almacén local y cola | Sin instalar. Se decide en §8                    |
-| `vite-plugin-pwa`    | Sin instalar. Se decide en §8.7                  |
-| Pruebas              | Sin instalar. Se decide en §11                   |
-| Esquema de la base   | Escrito y probado, **sin aplicar** a GavetaStats |
-| Login con Google     | Sin configurar en Google Cloud Console           |
+Columna de estado al cerrar la **T-101**. Las decisiones de este documento no cambian; lo que cambia es cuánto de ellas está ya en el repositorio.
+
+| Pieza                | Estado                                                                           |
+| :------------------- | :------------------------------------------------------------------------------- |
+| Enrutador            | Instalado, sin montar. Se monta en la T-104. Se decide en §6                     |
+| Cliente de Supabase  | **Hecho**: `src/shared/lib/supabase.ts`. Se decide en §7                         |
+| Caché de lectura     | Instalada, sin proveedor. Entra con la T-104. Se decide en §5                    |
+| Almacén local y cola | Dexie instalado, sin esquema local. Es la T-206. Se decide en §8                 |
+| `vite-plugin-pwa`    | Instalado, sin configurar. Es la T-102. Se decide en §8.7                        |
+| Pruebas              | Vitest instalado, sin bloque en `vite.config.ts` ni paso de CI. Se decide en §11 |
+| Esquema de la base   | **Aplicado** a GavetaStats: cuatro migraciones (DOC 05 §14)                      |
+| Login con Google     | Cliente de OAuth configurado (DOC 10 §4); sin enchufar a la aplicación (T-105)   |
 
 ### 2.3 Dependencias que se añaden
 
@@ -47,7 +49,17 @@ npm i -D vite-plugin-pwa vitest @vitest/coverage-v8 jsdom fake-indexeddb \
          @testing-library/react @testing-library/user-event @testing-library/jest-dom supabase
 ```
 
-De las cuatro dependencias de producción, el grueso del peso lo pone `@supabase/supabase-js`; el enrutador, la caché y Dexie suman poco más de 50 kB comprimidos entre las tres. La cifra real se mide con `vite build` en la primera tarea de código y se contrasta con el presupuesto de §10.3.
+De las cuatro dependencias de producción, el grueso del peso lo pone `@supabase/supabase-js`; el enrutador, la caché y Dexie suman poco más de 50 kB comprimidos entre las tres.
+
+**Medido en la T-101** con `vite build`, sobre un `main.tsx` que no pinta nada:
+
+| Qué entra en el grafo                          | Crudo     | Comprimido    |
+| :--------------------------------------------- | :-------- | :------------ |
+| React 19 y ReactDOM                            | 219,70 kB | 68,64 kB      |
+| Lo anterior más `@supabase/supabase-js`        | 436,08 kB | 124,10 kB     |
+| Lo anterior más el enrutador, la caché y Dexie | 643,55 kB | **190,27 kB** |
+
+O sea el 95 % del presupuesto de 200 kB del §10.3 gastado en dependencias, antes de la primera pantalla. Las consecuencias y las salidas están en §10.3.
 
 **Regla de dependencias nuevas (D06-01).** Cualquier paquete que no esté en esa lista entra con una nota en el DOC 13 que diga qué problema resuelve y qué se evaluó antes. Una dependencia es código que hay que mantener sin haberlo escrito.
 
@@ -184,16 +196,24 @@ Cada pantalla del DOC 02 pertenece a un solo módulo. El módulo dueño es quien
 Alias de importación en `tsconfig.app.json` y en `vite.config.ts`, para que la regla se vea en el propio import:
 
 ```json
-"baseUrl": ".",
 "paths": {
-  "@app/*": ["src/app/*"],
-  "@modules/*": ["src/modules/*"],
-  "@shared/*": ["src/shared/*"],
-  "@types/*": ["src/types/*"]
+  "@app/*": ["./src/app/*"],
+  "@modules/*": ["./src/modules/*"],
+  "@shared/*": ["./src/shared/*"],
+  "@app-types/*": ["./src/types/*"]
 }
 ```
 
 Un `import { useMatchClock } from '@modules/match'` se lee como contrato. Un `import ... from '../../../match/model/clock'` canta que alguien se saltó la valla.
+
+**Corregido en la v1.2, con la herramienta delante.** La v1.1 escribía `"baseUrl": "."` y `"@types/*"`, y ninguna de las dos cosas compila con el `tsc` de este proyecto:
+
+- TypeScript 6 da `baseUrl` por obsoleto y aborta con **TS5101**. Sin `baseUrl`, las rutas de `paths` tienen que ser relativas a la carpeta del propio `tsconfig` (**TS5090**): de ahí el `./` delante de cada una.
+- TypeScript rechaza con **TS6137** cualquier importación que empiece por `@types/`, porque reserva ese prefijo para los paquetes de declaraciones. El alias pasa a **`@app-types/*`**.
+
+El mismo mapa se repite en `resolve.alias` de `vite.config.ts`, con rutas absolutas resueltas desde `import.meta.url`. Son dos sitios y se tocan a la vez: TypeScript resuelve con el `tsconfig` y Vite con el suyo, y una desviación entre los dos compila pero no arranca.
+
+Dentro de un mismo módulo la ruta relativa sigue siendo la correcta (regla 2 del §4.1): `supabase.ts` importa `./env`, no `@shared/lib/env`.
 
 ---
 
@@ -329,7 +349,7 @@ Una sola región `aria-live="polite"` en `AppLayout`, alimentada por un hook `us
 
 ```ts
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@types/database.types';
+import type { Database } from '@app-types/database.types';
 import { env } from './env';
 
 export const supabase = createClient<Database>(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
@@ -593,6 +613,18 @@ La pantalla que importa es A12 y su enemigo es el render en cascada. Tres reglas
 2. La lista de eventos se renderiza por clave estable (`clientEventId`), nunca por índice.
 3. Presupuesto del paquete inicial: **por debajo de 200 kB comprimidos**. Se mide con `vite build` en cada entrega. Sin herramienta automática todavía (§13).
 
+**El presupuesto ya está casi gastado, y eso lo decide la T-104.** La medición de la T-101 (§2.3) deja las cuatro dependencias de producción en 190,27 kB comprimidos con un punto de entrada que no pinta nada. Quedan menos de 10 kB para veintiuna pantallas, los siete componentes base, los iconos y el runtime de la PWA. Hay tres salidas y ninguna es gratis:
+
+| Salida                                                       | Qué gana                                              | Qué cuesta                                                                                                                         |
+| :----------------------------------------------------------- | :---------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
+| Sacar `@supabase/supabase-js` del arranque                   | 55,5 kB comprimidos, el mayor bloque después de React | La sesión se necesita en la primera pantalla, así que el retardo se paga en el arranque en vez de en el paquete                    |
+| Aflojar la excepción de D06-06 y dejar A12 fuera del inicial | Recupera margen sin tocar dependencias                | Cambia «A12 abre sin cobertura sin haber pasado por ella» por «A12 abre sin cobertura si pasaste antes por la convocatoria» (§8.3) |
+| Subir el presupuesto                                         | Honesto: una cifra medida contra el 3G de un campo    | Hay que medirla de verdad antes de escribirla, no elegirla para que quepa lo que ya hay                                            |
+
+Se decide en la **T-104**, que es la tarea que parte el paquete. Antes no hay dato suficiente, porque falta saber cuánto ocupan las pantallas.
+
+**Herramienta de medición.** `vite build` con la variable `NODE_ENV` puesta a `development` empaqueta React en modo desarrollo y da una cifra falsa, un 50 % por encima. La máquina de desarrollo la tiene puesta a `production` en el sistema, lo que a su vez hace que `npm ci` se salte las devDependencies. Se quita de la terminal antes de instalar y antes de medir.
+
 ---
 
 ## 11. Pruebas
@@ -651,4 +683,4 @@ Variable nueva: se añade a `.env.example`, a `env.ts` y al panel de Netlify **e
 - **DOC 09** — el Error Boundary, las tres capas de captura y el envío a `error_logs` tienen sitio asignado.
 - **DOC 10** — las variables de entorno, su validación y el comportamiento de la PWA en cada despliegue quedan definidos.
 
-La primera tarea de código sigue siendo la del DOC 13: PWA y metadatos de la aplicación. Ya se puede especificar entera contra este documento.
+La primera tarea de código, la T-101, está cerrada: dependencias, alias, validación del entorno y cliente de Supabase. La siguiente es la **T-102**, PWA y metadatos, y ya se puede especificar entera contra este documento.

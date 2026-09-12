@@ -3,7 +3,7 @@
 > **Proyecto:** App de gestión y estadísticas de fútbol base (nombre sin decidir → ver DOC 12)
 > **Deadline MVP:** 25 de octubre de 2026 (inicio de liga). Amistosos antes como banco de pruebas.
 > **Presupuesto:** 0 € extra sobre las suscripciones ya contratadas.
-> **Versión:** 1.3 — 12/09/2026 (estado real de los 15 documentos y de la Fase 1) · 1.2 — 11/09/2026
+> **Versión:** 1.4 — 12/09/2026 (versiones del DOC 06 y del DOC 08 tras la T-101) · 1.3 el mismo día · 1.2 — 11/09/2026
 
 ---
 
@@ -35,15 +35,15 @@ Estas cinco reglas mandan sobre cualquier decisión posterior. Si un documento l
 
 | Código | Documento                             | Qué contiene                                                                                                                               | Estado                                                |
 | :----- | :------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| **00** | Índice documental y herramientas      | Este archivo. Mapa de docs, tooling y método de sesiones                                                                                   | ✅ v1.3                                               |
+| **00** | Índice documental y herramientas      | Este archivo. Mapa de docs, tooling y método de sesiones                                                                                   | ✅ v1.4                                               |
 | **01** | Backlog maestro de ideas              | Todas las ideas (tuyas y de Gemini) con ID, origen, módulo y fase                                                                          | ✅ v1.0                                               |
 | **02** | Pantallas, navegación y accesibilidad | Inventario de pantallas, árbol de rutas, patrones de navegación y criterios WCAG                                                           | ✅ v1.0                                               |
 | **03** | Decisiones pendientes                 | Preguntas que bloquean los documentos siguientes                                                                                           | ✅ v1.2                                               |
 | **04** | Reglas de negocio y glosario          | Reglamento configurable, cálculo de minutos, casos límite, estados de evento                                                               | ✅ v1.1                                               |
 | **05** | Modelo de datos y políticas RLS       | Tablas, relaciones, índices, trazabilidad y seguridad a nivel de fila. El esquema vive en `supabase/migrations/`, aplicado al proyecto     | ✅ v1.2, esquema migrado                              |
-| **06** | Arquitectura frontend y convenciones  | Estructura de carpetas, límites entre módulos, gestión de estado, capa offline y cola de sincronización, cliente de Supabase, nomenclatura | ✅ v1.1                                               |
+| **06** | Arquitectura frontend y convenciones  | Estructura de carpetas, límites entre módulos, gestión de estado, capa offline y cola de sincronización, cliente de Supabase, nomenclatura | ✅ v1.2                                               |
 | **07** | Sistema de diseño y tokens            | Variables CSS, escala tipográfica, color de equipo inyectable, componentes base                                                            | ✅ v1.0, tokens e iconos ya en el repositorio         |
-| **08** | `TAREAS.md` — plan de tareas          | Lista atómica de tareas con ID, dependencia, estimación y estado                                                                           | ✅ v1.3, vivo: se actualiza al cerrar cada tarea      |
+| **08** | `TAREAS.md` — plan de tareas          | Lista atómica de tareas con ID, dependencia, estimación y estado                                                                           | ✅ v1.4, vivo: se actualiza al cerrar cada tarea      |
 | **09** | Observabilidad y registro de errores  | Tabla `error_logs`, Error Boundary global, qué se captura y qué no                                                                         | ⏳ Desbloqueado. La tabla ya existe en el DOC 05      |
 | **10** | Entornos y despliegue                 | Variables de entorno, deploy previews, checklist de release. El modelo de ramas ya vive en DOC 15                                          | 🚧 v0.2 parcial: servicios, acceso y copias           |
 | **11** | RGPD y política de datos              | Base legal, minimización, entidades `Player` sin datos sensibles, retención                                                                | ⏳ Desbloqueado                                       |
