@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 1.2 — 12/09/2026 (auditoría: T-100b y T-105b) · 1.1 el mismo día
+> **Versión:** 1.3 — 12/09/2026 (T-100 cerrada, T-100b escrita) · 1.2 el mismo día · 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -62,8 +62,8 @@ Veintiuna tareas. **T-301 y T-302 no son opcionales**: con cuatro anotadores en 
 
 | ID         | Tarea                                                                                                                     | Pantallas | Depende de | Sesiones | Rama                              | Estado |
 | :--------- | :------------------------------------------------------------------------------------------------------------------------ | :-------- | :--------- | :------- | :-------------------------------- | :----- |
-| **T-100**  | Cerrar la tarea de base de datos: commit, merge y `.env.local`                                                            | —         | —          | 0,5      | `feat/db-aplicar-esquema-inicial` | 🚧     |
-| **T-100b** | Migración de correcciones de la auditoría y del permiso `event.approve` (DOC 05 §14.2). Se escribe con el esquema delante | —         | T-100      | 0,5      | `feat/db-correcciones-auditoria`  | ⬜     |
+| **T-100**  | Cerrar la tarea de base de datos: commit, merge y `.env.local`                                                            | —         | —          | 0,5      | `feat/db-aplicar-esquema-inicial` | ✅     |
+| **T-100b** | Migración de correcciones de la auditoría y del permiso `event.approve` (DOC 05 §14.2). Escrita y validada; falta aplicar | —         | T-100      | 0,5      | `feat/db-correcciones-auditoria`  | 🚧     |
 | **T-101**  | Dependencias del DOC 06 §2.3, `shared/lib/env.ts` y `shared/lib/supabase.ts`. `tsc -b` y CI en verde                      | —         | T-100      | 1        | `feat/platform-cliente-supabase`  | ⬜     |
 | **T-102**  | PWA y metadatos: `vite-plugin-pwa`, manifiesto, iconos, precaché de la fuente, Lighthouse ≥ 90 en PWA                     | —         | T-101      | 1        | `feat/platform-pwa-y-metadatos`   | ⬜     |
 | **T-103**  | `tokens.css`, `Icon` con los 21 SVG ya dibujados, `Button`, `Field`, `Card`, `Toast`, `StatusChip`                        | —         | T-101      | 1        | `feat/platform-sistema-diseno`    | ⬜     |

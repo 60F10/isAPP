@@ -1,9 +1,9 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.1 — 12/09/2026 (auditoría: reloj, tramos, lectura de `players`, fiabilidad) · anterior 1.0 — 11/09/2026
+> **Versión:** 1.2 — 12/09/2026 (T-100b: migración de correcciones escrita y validada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
-> **Anexo:** `supabase/migrations/20260911213846_initial_schema.sql` — guion completo de creación, aplicado al proyecto el 11/09/2026
+> **Anexo:** `supabase/migrations/` — cuatro archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones. Ver §14
 
 ---
 
@@ -402,7 +402,27 @@ Sesión con equipo, temporada, fecha, lugar y observación global. Asistencia co
 
 ### 9.3 `app_settings`
 
-Tabla de clave y valor `jsonb` para las constantes que el DOC 04 pide configurables y que no pertenecen al reglamento. Primera entrada: `duplicate_window_seconds = 30`.
+Tabla de clave y valor `jsonb` para las constantes que el DOC 04 pide configurables y que no pertenecen al reglamento.
+
+Única entrada hoy: `duplicate_window_seconds`, que desde la migración del 12/09 es un mapa por tipo de evento y no un número (DOC 04 §9.2).
+
+```json
+{
+  "default": 30,
+  "by_type": {
+    "goal": 30,
+    "own_goal": 30,
+    "yellow_card": 30,
+    "second_yellow": 30,
+    "red_card": 30,
+    "corner": 10,
+    "foul_committed": 10,
+    "foul_received": 10
+  }
+}
+```
+
+`flag_duplicate_candidates` busca el tipo en `by_type` y, si no está, aplica `default`. Añadir un tipo con ventana propia es editar esta fila: no se despliega nada.
 
 ### 9.4 `audit_log`
 
@@ -577,8 +597,10 @@ Todo cambio de esquema entra como archivo de migración numerado en `supabase/mi
 | :-------------------------------------------- | :----------------- | :---------------------------------------------------- |
 | `20260911213846_initial_schema.sql`           | `20260911213846`   | Esquema inicial: el anexo de este documento           |
 | `20260911214032_hardening_rls_y_permisos.sql` | `20260911214032`   | Endurecimiento tras el primer auditor (ver más abajo) |
+| `20260912142001_permiso_event_approve.sql`    | `20260912142001`   | Valor `event.approve` en `app_permission`             |
+| `20260912142131_correcciones_auditoria.sql`   | `20260912142131`   | Correcciones de la auditoría del 12/09 (§14.2)        |
 
-Ambas están aplicadas al proyecto GavetaStats desde el 11/09/2026.
+Las dos primeras están aplicadas al proyecto GavetaStats desde el 11/09/2026. Las dos del 12/09 se escribieron y se aplicaron en la T-100b.
 
 Las migraciones siguientes las crea el propio CLI con `supabase migration new <nombre>`, que pone la marca de tiempo sola. **Nunca renombres una migración ya aplicada**: el historial remoto dejaría de encontrarla.
 
@@ -592,20 +614,28 @@ El auditor de Supabase destapó tres cosas al aplicar el esquema inicial, y una 
 
 ---
 
-### 14.2 Migración pendiente: correcciones de la auditoría del 12/09
+### 14.2 Qué corrigió la migración del 12/09
 
-Escrita todavía no. **Hay que redactarla con el esquema aplicado delante**, no de memoria: son cambios sobre restricciones, políticas y funciones que ya existen, y adivinar un nombre de política es romper la migración. Se aplica con la base todavía vacía, que es cuando sale gratis.
+Escrita y validada en la T-100b contra el esquema aplicado, no de memoria. Se reparte en dos archivos porque PostgreSQL no deja **usar** un valor de enumeración dentro de la misma transacción que lo crea: el `event.approve` va solo en el primero y las políticas que lo citan viven en el segundo.
 
-| Cambio                                                                                                                                      | Origen                     |
-| :------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------- |
-| Columna `occurred_at` en `match_events`; `seconds` pasa a admitir nulo y lo rellena un disparador al llegar                                 | A-01                       |
-| `rebuild_match_stints` ignora la sustitución cuyo jugador entrante ya tiene tramo abierto en esa parte                                      | A-03                       |
-| La política de lectura de `players` admite seguidores de un equipo donde el jugador esté inscrito                                           | A-05                       |
-| `metric_reliability` y `player_metric_reliability` pasan a la fórmula corregida del DOC 04 §10.3                                            | A-07                       |
-| `app_settings`: `duplicate_window_seconds` pasa de número a mapa por tipo de evento                                                         | A-08                       |
-| Valor `event.approve` nuevo en la enumeración `app_permission`, y las políticas de `match_events` que citaban `match.close` pasan a citarlo | Reparto del día de partido |
+| Cambio                                                                                                          | Origen                     |
+| :-------------------------------------------------------------------------------------------------------------- | :------------------------- |
+| Columna `occurred_at` en `match_events`; `seconds` admite nulo y lo rellenan dos disparadores                   | A-01                       |
+| `rebuild_match_stints` ignora la sustitución cuyo jugador entrante ya tiene tramo abierto en esa parte          | A-03                       |
+| `players_select` admite seguidores de un equipo donde el jugador esté inscrito                                  | A-05                       |
+| `metric_reliability` pasa a la fórmula corregida del DOC 04 §10.3                                               | A-07                       |
+| `duplicate_window_seconds` pasa de número a mapa por tipo, y `flag_duplicate_candidates` lo consulta por evento | A-08                       |
+| Valor `event.approve`, y `match_events_update` / `match_events_delete` pasan a citarlo en vez de `match.close`  | Reparto del día de partido |
 
-El valor nuevo de la enumeración va **en su propia migración o en una transacción aparte**: PostgreSQL no deja usar un valor de enumeración recién añadido dentro de la misma transacción que lo crea.
+**Tres decisiones que la migración tomó y que el §14.2 anterior dejaba abiertas:**
+
+- **El reloj se rellena en los dos sentidos.** El §14.2 pedía un disparador «al llegar» el evento, y ese resuelve la mitad: si el evento llega antes de que se sincronice `started_at`, no hay de dónde calcular los segundos y el evento se queda sin cronología para siempre. Es justo el caso del anotador sin cobertura durante el arranque, que es para quien existe toda la capa offline. Van dos disparadores: `match_events_set_seconds` al llegar el evento y `match_periods_backfill_seconds` al escribir el arranque de la parte.
+- **El descarte de la sustitución repetida se devuelve, no se persiste.** El DOC 04 §6.3 pide que el descarte «se registre» sin decir dónde. `rebuild_match_stints` cambia su retorno de `integer` a `jsonb` y devuelve `{"stints": n, "skipped": [ids]}`. Las otras dos salidas se descartaron: escribir en `match_events.details` obliga a cada recálculo a disparar `validate_match_event`, `set_updated_at` y `audit_row` sobre el evento, y llena la auditoría del partido de ruido que nadie provocó; escribir en `audit_log` deja el descarte donde el panel de discordancias no mira y donde la RLS exige `members.manage`, que el anotador puede no tener. Romper la firma sale gratis hoy —no la llama nadie— y caro en noviembre. Cuando exista el panel (T-210) se decide si hace falta persistirlo.
+- **La lectura de `players` se afina, no se amplía.** `can_read_club` ya dejaba leer la plantilla entera del club a cualquier seguidor de cualquier equipo del club, así que el A-05 tal como está resumido en el DOC 13 del 12/09 estaba mal enunciado: no era que el seguidor no pudiera leer, era que leía de más. La política nueva sigue al pie de la letra el §12.3: miembros del club, y seguidores de un equipo donde el jugador esté inscrito.
+
+**La regla del endurecimiento que esta migración vuelve a aplicar.** PostgreSQL concede `EXECUTE` a `PUBLIC` al **crear** una función. `CREATE OR REPLACE` conserva los permisos; `DROP` + `CREATE` los pierde y la función renace abierta a `anon`. Las tres funciones que aquí nacen o renacen enteras —`set_event_seconds`, `backfill_event_seconds` y `rebuild_match_stints`— llevan su `revoke ... from public, anon` detrás. `metric_reliability` y `flag_duplicate_candidates` se reemplazan con la misma firma y conservan los suyos.
+
+**Al sembrar los permisos a mano, quien tenga `match.close` necesita también `event.approve`** si va a corregir eventos ajenos. Son dos permisos desde esta migración, y `match.close` ya no da acceso a `match_events`.
 
 ---
 
@@ -621,6 +651,16 @@ El valor nuevo de la enumeración va **en su propia migración o en una transacc
 | Los tramos se reconstruyen enteros, sin cálculo incremental                    | Solo si se nota. A esta escala, no                            |
 | La fiabilidad se calcula al vuelo con un barrido temporal                      | Si crece el volumen, se materializa por partido al cerrarlo   |
 | Sin catálogo de posiciones detallado: solo portero, defensa, medio y delantero | Cuando E7-04 traiga los sistemas tácticos                     |
+
+Nueva desde la migración del 12/09:
+
+| Deuda                                                                                                                    | Cuándo se paga                                                                                |
+| :----------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| Un evento con `seconds` nulo escapa a la detección de duplicados y `rebuild_match_stints` lo coloca al final de la parte | Al rellenarse solo con el arranque. Si el arranque nunca llega, lo arrastra el partido entero |
+| El relleno en diferido dispara `validate_match_event` y `audit_row` por cada evento que rellena                          | Se asume: la traza es deseable y son pocos eventos                                            |
+| `rebuild_match_stints` no comprueba que el jugador que SALE esté en el campo                                             | Cuando aparezca en la prueba de campo. Hoy no rompe nada: el que entra sí se comprueba        |
+| El descarte de sustituciones repetidas solo vive en el retorno de la función, no en la base                              | Cuando exista el panel de discordancias (T-210)                                               |
+| `coverage_update` y `matches_update` siguen citando `match.close`                                                        | Es correcto: el acta es del cierre (§13). Se anota para que nadie lo cambie por inercia       |
 
 ---
 
