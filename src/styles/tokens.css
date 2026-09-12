@@ -1,0 +1,239 @@
+/* ============================================================================
+   GavetaStats · src/styles/tokens.css
+   Sistema de diseño (DOC 07). Única fuente de verdad de color, tipografía,
+   espaciado, radios, movimiento y objetivos táctiles.
+
+   Regla: ningún componente escribe un valor literal de color, tamaño o
+   duración. Todo sale de una variable de este archivo.
+   ============================================================================ */
+
+/* --- Tipografía autoalojada -------------------------------------------------
+   Inter variable, subconjunto latino, en public/fonts/. Un solo archivo cubre
+   todo el rango de grosores. Licencia SIL OFL 1.1: se puede autoalojar.
+   La cursiva no se descarga: la interfaz no la usa. */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/InterVariable-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: light;
+
+  /* ==========================================================================
+     1 · PRIMITIVAS
+     No se usan en los componentes. Solo alimentan a los tokens semánticos.
+     El número entre paréntesis es el contraste medido contra blanco puro.
+     ========================================================================== */
+
+  /* Neutros fríos */
+  --gray-0: #ffffff;
+  --gray-50: #f5f7fa; /*  1.07 · fondo de sección */
+  --gray-100: #e8ecf2; /*  1.19 · superficie hundida */
+  --gray-200: #d3d9e3; /*  1.42 · separador decorativo */
+  --gray-300: #b3bcca; /*  1.92 · solo decorativo, NO para bordes de control */
+  --gray-400: #8b94a6; /*  3.05 · borde de control, mínimo legal 1.4.11 */
+  --gray-500: #646d80; /*  5.20 · texto secundario fuera del directo */
+  --gray-600: #4a5263; /*  7.84 · texto secundario válido en el directo */
+  --gray-700: #353c4a; /* 11.07 */
+  --gray-800: #232936; /* 14.56 */
+  --gray-900: #141922; /* 17.62 · texto principal */
+
+  /* Índigo */
+  --indigo-50: #eef0fb; /*  1.14 · fondo de énfasis suave */
+  --indigo-100: #dde1f7; /*  1.30 */
+  --indigo-300: #a5adec; /*  2.15 · solo decorativo */
+  --indigo-500: #4f56d6; /*  5.78 · acento fuera del directo */
+  --indigo-600: #3f45b8; /*  7.62 · acento del directo y anillo de foco */
+  --indigo-700: #333a9c; /*  9.43 · estado activo */
+  --indigo-800: #282d78; /* 12.09 */
+  --indigo-900: #1c2059; /* 15.00 · acento en alto contraste */
+
+  /* Semánticos. Cada uno con su tinta a 7:1 para la pantalla de directo. */
+  --green-600: #0e6b45; /*  6.55 */
+  --green-700: #0a5b3b; /*  8.16 · tinta de directo */
+  --amber-600: #8a5a00; /*  5.93 */
+  --amber-700: #7a4d00; /*  7.27 · tinta de directo */
+  --red-600: #b3261e; /*  6.54 */
+  --red-700: #9c1f17; /*  8.01 · tinta de directo */
+
+  /* Tarjetas del árbitro. Son el color del objeto real, nunca texto encima
+     sin comprobar: la amarilla solo admite tinta --gray-900 (10.73). */
+  --card-yellow: #f4c430;
+  --card-red: #c0271e;
+
+  /* ==========================================================================
+     2 · TOKENS SEMÁNTICOS · superficie y texto
+     ========================================================================== */
+
+  --color-bg: var(
+    --gray-0
+  ); /* fondo de aplicación: blanco puro, saca el
+                                     máximo brillo del panel al sol */
+  --color-bg-sunken: var(--gray-50);
+  --color-surface: var(--gray-0);
+  --color-surface-alt: var(--gray-50);
+
+  --color-text: var(--gray-900);
+  --color-text-secondary: var(--gray-600);
+  --color-text-muted: var(--gray-500); /* prohibido en pantallas del Bloque A */
+  --color-text-on-accent: var(--gray-0);
+
+  --color-border: var(--gray-400); /* bordes de control: 3:1 garantizado */
+  --color-border-subtle: var(--gray-200); /* separadores decorativos */
+
+  /* Acento */
+  --color-accent: var(--indigo-600);
+  --color-accent-hover: var(--indigo-700);
+  --color-accent-soft: var(--indigo-50);
+  --color-accent-ink: var(--indigo-600);
+
+  /* Estados de dato: pending / approved / rejected.
+     El color nunca va solo. Siempre acompañado de icono y texto. */
+  --color-pending: var(--amber-700);
+  --color-pending-soft: #fdf3e0;
+  --color-approved: var(--green-700);
+  --color-approved-soft: #e6f3ec;
+  --color-rejected: var(--red-700);
+  --color-rejected-soft: #fbeae8;
+
+  /* Mensajes del sistema */
+  --color-danger: var(--red-700);
+  --color-warning: var(--amber-700);
+  --color-success: var(--green-700);
+
+  /* Color del equipo. Lo inyecta en caliente el frontend desde
+     teams.primary_color. La tinta la calcula pickInk() por luminancia.
+     Valor por defecto mientras no haya equipo cargado. */
+  --color-team: var(--indigo-600);
+  --color-team-ink: var(--gray-0);
+
+  /* ==========================================================================
+     3 · TIPOGRAFÍA
+     Base 16 px. Escala 1.25. Nada por debajo de 14 px (DOC 02 §5.2).
+     ========================================================================== */
+
+  --font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --font-size-75: 0.875rem; /* 14 px · mínimo absoluto, solo etiquetas */
+  --font-size-100: 1rem; /* 16 px · texto base */
+  --font-size-200: 1.125rem; /* 18 px · texto destacado */
+  --font-size-300: 1.375rem; /* 22 px · título de sección */
+  --font-size-400: 1.75rem; /* 28 px · título de pantalla */
+  --font-size-500: 2.25rem; /* 36 px · marcador */
+  --font-size-600: 2.75rem; /* 44 px · reloj del directo */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.15; /* titulares y cifras */
+  --line-height-base: 1.5; /* texto corrido */
+
+  --letter-spacing-tight: -0.02em; /* títulos grandes de Inter */
+  --letter-spacing-base: 0;
+
+  /* ==========================================================================
+     4 · ESPACIADO · base 4 px
+     ========================================================================== */
+
+  --space-1: 0.25rem; /*  4 px */
+  --space-2: 0.5rem; /*  8 px · separación mínima entre objetivos táctiles */
+  --space-3: 0.75rem; /* 12 px */
+  --space-4: 1rem; /* 16 px */
+  --space-5: 1.5rem; /* 24 px */
+  --space-6: 2rem; /* 32 px */
+  --space-7: 3rem; /* 48 px */
+
+  /* ==========================================================================
+     5 · OBJETIVOS TÁCTILES Y FOCO
+     ========================================================================== */
+
+  --tap-min: 48px; /* mínimo real de todo control (DOC 02 §5.1) */
+  --tap-gap: var(--space-2); /* separación obligatoria entre controles */
+  --tap-event: 72px; /* alto del botón de evento del directo */
+
+  --focus-width: 3px;
+  --focus-offset: 2px;
+  --focus-color: var(--indigo-600);
+
+  /* ==========================================================================
+     6 · RADIOS, ELEVACIÓN Y MOVIMIENTO
+     ========================================================================== */
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  --shadow-raised: 0 1px 2px rgb(20 25 34 / 0.08), 0 2px 8px rgb(20 25 34 / 0.06);
+  --shadow-overlay: 0 8px 24px rgb(20 25 34 / 0.16);
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --easing: cubic-bezier(0.2, 0, 0.2, 1);
+
+  --z-header: 10;
+  --z-sticky-actions: 20;
+  --z-overlay: 30;
+  --z-toast: 40;
+}
+
+/* ============================================================================
+   7 · MODO DE ALTO CONTRASTE
+   Se conmuta desde Ajustes con data-contrast="high" en <html> (DOC 06 §6).
+   Anula el color del equipo: al sol manda el contraste, y un color de equipo
+   flojo se lleva por delante justo el modo que existe para el sol.
+   ============================================================================ */
+
+:root[data-contrast='high'] {
+  --color-bg: #ffffff;
+  --color-bg-sunken: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-alt: #ffffff;
+
+  --color-text: #000000; /* 21:1 */
+  --color-text-secondary: #000000;
+  --color-text-muted: #000000;
+
+  --color-border: #000000;
+  --color-border-subtle: #000000;
+
+  --color-accent: var(--indigo-900); /* 15:1 */
+  --color-accent-hover: #000000;
+  --color-accent-soft: #ffffff;
+  --color-accent-ink: var(--indigo-900);
+
+  --color-pending-soft: #ffffff;
+  --color-approved-soft: #ffffff;
+  --color-rejected-soft: #ffffff;
+
+  /* El color del equipo desaparece. La distinción entre equipos pasa a ser
+     posición y nombre, que es como funciona en todas las pantallas. */
+  --color-team: #000000;
+  --color-team-ink: #ffffff;
+
+  --shadow-raised: none;
+  --shadow-overlay: 0 0 0 2px #000000;
+
+  --focus-color: #000000;
+  --focus-width: 4px;
+}
+
+/* ============================================================================
+   8 · MOVIMIENTO REDUCIDO (DOC 02 §5.2)
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
+}
