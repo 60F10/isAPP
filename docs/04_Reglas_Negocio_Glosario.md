@@ -1,6 +1,6 @@
 # DOC 04 — Reglas de negocio y glosario
 
-> **Versión:** 1.0 — 11/09/2026
+> **Versión:** 1.1 — 12/09/2026 (correcciones de la auditoría A-01, A-03, A-04, A-07, A-08 y A-11) · anterior 1.0 — 11/09/2026
 > **Depende de:** DOC 03 (decisiones), DOC 01 (backlog), DOC 02 (pantallas)
 > **Alimenta a:** DOC 05 (modelo de datos), DOC 06 (arquitectura), DOC 08 (tareas), DOC 09 (observabilidad), DOC 11 (RGPD)
 
@@ -123,6 +123,22 @@ El cronómetro pertenece a la aplicación, no al árbitro. Arranca con un botón
 
 No se guarda un «minuto absoluto» del partido. Si se guardara, el descuento de la primera parte desplazaría todos los minutos de la segunda y cualquier corrección obligaría a recalcular el partido entero.
 
+### 5.1.1 El reloj tiene un solo dueño
+
+Con cuatro anotadores hay cuatro dispositivos, y cada uno con su cronómetro sería cuatro relojes sin ninguno que mande. Los segundos son el eje de la cronología, del recálculo de tramos y de la ventana de duplicados: un desfase de cuarenta segundos entre dos móviles convierte un gol en dos goles distintos y anula la detección de duplicados entera.
+
+| Pieza                      | Papel                                                                   |
+| :------------------------- | :---------------------------------------------------------------------- |
+| `match_periods.started_at` | **Fuente de verdad.** La escribe quien lleva el reloj al abrir la parte |
+| `occurred_at` del evento   | Instante en que el dispositivo registró el hecho                        |
+| `seconds` del evento       | Derivado: `occurred_at − started_at` de su parte                        |
+
+Un dispositivo que anota sin conocer todavía el arranque —porque la parte empezó mientras estaba sin cobertura— guarda `occurred_at` y deja `seconds` nulo. Al sincronizar, un disparador lo rellena.
+
+Se descartó obligar a que nadie anote hasta recibir el arranque: deja tirado justo al anotador sin cobertura, que es el escenario para el que existe toda la capa offline.
+
+**Residuo asumido:** el reloj de pared de cada móvil se desvía uno o dos segundos entre sí. Eso sí lo absorbe la ventana de duplicados del §9.2.
+
 ### 5.2 Partes
 
 Cada parte se abre y se cierra explícitamente y deja una fila con su duración prevista y su **duración real**. La duración real es la que manda en todos los cálculos.
@@ -180,8 +196,11 @@ Para cada parte P del partido:
     abrir tramo(jugador, P, 0) para cada uno
 
     Para cada evento aprobado de P, en orden de segundos:
-        substitution → cerrar tramo(sale, P, segundos)
-                       abrir  tramo(entra, P, segundos)
+        substitution → si (entra) ya tiene un tramo abierto en P:
+                           ignorar el evento y anotar el descarte
+                       si no:
+                           cerrar tramo(sale, P, segundos)
+                           abrir  tramo(entra, P, segundos)
         red_card     → cerrar tramo(jugador, P, segundos)
         second_yellow→ cerrar tramo(jugador, P, segundos)
 
@@ -191,6 +210,8 @@ minutos_jugados(jugador) = redondeo( Σ (fin − inicio) de sus tramos ÷ 60 )
 ```
 
 Los segundos se guardan siempre. El redondeo vive en la capa de presentación, así que cambiar de criterio no obliga a migrar nada.
+
+**Por qué el algoritmo ignora la sustitución repetida.** Con reparto blando, dos personas pueden apuntar el mismo cambio con quince segundos de diferencia, y quien tiene `event.approve` anota en estado aprobado directamente. Sin la comprobación, el recálculo abriría dos tramos solapados del jugador que entra, la restricción de exclusión que vigila I-03 los rechazaría y **la función fallaría entera**, dejando el partido sin minutos. La restricción sigue vigilando; el recálculo deja de depender de que nadie se equivoque. El descarte se registra para que la sustitución sobrante salga en el panel de discordancias.
 
 ### 6.4 Casos límite
 
@@ -208,6 +229,19 @@ Los segundos se guardan siempre. El redondeo vive en la capa de presentación, a
 
 ---
 
+### 6.5 Quién está en el campo ahora no sale de los tramos
+
+Los tramos se derivan de eventos **aprobados**, y en directo eso no basta: si quien anota no tiene `event.approve`, sus sustituciones nacen pendientes y la pantalla no sabría quién está dentro. Y lo necesita para R-04, R-05 y R-07.
+
+| Pregunta                       | De dónde sale                                                                | Qué es             |
+| :----------------------------- | :--------------------------------------------------------------------------- | :----------------- |
+| ¿Quién está en el campo ahora? | El estado local del directo, con **todos** los eventos que conoce el aparato | Estado de pantalla |
+| ¿Cuántos minutos jugó?         | Los tramos, solo con eventos aprobados                                       | Dato oficial       |
+
+**Consecuencia asumida:** durante unos segundos, dos anotadores pueden ver alineaciones distintas. Es preferible a una pantalla que no sabe quién juega.
+
+---
+
 ## 7. Catálogo de eventos
 
 ### 7.1 Tipos
@@ -216,7 +250,7 @@ Todos los tipos existen en la base de datos desde el primer día. Lo que decide 
 
 | Tipo              | Jugador propio    | Segundo jugador        | Admite rival    | Detalle                           | MVP |
 | :---------------- | :---------------- | :--------------------- | :-------------- | :-------------------------------- | :-- |
-| `goal`            | Obligatorio       | Asistente, opcional    | Sí, sin jugador | —                                 | ✅  |
+| `goal`            | Obligatorio       | Asistente, opcional    | Sí, sin jugador | Origen, opcional (§7.5)           | ✅  |
 | `own_goal`        | Obligatorio       | —                      | Sí, sin jugador | —                                 | ✅  |
 | `yellow_card`     | Obligatorio       | —                      | Sí, sin jugador | —                                 | ✅  |
 | `second_yellow`   | Obligatorio       | —                      | Sí, sin jugador | Implica expulsión                 | ✅  |
@@ -240,6 +274,12 @@ Los ocho últimos nacen declarados y apagados. Encenderlos después es marcar un
 
 > **Decisión H2 — los pases.** Registrar 400 o 500 pases a mano durante un partido no se sostiene, y un contador a medias produce cifras que nadie puede comparar entre jugadores ni entre jornadas. Queda fuera del MVP con el tipo ya modelado: `player_id` obligatorio y `secondary_player_id` opcional, tal como cerraba B1. Cuando se encienda, se enciende con `key_pass` primero, que sí es registrable.
 
+> **Medición de campo, 12/09/2026.** Amistoso cadete, segunda parte de 40 minutos, contadores de toque en el móvil y sin atribuir a jugador: 69 pases, 58 recuperaciones, 5 faltas cometidas y 9 recibidas. **141 pulsaciones en 40 minutos, 3,5 por minuto.**
+>
+> Los 69 pases no son los pases del partido: son los que dio tiempo a marcar llevando otros tres contadores. El propio dato lo delata, porque 69 pases con 58 recuperaciones salen a 1,2 pases por posesión, cifra que no se sostiene. La recuperación es un instante señalado; el pase viene en ráfagas.
+>
+> **Principio que sale de ahí:** una métrica de alto volumen solo puede existir **a nivel de equipo y sin jugador**. Con atribución, cada pase obliga a mirar la pantalla en vez del campo. El modelo actual no lo admite —`player_id` solo puede ir vacío si el evento es del rival—, así que encender `recovery` o `turnover` como contador de equipo exigiría revisar esa columna antes. No es trabajo del MVP, pero sí la condición para que el debate tenga sentido.
+
 ### 7.2 Eventos del rival
 
 El rival es un equipo sin plantilla, así que sus eventos se registran a nivel de equipo con la marca `is_opponent` y sin jugador. En el MVP solo se registran del rival: goles, córners y tarjetas.
@@ -258,6 +298,38 @@ Solo cuentan los eventos aprobados. El marcador que se muestra durante el direct
 `Acción → Jugador → Detalle opcional → Guardado`. El paso de detalle siempre se puede saltar: **un gol sin asistencia vale más que ningún gol**.
 
 Cada evento se guarda con su identificador de origen generado en el dispositivo, de forma que reenviarlo desde la cola offline nunca lo duplica.
+
+### 7.5 Origen del gol
+
+Tres goles de penalti no son tres goles, y hasta ahora el modelo solo guardaba gol y asistente. El origen viaja en el `details` que ya existe, sin columna nueva:
+
+| Valor           | Cuándo                                      |
+| :-------------- | :------------------------------------------ |
+| `jugada`        | Por defecto                                 |
+| `penalti`       | —                                           |
+| `falta_directa` | Gol directo de falta                        |
+| `corner`        | Gol directo de córner                       |
+| `rechace`       | Remate tras rechace del portero o del poste |
+
+Es un paso opcional del flujo del §7.4 y se puede rellenar al cerrar el partido. Nunca bloquea el registro del gol.
+
+### 7.6 Qué cuenta cada botón
+
+Sin esto, dos anotadores producen números que no se pueden comparar. La definición va **escrita bajo el botón**, no solo en este documento.
+
+| Evento            | Cuenta                                                    | No cuenta                                                   |
+| :---------------- | :-------------------------------------------------------- | :---------------------------------------------------------- |
+| `goal`            | Balón que entra y el árbitro concede                      | Gol anulado                                                 |
+| `own_goal`        | Gol en propia puerta, apuntado al jugador que lo marca    | Desvío que el árbitro atribuye al rematador rival           |
+| `foul_committed`  | Falta pitada en contra, incluidas las manos               | **El fuera de juego**, que es su propio tipo y está apagado |
+| `foul_received`   | Falta pitada a favor                                      | La falta anulada por otra infracción                        |
+| `corner`          | Saque de esquina concedido                                | Saque de banda y saque de puerta                            |
+| `yellow_card`     | Amonestación mostrada                                     | Aviso verbal del árbitro                                    |
+| `second_yellow`   | Segunda amarilla del mismo jugador, que implica expulsión | —                                                           |
+| `red_card`        | Roja directa                                              | La segunda amarilla, que tiene su propio botón              |
+| `substitution`    | Cambio consumado, con el jugador ya dentro del campo      | Cambio anunciado y no realizado                             |
+| `position_change` | Cambio de demarcación sin sustitución                     | Ajuste momentáneo en una jugada                             |
+| `note`            | Lo que no cabe en ningún botón                            | —                                                           |
 
 ---
 
@@ -294,7 +366,9 @@ Un evento rechazado se conserva. Sirve para medir quién acierta y para deshacer
 
 ### 8.3 Aprobación automática
 
-Quien tiene el permiso `match.close` registra eventos que nacen `approved`. Todos los demás los registran `pending`. No hay peso numérico por origen en el MVP, tal como cerraba C2.
+Quien tiene el permiso `event.approve` registra eventos que nacen `approved`. Todos los demás los registran `pending`. No hay peso numérico por origen en el MVP, tal como cerraba C2.
+
+**Por qué aprobar y cerrar son permisos distintos.** El día del partido, quien dirige al equipo no es quien lleva el móvil. Con un solo permiso para las dos cosas, o el entrenador deja de dirigir para anotar, o todo lo que apunta el anotador principal nace pendiente y el cierre se convierte en repasar ciento y pico eventos en vez de los cuatro que chocan. Separarlos deja que el anotador de confianza apruebe sobre la marcha y que el cierre del partido y la confirmación del acta sigan siendo del entrenador.
 
 ### 8.4 Reglas del cierre
 
@@ -325,7 +399,15 @@ Dos eventos son **candidatos a duplicado** cuando coinciden en:
 - misma parte y diferencia menor que la ventana configurada,
 - y los registró gente distinta.
 
-**Ventana por defecto: 30 segundos**, configurable en los ajustes de la aplicación, no cableada. Tras los amistosos habrá que ajustarla con datos reales.
+**La ventana depende del tipo de evento**, y vive en los ajustes de la aplicación como un mapa, no como un número cableado:
+
+| Tipos                                       | Ventana |
+| :------------------------------------------ | :------ |
+| `goal`, `own_goal` y las tarjetas           | 30 s    |
+| `corner`, `foul_committed`, `foul_received` | 10 s    |
+| Resto                                       | 30 s    |
+
+Una ventana única de 30 segundos marcaría como sospechosos dos córners seguidos, que en fútbol son rutina: se saca, se despeja y se vuelve a sacar. No corrompe nada, porque nada se fusiona solo, pero llena el panel de cierre de ruido, y un panel ruidoso se despacha a manotazos. Las cifras son una conjetura hasta el primer amistoso.
 
 Nunca se fusionan solos. Se agrupan y se muestran juntos en la pantalla de cierre para que el entrenador decida.
 
@@ -346,12 +428,14 @@ La pieza más original del proyecto. Ninguna aplicación de este tipo declara lo
 
 ### 10.1 Qué métricas llevan índice
 
-| Clase              | Métricas                                                               | Lleva índice |
-| :----------------- | :--------------------------------------------------------------------- | :----------- |
-| **Estructurales**  | Minutos, titularidad, convocatoria, resultado, tarjetas del acta       | No           |
-| **De observación** | Goles, asistencias, faltas, córners, y todo lo que se enciende después | Sí           |
+| Clase              | Métricas                                                                | Lleva índice |
+| :----------------- | :---------------------------------------------------------------------- | :----------- |
+| **Estructurales**  | Minutos, titularidad, convocatoria y resultado confirmado               | No           |
+| **De observación** | Goles, asistencias, faltas, córners, tarjetas y todo lo que se encienda | Sí           |
 
 Los minutos salen de la convocatoria y de los cambios, que son un dato de acta. Ponerles un porcentaje de fiabilidad confundiría más que ayudar.
+
+**Las tarjetas son observación, no acta.** El modelo solo guarda del acta el resultado confirmado; de las tarjetas no guarda nada. Mientras el cierre no confirme también las tarjetas —cosa que llegará con la pantalla de disciplina, fuera del MVP—, una tarjeta es lo que vio quien anotaba, y lleva su índice como cualquier otra observación.
 
 ### 10.2 Declaración
 
@@ -377,10 +461,12 @@ T  = duración real total del partido en segundos
 C1 = segundos de P cubiertos por al menos UNA declaración que incluya M
 C2 = segundos de P cubiertos por DOS O MÁS declaraciones que incluyan M
 
-fiabilidad(M, P) = mínimo( 1 ; C1/T + 0,10 × C2/T )
+fiabilidad(M, P) = C1/T + 0,10 × (C2/T) × (1 − C1/T)
 ```
 
-La corroboración suma un diez por ciento como máximo: dos personas mirando lo mismo no garantizan el dato, pero lo hacen más creíble que una sola.
+La corroboración suma sobre lo que **no** está cubierto, nunca sobre el total. Así el 100 % queda reservado a la cobertura completa: con un 95 % del partido cubierto y corroborado, la fiabilidad sale 95,5 %, no 100 %.
+
+La fórmula anterior, `mínimo(1; C1/T + 0,10 × C2/T)`, presentaba como cobertura total un partido en el que nadie miraba durante cuatro minutos. En un índice que existe precisamente para no afirmar lo que no se sabe, un 100 % falso es peor que no tener índice.
 
 Para una métrica **individual del jugador J**, una declaración `single_player` solo cuenta si su objetivo es J. Una `full_team` cuenta siempre.
 
@@ -506,19 +592,20 @@ Las medias por partido se calculan sobre los partidos en que el jugador **disput
 
 Los permisos se guardan como filas, no como un rol rígido. El rol es una plantilla que rellena esas filas al añadir a alguien, y a partir de ahí cada permiso se marca y se desmarca por separado.
 
-| Permiso              | Qué habilita                                    |
-| :------------------- | :---------------------------------------------- |
-| `team.manage`        | Editar el equipo y sus datos                    |
-| `roster.manage`      | Crear y editar jugadores e inscripciones        |
-| `competition.manage` | Crear competiciones y editar su reglamento      |
-| `schedule.manage`    | Crear y editar partidos y entrenamientos        |
-| `lineup.manage`      | Guardar la convocatoria                         |
-| `match.live.write`   | Registrar eventos durante el partido            |
-| `match.close`        | Aprobar y rechazar eventos, y cerrar el partido |
-| `discipline.manage`  | Sanciones, arrestos y disponibilidad            |
-| `training.manage`    | Pasar lista y escribir observaciones            |
-| `stats.view`         | Consultar estadísticas del equipo               |
-| `members.manage`     | Invitar personas y asignar permisos             |
+| Permiso              | Qué habilita                                                   |
+| :------------------- | :------------------------------------------------------------- |
+| `team.manage`        | Editar el equipo y sus datos                                   |
+| `roster.manage`      | Crear y editar jugadores e inscripciones                       |
+| `competition.manage` | Crear competiciones y editar su reglamento                     |
+| `schedule.manage`    | Crear y editar partidos y entrenamientos                       |
+| `lineup.manage`      | Guardar la convocatoria                                        |
+| `match.live.write`   | Registrar eventos durante el partido                           |
+| `event.approve`      | Aprobar y rechazar eventos, y editar los ajenos                |
+| `match.close`        | Cerrar y reabrir el partido, y confirmar el resultado del acta |
+| `discipline.manage`  | Sanciones, arrestos y disponibilidad                           |
+| `training.manage`    | Pasar lista y escribir observaciones                           |
+| `stats.view`         | Consultar estadísticas del equipo                              |
+| `members.manage`     | Invitar personas y asignar permisos                            |
 
 ### 15.2 Plantillas de rol
 
@@ -526,8 +613,10 @@ Los permisos se guardan como filas, no como un rol rígido. El rol es una planti
 | :------------- | :--------------------------------------------------------------------- |
 | **Entrenador** | Todos los de la tabla                                                  |
 | **Delegado**   | `schedule.manage`, `match.live.write`, `training.manage`, `stats.view` |
-| **Ojeador**    | `match.live.write`, `stats.view`                                       |
-| **Espectador** | `stats.view`, y `match.live.write` si el entrenador lo habilita        |
+
+`event.approve` no entra en ninguna plantilla salvo la de entrenador. Se marca a mano para quien lleve el registro el día del partido, que es una persona concreta y no un rol.
+| **Ojeador** | `match.live.write`, `stats.view` |
+| **Espectador** | `stats.view`, y `match.live.write` si el entrenador lo habilita |
 
 El administrador de la plataforma es una condición del usuario, no un permiso de equipo. Solo sirve para mantenimiento y para consultar los registros de error.
 
@@ -572,7 +661,8 @@ Lo que tiene que ser cierto siempre. Si algo de esto se rompe, hay un fallo.
 | Las estadísticas se calculan al vuelo                                                        | Si crece el volumen, materializando la misma capa |
 | `team_followers` duplica las políticas de lectura                                            | Se asume. Es el precio de la decisión H4          |
 | La fiabilidad depende de que la gente declare bien su cobertura                              | Se revisa tras los amistosos, con datos reales    |
-| La ventana de duplicados de 30 segundos es una conjetura                                     | Se ajusta tras los amistosos                      |
+| Las ventanas de duplicado por tipo de evento son una conjetura                               | Se ajustan tras los amistosos                     |
+| Las tarjetas se tratan como observación hasta que el cierre confirme el acta                 | Con la pantalla de disciplina (A16), tras la liga |
 
 ---
 
