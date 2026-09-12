@@ -5,181 +5,167 @@
 
 ---
 
-## Sesión 11/09/2026 (noche) — Tarea: aplicar el esquema y montar la conexión con Supabase
+## Sesión 12/09/2026 — Tarea: cerrar el bloque F, escribir los DOC 07 y 08, dibujar la iconografía y auditar el proyecto
 
-Sesión de Cowork con la carpeta conectada, el conector de Supabase, el de Netlify y Chrome. **Sin acceso a terminal ni a Git en el equipo**, así que el commit lo lanza Raúl a mano: ver «Pendiente de la tarea».
+Sesión de chat web **desde el móvil**. Sin repositorio, sin terminal y sin Claude Code: todo sale como archivos completos para colocar a mano. No se tocó una línea de código de aplicación.
 
 ### HECHO
 
-**Base de datos.**
+**DOC 03 v1.2 — bloque F cerrado.** Las tres decisiones de identidad, con dos apartados nuevos:
 
-- **La migración inicial, aplicada** al proyecto GavetaStats (registrada como `20260911213846`). Entró entero y a la primera: 23 tablas, las 23 con RLS, 50 políticas, 5 vistas con `security_invoker`, 19 enumeraciones, 25 disparadores y el disparador sobre `auth.users`.
-- **Segunda migración de endurecimiento (nueva, registrada como `20260911214032`)**, escrita y aplicada a partir de lo que destapó el auditor de Supabase. Cuatro bloques, cada uno documentado en el propio archivo:
-  1. `search_path` fijo en `set_updated_at`, la única función que lo tenía variable.
-  2. **El agujero de verdad.** La migración inicial hacía `revoke all on all functions ... from anon` y no bastaba: PostgreSQL concede `EXECUTE` a `PUBLIC` al crear una función y `anon` lo hereda, así que revocar solo de `anon` no quita lo heredado. Cualquiera con la `anon key` —que va en el frontend por diseño— podía llamar a `rebuild_match_stints` y a `flag_duplicate_candidates` por `/rest/v1/rpc` **sin iniciar sesión**, y son `SECURITY DEFINER`: escriben saltándose la RLS. Ahora se revoca de `public` y de `anon`, y se concede solo a `authenticated`.
-  3. Las doce políticas que llamaban a `auth.uid()` por fila pasan a `(select auth.uid())`, que el planificador resuelve una vez por consulta. Importa sobre todo en `match_events`.
-  4. `audit_row()` rellena `club_id`. Lo dejaba nulo, y la política `audit_log_select` lo exige para que quien tiene `members.manage` lea la auditoría de su club: E9-02 se quedaba a medias.
-  5. Índices sobre las trece claves ajenas que sostienen un borrado en cascada o una consulta del día de partido. Las otras veintisiete que marcó el auditor son columnas `created_by` que nadie consulta; ver deuda.
+- **F1 · Nombre.** GavetaStats para el MVP; el nombre público queda aplazado. El §F1.1 recoge qué cuesta renombrar —configuración de Netlify, Supabase y Google, unos cuarenta y cinco minutos— y fija el **momento límite: antes de publicar fuera del grupo de prueba**, porque el subdominio forma parte de la identidad de la PWA instalada y cambiarlo obliga a reinstalar. El §F1.2 guarda los criterios del nombre definitivo: internacional, reconocible como aplicación de fútbol y con sitio para el componente de red social.
+- **F2 · Logo.** Descartado el hexágono: a 16 px las barras se empastan y el icono _maskable_ recorta a círculo con un 20 % de margen, que se lleva justo las esquinas. Queda una marca mínima de tres barras ascendentes, monocolor y **sin letras**, para que sobreviva al cambio de nombre. La identidad definitiva la hará una diseñadora gráfica.
+- **F3 · Paleta.** Neutro frío con acento índigo, tema claro por defecto, alto contraste como recurso para el sol.
 
-**Prueba de humo.** Se montó un club completo —temporada, dos equipos, dos jugadores, plantilla, competición, partido, dos partes, convocatoria, cambio, gol propio y gol rival—, se recalcularon los tramos y se leyeron las cinco vistas. Todo correcto y comprobado contra el DOC 04:
+**DOC 07 v1.0 (nuevo) y `src/styles/tokens.css` (nuevo).** Sistema de diseño completo: escalas de color con **el contraste medido de cada token**, escala tipográfica, espaciado, radios, movimiento, objetivos táctiles, contrato de icono, inventario de los 21 SVG y ocho componentes base.
 
-- Alta de perfil automática desde los metadatos de Google al crear la cuenta.
-- `club_id` de `matches` derivado del equipo por el disparador.
-- Tramos: Chispa 0→1800 (`substitution`), Tanque 1800→2760 y 0→2820. Minutos: 30 y 63.
-- Marcador calculado 1-1, coincidente con el del acta.
-- `v_player_match_stats`, `v_player_season_stats` y `v_team_season_stats` cuadran.
-- Auditoría: siete filas, todas con `club_id`.
+Lo que salió al medir y condiciona el código:
 
-Siete invariantes probados **en negativo**, y los siete bloquean: jugador no convocado (I-04), tipo de evento desactivado (R-09), parte inexistente (R-08), tramos solapados (I-03), `client_event_id` repetido (I-08), nombre real sin consentimiento (I-10) y segunda temporada en curso en el mismo club.
+- El 7:1 del directo parte la paleta en dos. `--gray-500` (5.20) y `--indigo-500` (5.78) valen fuera del Bloque A; dentro mandan `--gray-600` (7.84) y `--indigo-600` (7.62).
+- `--gray-300` no sirve como borde de control: 1.92, por debajo del 3:1 del criterio 1.4.11. Los bordes de control usan `--gray-400` (3.05).
+- Los tres estados del dato llevan tinta a 7:1 sobre blanco: 8.16 aprobado, 7.27 pendiente, 8.01 descartado. Se distinguen por luminosidad además de por tono, así que aguantan el daltonismo, pero el icono y la palabra siguen siendo obligatorios.
+- **La fiabilidad no usa la paleta de estados.** Verde para fiabilidad alta se confundiría con dato aprobado, y son cosas distintas: un dato aprobado puede tener fiabilidad baja. Va en neutro con barras y porcentaje.
+- El color del equipo no entra en nada que haya que leer, y la tinta encima la calcula `pickInk()` por luminancia. En alto contraste desaparece.
 
-Los datos de prueba se borraron. La base queda vacía salvo la fila `duplicate_window_seconds` de `app_settings`.
+**DOC 08 v1.1 (nuevo).** Plan de tareas con ID, pantalla, dependencia, estimación en sesiones, rama y estado.
 
-**Tipos.**
+La v1.0 salió con la aritmética mal: daba 17 sesiones para la ruta mínima, y 17 son las **tareas**. Peor aún, aquella ruta mínima se dejaba fuera los permisos (T-301) y la prueba de campo (T-302), que con cuatro anotadores son obligatorios. Cifras reales, ya corregidas y comprobadas contra la columna: **25 sesiones la ruta completa, 23,5 la mínima, seis semanas. Ritmo exigido: 3,9 sesiones semanales sin fallar ninguna.**
 
-- **`src/types/database.types.ts` (nuevo, 1.959 líneas)**, generado desde el esquema aplicado.
-- **`.prettierignore`**: se añade ese archivo. Prettier lo reformatearía entero —3.538 líneas de diferencia comprobadas— y cada regeneración traería un diff falso de ese tamaño, además de romper `format:check` en CI. `oxlint` sí pasa limpio sobre él.
-- **`package.json`**: script `db:types`. Necesita `npm i -D supabase`, que todavía no está instalado (DOC 06 §2.3).
+**Los 21 iconos y el logo, dibujados.** SVG monocolor contra el contrato del DOC 07 §8.1, más un `LEEME.md`. Bajan la T-103 de dos sesiones a una. Dos notas: `reliability` quedó como medidor de aguja porque tres barras chocaban con el logo, y `foul_committed` y `foul_received` comparten silbato y se distinguen solo por la dirección de la flecha, cosa que hay que mirar en la prueba de campo.
 
-**Configuración.**
+**Auditoría completa de los DOC 02, 04, 05 y 06.** Trece hallazgos, cinco de ellos capaces de estropear el día del partido. Las correcciones ya están aplicadas a los documentos; lo que toca base de datos queda como migración por escribir (T-100b). El informe entero, con el razonamiento de cada uno, está en `AUDITORIA_2026-09-12.md`, que **no va al repositorio**: su contenido útil ya vive en los documentos corregidos.
 
-- **Supabase → Auth → URL Configuration.** Site URL a `https://gavetastats.netlify.app` (estaba en el `http://localhost:3000` por defecto). Tres URL de redirección: la de producción, `http://localhost:5173/**` para desarrollo y `https://*--gavetastats.netlify.app/**` para los deploy previews por rama que menciona el DOC 15 §2.
-- **Netlify → gavetastats → Environment variables.** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_APP_ENV=production`, todas en todos los ámbitos y contextos, ninguna marcada como secreta. **El conector de Netlify respondió «Environment variable upserted» tres veces sin guardar nada**; se detectó al verificar en el panel y se metieron a mano. No te fíes de ese conector sin comprobar.
+| Hallazgo                                                         | Dónde quedó resuelto                  |
+| :--------------------------------------------------------------- | :------------------------------------ |
+| A-01 · El reloj no tenía dueño con cuatro anotadores             | DOC 04 §5.1.1, DOC 05 §8, DOC 06 §8.8 |
+| A-02 · El estado del partido no viajaba por la cola de salida    | DOC 06 §8.4                           |
+| A-03 · Sustitución duplicada tumbaba el recálculo de tramos      | DOC 04 §6.3                           |
+| A-04 · En directo no se sabía quién estaba en el campo           | DOC 04 §6.5, DOC 06 §5.4              |
+| A-05 · Los seguidores no podían leer `players`                   | DOC 05 §12.3                          |
+| A-06 · Sin copias de seguridad                                   | DOC 10 §5.1                           |
+| A-07 · La fiabilidad presentaba un 95 % como 100 %               | DOC 04 §10.3                          |
+| A-08 · La ventana de duplicados daba falsos positivos            | DOC 04 §9.2                           |
+| A-09 · La pantalla se apagaba sola en pleno partido              | DOC 06 §8.9                           |
+| A-10 · En iPhone el almacén local podía desaparecer              | DOC 06 §8.2                           |
+| A-11 · Las tarjetas se trataban como dato de acta sin haber acta | DOC 04 §10.1                          |
+| A-12 · Faltaba la tarea de prueba de multitenencia               | DOC 08 · T-105b                       |
+| A-13 · Defectos documentales                                     | DOC 05 §12.5 renumerado               |
 
 ### ESTADO DEL REPOSITORIO
 
-**Nada de esto está commiteado.** Lo que espera en el árbol de trabajo:
+**La T-100 está cerrada.** Lo de la sesión del 11/09 se fusionó en los PR #9 y #10: migraciones renombradas, tipos generados y documentos alineados ya están en `main`. `.env.local` también existe.
 
-| Archivo                                                           | Estado     |
-| :---------------------------------------------------------------- | :--------- |
-| `supabase/migrations/20260911213846_initial_schema.sql`           | Renombrado |
-| `supabase/migrations/20260911214032_hardening_rls_y_permisos.sql` | Nuevo      |
-| `src/types/database.types.ts`                                     | Nuevo      |
-| `package.json`                                                    | Modificado |
-| `.prettierignore`                                                 | Modificado |
-| `docs/05_Modelo_Datos_RLS.md`                                     | Modificado |
-| `docs/00_Indice_Documental_y_Herramientas.md`                     | Modificado |
-| `docs/13_HANDOFF.md`                                              | Modificado |
+Lo de esta sesión, en el árbol de trabajo:
 
-El renombrado lo hace `git mv` en los comandos del final; los dos documentos salen ya corregidos de esta sesión.
+| Archivo                                     | Estado     | Sesión |
+| :------------------------------------------ | :--------- | :----- |
+| `docs/03_Decisiones_Pendientes.md`          | Modificado | 12/09  |
+| `docs/04_Reglas_Negocio_Glosario.md` (v1.1) | Modificado | 12/09  |
+| `docs/05_Modelo_Datos_RLS.md` (v1.1)        | Modificado | 12/09  |
+| `docs/06_Arquitectura_Frontend.md` (v1.1)   | Modificado | 12/09  |
+| `docs/10_Entornos_y_Despliegue.md` (v0.2)   | Modificado | 12/09  |
+| `docs/07_Sistema_de_Diseno.md`              | Nuevo      | 12/09  |
+| `docs/08_TAREAS.md`                         | Nuevo      | 12/09  |
+| `docs/13_HANDOFF.md`                        | Modificado | 12/09  |
+| `src/styles/tokens.css`                     | Nuevo      | 12/09  |
+| `src/shared/ui/icons/*.svg` (21 archivos)   | Nuevos     | 12/09  |
+| `src/assets/logo.svg`                       | Nuevo      | 12/09  |
 
-El resto del repositorio, sin cambios respecto a la sesión anterior: `src/` sigue siendo la plantilla de Vite, ninguna de las dependencias del DOC 06 §2.3 está instalada, y no existen `src/shared/lib/supabase.ts` ni `env.ts`.
+Aparte de eso, `src/` sigue siendo la plantilla de Vite: ninguna dependencia del DOC 06 §2.3 está instalada y no existen `src/shared/lib/supabase.ts` ni `env.ts`.
 
-**No se crearon esos dos archivos a propósito.** Sin `@supabase/supabase-js` instalado, `tsc -b` falla, y con él el `pre-push` y el workflow de CI. Entran en la primera tarea de código, junto a las dependencias.
+**`tokens.css`, los iconos y el logo no van con los documentos.** Están colocados en su sitio, pero son código y entran con la rama de la **T-103**, junto a los componentes que los importan. En `main` sin nadie que los use solo estorban.
 
 ### PENDIENTE DE LA TAREA
 
-1. **Commit y merge.** Sin terminal en esta sesión. El equipo solo concede terminales en modo «clic», sin teclado, así que Git queda fuera de alcance. Comandos en el apartado final.
-
-2. **`.env.local`.** No se pudo escribir: el puente con el equipo bloquea la escritura sobre archivos `.env` por política, y es una protección razonable. Hazlo tú:
-
-   ```powershell
-   cd D:\Documentos\Proyectos\ProyectoSASI\App
-   Copy-Item .env.example .env.local
-   ```
-
-   Y rellena:
-
-   ```
-   VITE_SUPABASE_URL=https://rsbahpngpkvafnhejjfj.supabase.co
-   VITE_SUPABASE_ANON_KEY=<la anon public del panel: Project Settings → API Keys>
-   ```
-
-3. ~~Login con Google~~ — **terminado y probado de punta a punta.** Cliente de OAuth creado en un proyecto propio de Google Cloud (`gavetastats`), proveedor activado en Supabase y login real completado: `auth.users` y `profiles` creados, `display_name` y `avatar_url` rellenos por el disparador `handle_new_user`. Raúl queda con `is_platform_admin = true`. Toda la configuración, sin el secreto, en el **DOC 10 §4**.
-
-4. **Cubos de Storage (`crests`, `docs`) sin crear.** DOC 05 §13. No bloquean nada hasta que haya escudos que subir.
+1. **Fusionar el pull request de documentación** de esta sesión.
+2. ~~Confirmar el recorte del MVP~~ — **confirmado (Raúl, 12/09/2026).** Fuera entrenamiento en directo (A15), disciplina (A16) y todo el Bloque B. El MVP termina donde termina la entrada de datos de partido. Queda una corrección de documentación pendiente: la columna «Fase» del DOC 02 §2 sigue marcando esas pantallas como MVP.
+3. **Descargar la fuente.** `InterVariable-latin.woff2` a `public/fonts/`, y añadir `woff2` a los `globPatterns` del plugin de PWA, o la fuente no estará disponible sin red. Va dentro de la T-102.
+4. **Commitear `tokens.css`, los 21 iconos y el logo**, que están colocados en `src/` pero fuera del commit de documentación. Entran con la rama de la T-103.
+5. **Escribir la migración de la T-100b** con el esquema aplicado delante, nunca de memoria: toca restricciones, políticas y funciones que ya existen, y adivinar un nombre de política rompe la migración. Los cinco cambios, listados en el DOC 05 §14.2.
+6. **Marcar `event.approve` a quien lleve el registro** cuando exista la pantalla de personas (T-301). Hasta entonces, la fila se siembra a mano junto con el resto de permisos.
+7. **Cubos de Storage (`crests`, `docs`) sin crear.** DOC 05 §13. No bloquean nada todavía.
 
 ### AVISO DE SEGURIDAD
 
-Al abrir el panel del proveedor de Google en Supabase, **Chrome autorrellenó el formulario con credenciales guardadas**: el campo «Client IDs» con `GavetaStats` y el «Client Secret» con una contraseña. El gestor de contraseñas trata ese panel como un formulario de acceso. Se canceló sin guardar. Si se pulsa «Save» ahí, tu contraseña acaba escrita en la configuración del proveedor. Revisa esos dos campos cada vez que abras el panel.
+Sigue vigente: al abrir el panel del proveedor de Google en Supabase, **Chrome autorrellena «Client IDs» y «Client Secret»** con credenciales guardadas. Vacía los dos campos antes de tocar nada; si se pulsa «Save» con eso dentro, tu contraseña acaba escrita en la configuración del proveedor.
 
 ### DEUDA TÉCNICA
 
-Nueva, de esta sesión:
+De la sesión anterior, todas abiertas:
 
-| Deuda                                                                                                                                                                  | Estado                                                                              |
-| :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- |
-| `btree_gist` instalado en el esquema `public` en vez de en `extensions`                                                                                                | Abierta. Moverlo obliga a tirar y rehacer la restricción de exclusión de los tramos |
-| Veintisiete claves ajenas siguen sin índice, casi todas columnas `created_by`                                                                                          | Abierta. Ninguna se consulta hoy                                                    |
-| Trece tablas con dos políticas permisivas para `SELECT`, porque las políticas `for all` también cubren la lectura                                                      | Abierta. Se paga separando `insert`/`update`/`delete`                               |
-| Se usa la `anon key` heredada (JWT) y no la clave publicable `sb_publishable_…`, que es la que Supabase recomienda para proyectos nuevos por su rotación independiente | Abierta. Se eligió la heredada por coincidir con el DOC 05 y el `.env.example`      |
-| Borrar un club falla mientras haya filas en `match_squad`: la cascada `clubs → players` choca con el `on delete restrict` de `match_squad.player_id`                   | Abierta. Protege el histórico, pero conviene saberlo                                |
+| Deuda                                                                     | Estado                                                                      |
+| :------------------------------------------------------------------------ | :-------------------------------------------------------------------------- |
+| `btree_gist` instalado en `public` en vez de en `extensions`              | Abierta. Moverlo obliga a rehacer la restricción de exclusión de los tramos |
+| Veintisiete claves ajenas sin índice, casi todas `created_by`             | Abierta. Ninguna se consulta hoy                                            |
+| Trece tablas con dos políticas permisivas para `SELECT`                   | Abierta. Se paga separando `insert`/`update`/`delete`                       |
+| Se usa la `anon key` heredada y no la clave publicable `sb_publishable_…` | Abierta. Coincide con el DOC 05 y el `.env.example`                         |
+| Borrar un club falla mientras haya filas en `match_squad`                 | Abierta. Protege el histórico                                               |
+| `CLAUDE.md` cita `docs/05_Modelo_Datos.md`, que no es el nombre real      | Abierta. Corrección de una línea                                            |
+| El DOC 14 no menciona los subagentes                                      | Abierta                                                                     |
 
-La del repositorio sigue igual que en la sesión anterior, más las dos correcciones de documentación que aquella dejó abiertas: **`CLAUDE.md` cita `docs/05_Modelo_Datos.md`, que no es el nombre real**, y **el DOC 14 no menciona los subagentes**.
+Nueva de esta sesión:
+
+| Deuda                                                                                 | Estado                                                                                                       |
+| :------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------- |
+| Veintiún iconos por dibujar, tres o cuatro horas de ruta crítica                      | Abierta. Plan B en el DOC 07 §8.3: los once de evento dibujados, los diez de interfaz con formas elementales |
+| Tema oscuro fuera del MVP                                                             | Asumida. El problema real —la pantalla al sol— lo resuelve el alto contraste                                 |
+| Subconjunto de Inter sin afinar a los caracteres reales                               | Abierta. El subconjunto latino basta; afinarlo ahorraría unos kB                                             |
+| El recorte del MVP deja A15, A16 y el Bloque B fuera del alcance escrito en el DOC 02 | Confirmado por Raúl el 12/09/2026. Queda pendiente corregir la columna «Fase» del DOC 02 §2                  |
 
 ### DECISIONES TOMADAS
 
-**Las migraciones se nombran con marca de tiempo, no con número correlativo.** Se aplicaron por el conector, que las registró como `20260911213846` y `20260911214032`, mientras que los archivos se llamaban `0001_` y `0002_`. El CLI de Supabase deriva la versión del prefijo del nombre, así que un `supabase db push` las habría dado por aplicar y habría intentado repetirlas.
+**El reloj del partido tiene un solo dueño.** `match_periods.started_at` deja de ser informativa y pasa a ser la fuente de verdad; cada evento guarda `occurred_at` y los segundos se derivan. Un dispositivo que anota sin conocer el arranque manda `occurred_at` con los segundos nulos y los rellena el servidor. Se descartó la alternativa —nadie anota hasta recibir el arranque— porque deja tirado al anotador sin cobertura, que es para quien se montó la capa offline.
 
-Se renombran los archivos a las versiones reales. Es la convención del propio CLI —`supabase migration new` pone la marca de tiempo sola—, deja `db push` funcionando de serie y evita tener que acordarse de `supabase migration repair` en cada entorno nuevo. Se descartó dejar los nombres y reparar el historial: respeta el documento, pero mete un paso manual que algún día se olvidará.
+**El recálculo de tramos se vuelve tolerante.** Una sustitución cuyo jugador entrante ya tiene tramo abierto se ignora y se anota el descarte. La restricción de exclusión sigue vigilando I-03, pero deja de poder tumbar la función entera.
 
-Consecuencia: **el DOC 05 §14 y el DOC 00 quedaban desfasados y se han corregido en esta misma sesión.** El §14 pasa a explicar la convención, a listar las dos migraciones con su versión y a recoger, en un §14.1 nuevo, qué corrigió el endurecimiento y la regla que deja: revocar de una función se hace siempre de `public` además de `anon`.
+**La fórmula de fiabilidad cambia**: la corroboración suma sobre lo no cubierto, no sobre el total, y el 100 % queda reservado a la cobertura completa.
 
-**Sobre el ámbito del commit.** La rama toca `db` y `docs`, y el DOC 15 §2 pide una rama por módulo. Aquí es una sola tarea: los documentos corregidos son los que nombran los archivos que se acaban de renombrar, no un trabajo de documentación aparte. Van en la misma rama, en su propio commit, y el título del pull request manda con ámbito `db`.
+**Medición de campo en el amistoso de Isaac.** Segunda parte de 40 minutos con contadores de toque: 69 pases, 58 recuperaciones, 5 faltas cometidas, 9 recibidas. 3,5 pulsaciones por minuto sin atribuir a jugador. Confirma la decisión H2 con datos propios y deja escrito un principio nuevo: una métrica de alto volumen solo puede vivir a nivel de equipo y sin jugador, cosa que el modelo hoy no admite (DOC 04 §7.1, DOC 05 §15).
+
+**El gol guarda su origen** —jugada, penalti, falta directa, córner o rechace— en el `details` que ya existe. Sin columna nueva, paso opcional y saltable (DOC 04 §7.5).
+
+**Cada botón de evento lleva escrita su definición** (DOC 04 §7.6). Sin eso, dos anotadores producen números que no se pueden comparar: en la prueba de campo se contaron los fueras de juego como faltas, y el fuera de juego es un tipo aparte que está apagado.
+
+**`match.close` se parte en dos permisos.** `event.approve` aprueba, rechaza y edita eventos ajenos; `match.close` cierra el partido y confirma el acta. Con un solo permiso para las dos cosas, o el entrenador dejaba de dirigir para anotar, o todo lo que apuntaba el anotador principal nacía pendiente y el cierre pasaba a ser un repaso de ciento y pico eventos. El cambio entra en la T-100b, con el aviso de que el valor nuevo de la enumeración necesita su propia transacción.
+
+**Se mantienen los cuatro anotadores en el MVP (C1).** La alternativa era arrancar con un solo anotador y dejar la concurrencia para noviembre, que ahorraba cuatro sesiones. Se descarta: el reparto en el campo es media gracia del proyecto. El coste queda asumido y escrito: 3,9 sesiones semanales y cero colchón, con la palanca del DOC 08 §2 —quitar el tiempo real de la T-209— reservada para el hito del 4 de octubre.
+
+**El MVP termina en la entrada de datos de partido.** Fuera entrenamientos, disciplina y todo el bloque de consulta. Qué se hace con los datos registrados se decide con la liga ya en marcha y con partidos reales dentro, que es cuando se puede juzgar de verdad qué hace falta ver.
+
+**Inter en lugar de Helvetica.** Helvetica es comercial: la licencia web se paga, lo que rompe el presupuesto de 0 €, y solo está instalada de serie en iPhone y Mac, así que ni pagándola se vería igual en Android. Inter es SIL OFL, variable —un archivo cubre todos los grosores— y trae cifras tabulares, que es lo que el reloj del directo necesita para no bailar cada segundo.
+
+**El alto contraste anula el color del equipo.** Al sol manda el contraste. La consecuencia se aplica en todas las pantallas, no solo en esa: los dos equipos se distinguen por posición y por nombre, nunca por color.
+
+**La capa offline (T-206) va antes que la pantalla de directo.** Enchufar la cola a una pantalla ya escrita obliga a reescribir cada manejador de evento; escribir la pantalla contra una cola existente no cuesta nada. Es la dependencia que más caro sale saltarse.
+
+**Hito de control el 4 de octubre.** Si la T-206 sigue abierta ese día, la capa offline se recorta a cola sin precarga y se documenta. Llegar al 25 de octubre sin directo no es una opción; llegar con un directo que solo funciona con cobertura, sí.
 
 ### SIGUIENTE TAREA SUGERIDA
 
-Con el esquema aplicado y los tipos generados, la Fase 1 está desbloqueada. En orden:
+**T-100b**, la migración de correcciones de la auditoría, que conviene aplicar con la base todavía vacía. Detrás van T-101 y T-102. La T-100 quedó cerrada el 12/09.
 
-1. **Cerrar esta tarea**: commit, merge y `.env.local`.
-2. **Login con Google**, rama `feat/auth-login-google`. Es lo que falta para que la aplicación pueda tener sesión, y todo lo demás cuelga de ahí.
-3. **PWA y metadatos**, rama `feat/platform-pwa-y-metadatos`, que sigue siendo la primera tarea de código del DOC 06 y no depende de nada de esto.
-
-El **DOC 07** (sistema de diseño) sigue bloqueado por el bloque F del DOC 03: confirmar «GavetaStats» como nombre. A estas alturas el proyecto de Supabase, el sitio de Netlify, las variables de entorno y la Site URL se llaman todos así; cambiarlo ahora ya cuesta.
+Si la próxima sesión vuelve a caer en el móvil, hay trabajo sin código: revisar el recorte del DOC 08 §7, o adelantar el DOC 09 (observabilidad) o el DOC 11 (legal y privacidad), que no dependen de nada de lo anterior.
 
 ### COMANDOS PARA CERRAR LA TAREA
 
 ```powershell
 cd D:\Documentos\Proyectos\ProyectoSASI\App
 
+# ---- Rama de documentación de esta sesión ----
 git switch main
 git pull
-git switch -c feat/db-aplicar-esquema-inicial
+git switch -c docs/docs-bloque-f-diseno-y-tareas
 
-# 1 · Renombrar las migraciones a su versión real
-git mv supabase/migrations/0001_initial_schema.sql `
-       supabase/migrations/20260911213846_initial_schema.sql
-git mv supabase/migrations/0002_hardening_rls_y_permisos.sql `
-       supabase/migrations/20260911214032_hardening_rls_y_permisos.sql
+git add docs/03_Decisiones_Pendientes.md docs/04_Reglas_Negocio_Glosario.md `
+        docs/05_Modelo_Datos_RLS.md docs/06_Arquitectura_Frontend.md `
+        docs/07_Sistema_de_Diseno.md docs/08_TAREAS.md `
+        docs/10_Entornos_y_Despliegue.md docs/13_HANDOFF.md
+git commit -m "docs: close decision block f, add design system, task plan and audit fixes"
 
-# 2 · El esquema y los tipos
-git add supabase/migrations src/types/database.types.ts package.json .prettierignore
-git commit -m "feat(db): apply initial schema and harden rls on supabase"
-
-# 3 · Los documentos que describen lo anterior
-git add docs/05_Modelo_Datos_RLS.md docs/00_Indice_Documental_y_Herramientas.md docs/13_HANDOFF.md
-git commit -m "docs(db): align migration naming and record hardening in doc 05"
-
-npm run format:check    # debe pasar: database.types.ts va ignorado
-git push -u origin feat/db-aplicar-esquema-inicial
+npm run format:check
+git push -u origin docs/docs-bloque-f-diseno-y-tareas
 ```
 
-Pull request en GitHub con el mismo título que el commit, CI en verde, squash merge, y la rama se borra sola (DOC 15 §4).
+`src/styles/tokens.css` se queda sin commitear hasta la T-103. Guárdalo donde va —`src/styles/`— y déjalo fuera de estos dos commits.
 
-### DOC 10 NUEVO
-
-Se abre **`docs/10_Entornos_y_Despliegue.md` v0.1, parcial a propósito**. Registra el inventario de servicios, dónde vive cada variable de entorno, dónde vive cada secreto y dónde no, toda la configuración de la autenticación y una lista de comprobación de entorno. Lo que falta —deploy previews, checklist de publicación, vuelta atrás— está listado en su §7. El DOC 00 pasa el 10 a 🚧.
-
-Ahí queda también anotado que el dominio feo de la pantalla de Google solo se arregla con el add-on de Custom Domains, unos 10 $/mes más el plan Pro: fuera del presupuesto de 0 €, y por tanto asumido.
-
-### PASOS DEL LOGIN CON GOOGLE (hechos, se dejan como referencia)
-
-En **Google Cloud Console**, con tu cuenta:
-
-1. Crea un proyecto, o reutiliza uno.
-2. **APIs y servicios → Pantalla de consentimiento de OAuth.** Tipo **Externo**. Nombre de la aplicación, correo de asistencia y correo de contacto. Ámbitos: los tres básicos (`userinfo.email`, `userinfo.profile`, `openid`) y ninguno más — la aplicación no necesita nada del usuario salvo nombre, correo y avatar.
-3. Mientras esté en modo de prueba, añade tu correo y el de Isaac como usuarios de prueba. Publicarla puede esperar.
-4. **Credenciales → Crear credenciales → ID de cliente de OAuth → Aplicación web.**
-   - Orígenes autorizados de JavaScript: `https://gavetastats.netlify.app` y `http://localhost:5173`
-   - URI de redirección autorizado, exactamente este:
-     ```
-     https://rsbahpngpkvafnhejjfj.supabase.co/auth/v1/callback
-     ```
-5. Copia el **Client ID** y el **Client Secret**.
-
-En **Supabase → Authentication → Sign In / Providers → Google**:
-
-6. **Vacía primero los dos campos**: Chrome los autorrellena con tus credenciales (ver el aviso de seguridad).
-7. Pega el Client ID en «Client IDs» y el secreto en «Client Secret».
-8. Activa «Enable Sign in with Google» y guarda.
-
-La Site URL y las URL de redirección ya están puestas, así que no hay nada más que tocar en Supabase.
+Pull request por rama con el mismo título que el commit, CI en verde, squash merge, y la rama se borra sola (DOC 15 §4). Y al fusionar, sube al _Knowledge_ del proyecto las versiones nuevas del 00, 03, 07, 08 y 13: un documento desactualizado ahí hace más daño que su ausencia.

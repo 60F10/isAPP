@@ -1,6 +1,6 @@
 # DOC 03 — Decisiones pendientes
 
-> **Versión:** 1.1 — 11/09/2026 (bloque H añadido al escribir el DOC 04 y el DOC 05)
+> **Versión:** 1.2 — 12/09/2026 (bloque F cerrado: nombre, logo y paleta base)
 > **Para qué sirve:** cada decisión de esta lista bloquea un documento posterior. Respóndelas y los DOC 04 a 08 salen del tirón, sin suposiciones mías.
 > **Cómo usarlo:** responde en la columna vacía o pega las respuestas en la siguiente sesión. Las marcadas 🔴 bloquean el modelo de datos, así que van primero.
 
@@ -68,13 +68,37 @@
 
 ---
 
-## F · Identidad → no bloquea nada
+## F · Identidad → ✅ RESUELTO (Raúl, 12/09/2026) → desbloquea DOC 07
 
-| #   | Decisión                                                                                   | Estado                                             |
-| :-- | :----------------------------------------------------------------------------------------- | :------------------------------------------------- |
-| F1  | Nombre de la app. Propuestas de Gemini: Míster.app, StatPitch, Pizarra.io, DatoOnce        | Pendiente. Se puede decidir en noviembre sin coste |
-| F2  | Logo. Concepto propuesto: hexágono cuyos lados forman barras ascendentes, en SVG monocolor | Pendiente                                          |
-| F3  | Paleta base por defecto, antes de inyectar el color del equipo                             | Pendiente                                          |
+| #     | Decisión        | Resolución                                                                                                                                                              | Consecuencia técnica                                                                                                                                                                                        |
+| :---- | :-------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1 ✅ | **Nombre**      | **GavetaStats para el MVP, nombre definitivo aplazado.** Sirve mientras la app viva en el círculo de prueba. El nombre público se decide antes de salir de ahí          | El nombre visible sale de **una sola constante** y del manifiesto, nunca escrito a mano en pantallas. Renombrar debe ser tocar un archivo más la configuración de §F1.1, no una búsqueda por todo el código |
+| F2 ✅ | **Logo**        | **Marca mínima para el MVP: tres barras ascendentes en SVG monocolor**, sin hexágono y sin letras. Descartado el hexágono. La identidad definitiva la hará quien diseñe | Sin letras, el icono sobrevive a un cambio de nombre. Sin hexágono, aguanta el recorte circular del icono _maskable_ y se lee a 16 px. Un único SVG con `currentColor`                                      |
+| F3 ✅ | **Paleta base** | **Neutro frío con acento índigo.** Tema claro por defecto; el modo de alto contraste del DOC 02 §5.2 es el recurso para el sol. Tema oscuro fuera del MVP               | El DOC 07 fija los valores y mide cada uno: 7:1 en la pantalla de directo, 4.5:1 en el resto, 3:1 en bordes e iconos. El acento no es verde, amarillo ni rojo: están tomados por los estados y las tarjetas |
+
+### F1.1 · Qué cuesta cambiar el nombre, y hasta cuándo sale barato
+
+Hoy el cambio son unos cuarenta y cinco minutos de configuración: nombre del sitio en Netlify —que arrastra el subdominio—, Site URL y URL de redirección en Supabase, orígenes autorizados y nombre de la aplicación en el cliente de OAuth de Google, manifiesto, iconos y título.
+
+El identificador del proyecto de Supabase **no cambia**, así que la `VITE_SUPABASE_URL` y el URI de retorno de OAuth se quedan como están.
+
+Encarece en dos momentos, y conviene no llegar a ellos sin nombre:
+
+1. **Cuando alguien instale la PWA.** El subdominio forma parte de la identidad de la aplicación instalada: si cambia, hay que reinstalar.
+2. **Cuando se compre el dominio** (D3).
+
+**Momento límite: antes de publicar la aplicación fuera del grupo de usuarios de prueba.**
+
+### F1.2 · Criterios para el nombre definitivo
+
+Apuntados para la sesión en que toque, sin abrirla ahora:
+
+- Internacional, pronunciable fuera del español.
+- Que se reconozca como aplicación de fútbol.
+- Que admita el componente de red social, no solo el de estadísticas.
+- Dominio libre y sin colisión con marcas del sector.
+
+Ninguno de los cuatro afecta al MVP. La ambición de red social tampoco obliga a tocar nada hoy: la arquitectura multitenant (D4) y la tabla `team_followers` (H4) ya la admiten.
 
 ---
 
@@ -109,10 +133,10 @@ Cinco cuestiones que aparecieron al bajar las decisiones anteriores a reglas y a
 
 ## Resumen: estado de las decisiones
 
-**Todas las decisiones bloqueantes están cerradas.** Veintiocho de treinta, contando el bloque H.
+**Las treinta decisiones están cerradas**, contando los bloques H y F.
 
-**Abiertas y no bloqueantes:** el bloque F (nombre de la app, logo y paleta base). El proyecto de Supabase y el sitio de Netlify se llaman **GavetaStats**, así que el nombre tiene un candidato de hecho; conviene confirmarlo o descartarlo antes del DOC 07.
+**Aplazado a propósito:** el nombre público de la aplicación. GavetaStats vale para el MVP; los criterios y el momento límite están en §F1.1 y §F1.2. No bloquea ningún documento.
 
-**Hecho desde entonces:** DOC 04 (reglas de negocio y glosario) y DOC 05 (modelo de datos y políticas RLS), con el esquema probado contra PostgreSQL en `supabase/migrations/0001_initial_schema.sql`.
+**Hecho desde entonces:** DOC 04 (reglas de negocio y glosario) y DOC 05 (modelo de datos y políticas RLS), con el esquema aplicado a Supabase en las migraciones `20260911213846` y `20260911214032`. DOC 06 (arquitectura frontend) y DOC 10 v0.1 (entornos y despliegue).
 
-**Siguiente paso:** DOC 06 (arquitectura frontend) y DOC 07 (sistema de diseño), que desbloquean el DOC 08.
+**Siguiente paso:** DOC 07 (sistema de diseño), ya desbloqueado por el bloque F, y con él el DOC 08.

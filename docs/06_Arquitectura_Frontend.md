@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.0 — 11/09/2026
+> **Versión:** 1.1 — 12/09/2026 (auditoría: cola con `match`, almacén persistente, ancla del reloj, wake lock) · anterior 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -271,6 +271,8 @@ inactivo → parte_en_curso → parte_pausada → parte_en_curso → descanso �
 
 Transiciones ilegales bloqueadas en el propio reductor: no se registra un gol con el partido inactivo, ni se abre la tercera parte de una competición de dos.
 
+**El reductor también responde a «quién está en el campo ahora»**, y lo hace con todos los eventos que conoce el dispositivo, aprobados o no (DOC 04 §6.5). Es estado de pantalla y alimenta las validaciones R-04, R-05 y R-07. Los minutos oficiales siguen saliendo de los tramos del servidor, que solo miran lo aprobado. Dos anotadores pueden ver alineaciones distintas durante unos segundos: asumido.
+
 Ventajas de que sea puro: se prueba entero con Vitest sin navegador, se guarda tal cual en IndexedDB y se reconstruye tras una recarga sin ningún trabajo extra.
 
 Se descartó **Zustand**: aporta poco sobre `useReducer` cuando el estado vive en un solo árbol de pantalla, y añade una dependencia en la pieza más crítica. Se descartó **XState**: su modelo encaja de maravilla con este problema, pero pesa, tiene curva propia y el diagrama de estados de aquí cabe en veinte líneas de `switch`.
@@ -422,6 +424,8 @@ db.version(1).stores({
 
 El identificador de dispositivo se genera una vez con `crypto.randomUUID()` y se guarda en `meta`. Sirve para saber qué aparato dejó un evento colgado cuando haya cuatro anotando.
 
+**D06-10b · El almacén se pide persistente.** Al entrar por primera vez en un partido se llama a `navigator.storage.persist()`. Safari borra el almacenamiento de sitios que no se usan durante siete días, y el escenario es de lo más normal: partido sin cobertura, la aplicación se cierra al acabar y no se vuelve a abrir hasta el partido siguiente. Entre medias desaparecerían eventos que el invariante I-07 promete no perder. Como la petición se puede denegar, van dos avisos detrás: al salir del directo con trabajos en cola, con el número por delante, y en la pantalla de inicio nada más abrir la aplicación, antes que cualquier otra cosa.
+
 ### 8.3 Precarga del partido
 
 **D06-11 · Al entrar en la convocatoria o en el directo, el partido se descarga entero a IndexedDB.**
@@ -435,19 +439,19 @@ Si la precarga falla, la pantalla lo dice antes de empezar, no a los quince minu
 
 Una fila de `outbox` es un trabajo pendiente:
 
-| Campo           | Tipo                                                           | Para qué                                         |
-| :-------------- | :------------------------------------------------------------- | :----------------------------------------------- |
-| `id`            | uuid                                                           | Identificador local del trabajo                  |
-| `entity`        | `match_event` \| `match_period` \| `match_squad` \| `coverage` | Qué tabla toca                                   |
-| `op`            | `insert` \| `update` \| `delete`                               | Qué operación                                    |
-| `payload`       | json                                                           | La fila tal como va a viajar                     |
-| `clientEventId` | uuid                                                           | Idempotencia. Es el `client_event_id` del DOC 05 |
-| `matchId`       | uuid                                                           | Para ordenar y para aislar fallos                |
-| `createdAt`     | número                                                         | Orden dentro del partido                         |
-| `attempts`      | número                                                         | Cuántas veces se intentó                         |
-| `nextAttemptAt` | número                                                         | Cuándo toca el siguiente intento                 |
-| `status`        | `pending` \| `sending` \| `sent` \| `failed`                   | Estado del transporte                            |
-| `lastError`     | texto                                                          | Qué dijo el servidor la última vez               |
+| Campo           | Tipo                                                                      | Para qué                                         |
+| :-------------- | :------------------------------------------------------------------------ | :----------------------------------------------- |
+| `id`            | uuid                                                                      | Identificador local del trabajo                  |
+| `entity`        | `match` \| `match_event` \| `match_period` \| `match_squad` \| `coverage` | Qué tabla toca                                   |
+| `op`            | `insert` \| `update` \| `delete`                                          | Qué operación                                    |
+| `payload`       | json                                                                      | La fila tal como va a viajar                     |
+| `clientEventId` | uuid                                                                      | Idempotencia. Es el `client_event_id` del DOC 05 |
+| `matchId`       | uuid                                                                      | Para ordenar y para aislar fallos                |
+| `createdAt`     | número                                                                    | Orden dentro del partido                         |
+| `attempts`      | número                                                                    | Cuántas veces se intentó                         |
+| `nextAttemptAt` | número                                                                    | Cuándo toca el siguiente intento                 |
+| `status`        | `pending` \| `sending` \| `sent` \| `failed`                              | Estado del transporte                            |
+| `lastError`     | texto                                                                     | Qué dijo el servidor la última vez               |
 
 ### 8.5 Reglas de la cola
 
@@ -490,11 +494,20 @@ Precaché del código y de los recursos estáticos. `navigateFallback` a `index.
 ### 8.8 El reloj
 
 **D06-15 · El reloj se calcula por anclaje, nunca por acumulación.**
-Se guardan el instante de arranque de la parte y los milisegundos acumulados en pausa. El tiempo mostrado sale de `Date.now() - inicio - pausado`. El temporizador de 250 ms solo repinta.
+El ancla es `match_periods.started_at`, que escribe quien lleva el reloj y es la fuente de verdad del partido (DOC 04 §5.1.1), no un instante local de cada dispositivo. Se guarda en `matchSnapshots` junto con los milisegundos acumulados en pausa. El tiempo mostrado sale de `Date.now() - ancla - pausado`. El temporizador de 250 ms solo repinta.
+
+Al registrar un evento, el dispositivo guarda `occurred_at` y calcula `seconds` contra el ancla. Si todavía no conoce el arranque de la parte —empezó mientras estaba sin cobertura—, manda `occurred_at` y deja `seconds` nulo: lo rellena el servidor.
 
 Se descartó el contador que suma en cada tick: los navegadores móviles limitan los temporizadores en segundo plano y con la pantalla bloqueada, así que un reloj acumulativo se retrasa minutos en un partido. Y el móvil se bloquea solo cada dos minutos (DOC 02 §5.2).
 
 El ancla se guarda en `matchSnapshots` tras cada transición. Una recarga, un bloqueo o un cierre accidental recuperan el minuto exacto.
+
+### 8.9 La pantalla encendida
+
+**D06-16 · Bloqueo de suspensión mientras dure el directo.**
+El móvil se apaga solo cada dos minutos (DOC 02 §5.2), y desbloquearlo antes de cada gol destruye la premisa de la pantalla: registrar de pie, con una mano y sin apartar la vista del campo. Se pide `navigator.wakeLock` al entrar en el directo y se suelta al salir. El bloqueo se pierde al cambiar de aplicación o al ocultarse la pestaña, así que se vuelve a pedir cuando la pestaña recupera visibilidad.
+
+Disponible en Chrome de Android y en Safari desde la 16.4, o sea los cuatro anotadores. Coste asumido y que conviene decir en la interfaz: gasta batería, y un partido son dos horas.
 
 ---
 

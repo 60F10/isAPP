@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.0 — 11/09/2026
+> **Versión:** 1.1 — 12/09/2026 (auditoría: reloj, tramos, lectura de `players`, fiabilidad) · anterior 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/20260911213846_initial_schema.sql` — guion completo de creación, aplicado al proyecto el 11/09/2026
@@ -75,7 +75,7 @@ La columna vertebral es `club → season → team → match → event`. Toda pol
 | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `team_kind`           | `managed`, `reference`                                                                                                                                                                                                                                              |
 | `team_role`           | `coach`, `delegate`, `scout`, `spectator`                                                                                                                                                                                                                           |
-| `app_permission`      | `team.manage`, `roster.manage`, `competition.manage`, `schedule.manage`, `lineup.manage`, `match.live.write`, `match.close`, `discipline.manage`, `training.manage`, `stats.view`, `members.manage`                                                                 |
+| `app_permission`      | `team.manage`, `roster.manage`, `competition.manage`, `schedule.manage`, `lineup.manage`, `match.live.write`, `event.approve`, `match.close`, `discipline.manage`, `training.manage`, `stats.view`, `members.manage`                                                |
 | `competition_kind`    | `league`, `cup`, `friendly`                                                                                                                                                                                                                                         |
 | `clock_mode`          | `running`, `stopped`                                                                                                                                                                                                                                                |
 | `substitution_type`   | `fixed`, `rolling`                                                                                                                                                                                                                                                  |
@@ -290,7 +290,7 @@ El marcador calculado sale de los eventos (DOC 04 §7.3). El confirmado se guard
 | `period_number`   | smallint    | Único junto con el partido                         |
 | `planned_seconds` | integer     | `period_minutes × 60` en el momento de abrirla     |
 | `actual_seconds`  | integer     | **Manda en todos los cálculos**. Incluye descuento |
-| `started_at`      | timestamptz | Hora real, solo informativa                        |
+| `started_at`      | timestamptz | **Fuente de verdad del reloj** (DOC 04 §5.1.1)     |
 | `ended_at`        | timestamptz | —                                                  |
 
 Decisión H5: las partes no son eventos. Las escribe quien lleva el reloj, no entran en la cola de anotaciones y no admiten discordancia.
@@ -309,22 +309,23 @@ Decisión H5: las partes no son eventos. Las escribe quien lleva el reloj, no en
 
 El corazón del sistema. Una sola tabla para todos los tipos.
 
-| Columna                       | Tipo         | Notas                                                                |
-| :---------------------------- | :----------- | :------------------------------------------------------------------- |
-| `id`                          | uuid PK      | —                                                                    |
-| `client_event_id`             | uuid         | **Único.** Lo genera el dispositivo antes de enviar. Da idempotencia |
-| `match_id`                    | uuid         | → `matches`, cascada                                                 |
-| `event_type`                  | event_type   | —                                                                    |
-| `period`                      | smallint     | Entre 1 y el número de partes de la competición                      |
-| `seconds`                     | integer      | Segundos dentro de esa parte. Nunca negativo                         |
-| `is_opponent`                 | boolean      | Si el hecho es del rival                                             |
-| `player_id`                   | uuid         | Nulo si es del rival                                                 |
-| `secondary_player_id`         | uuid         | Asistente, o jugador que entra en una sustitución                    |
-| `details`                     | jsonb        | Lo propio de cada tipo: motivo del cambio, posición nueva, texto     |
-| `status`                      | event_status | —                                                                    |
-| `duplicate_group_id`          | uuid         | Agrupa candidatos a duplicado                                        |
-| `created_by`                  | uuid         | Quién lo apuntó                                                      |
-| `reviewed_by` / `reviewed_at` | —            | Quién lo aprobó o rechazó                                            |
+| Columna                       | Tipo         | Notas                                                                   |
+| :---------------------------- | :----------- | :---------------------------------------------------------------------- |
+| `id`                          | uuid PK      | —                                                                       |
+| `client_event_id`             | uuid         | **Único.** Lo genera el dispositivo antes de enviar. Da idempotencia    |
+| `match_id`                    | uuid         | → `matches`, cascada                                                    |
+| `event_type`                  | event_type   | —                                                                       |
+| `period`                      | smallint     | Entre 1 y el número de partes de la competición                         |
+| `seconds`                     | integer      | Segundos dentro de esa parte. Nunca negativo. Derivado de `occurred_at` |
+| `occurred_at`                 | timestamptz  | Instante del dispositivo. Nulo solo en partidos en diferido             |
+| `is_opponent`                 | boolean      | Si el hecho es del rival                                                |
+| `player_id`                   | uuid         | Nulo si es del rival                                                    |
+| `secondary_player_id`         | uuid         | Asistente, o jugador que entra en una sustitución                       |
+| `details`                     | jsonb        | Lo propio de cada tipo: motivo del cambio, posición nueva, texto        |
+| `status`                      | event_status | —                                                                       |
+| `duplicate_group_id`          | uuid         | Agrupa candidatos a duplicado                                           |
+| `created_by`                  | uuid         | Quién lo apuntó                                                         |
+| `reviewed_by` / `reviewed_at` | —            | Quién lo aprobó o rechazó                                               |
 
 **Por qué una sola tabla y no una por tipo.** El directo escribe siempre la misma forma de fila, la cola offline reintenta un único tipo de operación, y las políticas de seguridad se escriben una vez. Tablas separadas obligarían a mantener trece colas, trece conjuntos de políticas y trece caminos de sincronización, que es justo lo que rompe a pie de campo.
 
@@ -489,31 +490,31 @@ Todas se declaran `stable` y con `search_path` fijado a `public`. Lo primero per
 
 ### 12.3 Matriz de políticas
 
-| Tabla                     | Lectura                                              | Escritura                                                                                        |
-| :------------------------ | :--------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
-| `profiles`                | El propio, y los miembros de sus equipos             | Solo el propio                                                                                   |
-| `clubs`                   | Miembros y seguidores del club                       | `team.manage` en algún equipo del club                                                           |
-| `seasons`                 | Igual que el club                                    | `competition.manage`                                                                             |
-| `teams`                   | Miembros y seguidores                                | `team.manage`                                                                                    |
-| `team_members`            | Miembros del equipo                                  | `members.manage`                                                                                 |
-| `team_member_permissions` | Miembros del equipo                                  | `members.manage`                                                                                 |
-| `team_followers`          | El propio y quien tenga `members.manage`             | `members.manage`                                                                                 |
-| `invitations`             | `members.manage`                                     | `members.manage`                                                                                 |
-| `players`                 | Miembros del club                                    | `roster.manage`                                                                                  |
-| `squad_memberships`       | Miembros y seguidores del equipo                     | `roster.manage`                                                                                  |
-| `competitions`            | Miembros y seguidores                                | `competition.manage`                                                                             |
-| `matches`                 | Miembros y seguidores                                | `schedule.manage`; el cierre exige `match.close`                                                 |
-| `match_periods`           | Miembros y seguidores                                | `match.live.write`                                                                               |
-| `match_squad`             | Miembros y seguidores                                | `lineup.manage`                                                                                  |
-| `match_events`            | Miembros ven todo; **seguidores solo los aprobados** | Insertar: `match.live.write`. Editar y borrar: el autor mientras esté pendiente, o `match.close` |
-| `player_match_stints`     | Miembros y seguidores                                | Nadie. Solo la función de recálculo                                                              |
-| `coverage_declarations`   | Miembros                                             | La propia, con `match.live.write`                                                                |
-| `sanctions`               | Miembros                                             | `discipline.manage`                                                                              |
-| `training_sessions`       | Miembros                                             | `training.manage`                                                                                |
-| `training_attendance`     | Miembros                                             | `training.manage`                                                                                |
-| `app_settings`            | Cualquiera autenticado                               | Administrador de la plataforma                                                                   |
-| `audit_log`               | `members.manage` del club                            | Nadie. Solo los disparadores                                                                     |
-| `error_logs`              | Administrador de la plataforma                       | Cualquiera autenticado puede insertar los suyos                                                  |
+| Tabla                     | Lectura                                                                    | Escritura                                                                                          |
+| :------------------------ | :------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------- |
+| `profiles`                | El propio, y los miembros de sus equipos                                   | Solo el propio                                                                                     |
+| `clubs`                   | Miembros y seguidores del club                                             | `team.manage` en algún equipo del club                                                             |
+| `seasons`                 | Igual que el club                                                          | `competition.manage`                                                                               |
+| `teams`                   | Miembros y seguidores                                                      | `team.manage`                                                                                      |
+| `team_members`            | Miembros del equipo                                                        | `members.manage`                                                                                   |
+| `team_member_permissions` | Miembros del equipo                                                        | `members.manage`                                                                                   |
+| `team_followers`          | El propio y quien tenga `members.manage`                                   | `members.manage`                                                                                   |
+| `invitations`             | `members.manage`                                                           | `members.manage`                                                                                   |
+| `players`                 | Miembros del club y seguidores de un equipo donde el jugador esté inscrito | `roster.manage`                                                                                    |
+| `squad_memberships`       | Miembros y seguidores del equipo                                           | `roster.manage`                                                                                    |
+| `competitions`            | Miembros y seguidores                                                      | `competition.manage`                                                                               |
+| `matches`                 | Miembros y seguidores                                                      | `schedule.manage`; el cierre exige `match.close`                                                   |
+| `match_periods`           | Miembros y seguidores                                                      | `match.live.write`                                                                                 |
+| `match_squad`             | Miembros y seguidores                                                      | `lineup.manage`                                                                                    |
+| `match_events`            | Miembros ven todo; **seguidores solo los aprobados**                       | Insertar: `match.live.write`. Editar y borrar: el autor mientras esté pendiente, o `event.approve` |
+| `player_match_stints`     | Miembros y seguidores                                                      | Nadie. Solo la función de recálculo                                                                |
+| `coverage_declarations`   | Miembros                                                                   | La propia, con `match.live.write`                                                                  |
+| `sanctions`               | Miembros                                                                   | `discipline.manage`                                                                                |
+| `training_sessions`       | Miembros                                                                   | `training.manage`                                                                                  |
+| `training_attendance`     | Miembros                                                                   | `training.manage`                                                                                  |
+| `app_settings`            | Cualquiera autenticado                                                     | Administrador de la plataforma                                                                     |
+| `audit_log`               | `members.manage` del club                                                  | Nadie. Solo los disparadores                                                                       |
+| `error_logs`              | Administrador de la plataforma                                             | Cualquiera autenticado puede insertar los suyos                                                    |
 
 Dos reglas merecen atención:
 
@@ -538,7 +539,7 @@ Se resuelve con el disparador `enforce_match_changes`, que compara ambas version
 
 La regla general que deja: **cuando un permiso depende de qué cambia y no de qué fila es, la RLS marca el perímetro y un disparador afina dentro.**
 
-### 12.4 Lo que la RLS no resuelve
+### 12.5 Lo que la RLS no resuelve
 
 | Riesgo                                         | Mitigación                                                         |
 | :--------------------------------------------- | :----------------------------------------------------------------- |
@@ -559,6 +560,8 @@ Dos cubos de Storage, ambos privados:
 | :------- | :-------------------------- | :------------------------------------------ |
 | `crests` | Escudos de club y de equipo | Lectura para miembros y seguidores del club |
 | `docs`   | Actas y fichas en fase 2    | Lectura para miembros con `match.close`     |
+
+El acta es del cierre, así que su lectura sigue atada a `match.close` y no a `event.approve`.
 
 **Ninguna fotografía de jugadores.** No existe el cubo que las guardaría.
 
@@ -589,7 +592,26 @@ El auditor de Supabase destapó tres cosas al aplicar el esquema inicial, y una 
 
 ---
 
+### 14.2 Migración pendiente: correcciones de la auditoría del 12/09
+
+Escrita todavía no. **Hay que redactarla con el esquema aplicado delante**, no de memoria: son cambios sobre restricciones, políticas y funciones que ya existen, y adivinar un nombre de política es romper la migración. Se aplica con la base todavía vacía, que es cuando sale gratis.
+
+| Cambio                                                                                                                                      | Origen                     |
+| :------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------- |
+| Columna `occurred_at` en `match_events`; `seconds` pasa a admitir nulo y lo rellena un disparador al llegar                                 | A-01                       |
+| `rebuild_match_stints` ignora la sustitución cuyo jugador entrante ya tiene tramo abierto en esa parte                                      | A-03                       |
+| La política de lectura de `players` admite seguidores de un equipo donde el jugador esté inscrito                                           | A-05                       |
+| `metric_reliability` y `player_metric_reliability` pasan a la fórmula corregida del DOC 04 §10.3                                            | A-07                       |
+| `app_settings`: `duplicate_window_seconds` pasa de número a mapa por tipo de evento                                                         | A-08                       |
+| Valor `event.approve` nuevo en la enumeración `app_permission`, y las políticas de `match_events` que citaban `match.close` pasan a citarlo | Reparto del día de partido |
+
+El valor nuevo de la enumeración va **en su propia migración o en una transacción aparte**: PostgreSQL no deja usar un valor de enumeración recién añadido dentro de la misma transacción que lo crea.
+
+---
+
 ## 15. Deuda técnica de este modelo
+
+**`player_id` solo admite nulo cuando el evento es del rival.** Mientras siga así, ninguna métrica propia puede registrarse a nivel de equipo. La medición de campo del DOC 04 §7.1 deja claro que las métricas de alto volumen —pases, recuperaciones, pérdidas— solo son viables sin atribución a jugador, así que encenderlas obliga a revisar antes esta columna y las vistas que la dan por rellena.
 
 | Deuda                                                                          | Cuándo se paga                                                |
 | :----------------------------------------------------------------------------- | :------------------------------------------------------------ |

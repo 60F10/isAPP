@@ -1,6 +1,6 @@
 # DOC 10 — Entornos y despliegue
 
-> **Versión:** 0.1 — 11/09/2026 · **Parcial a propósito**
+> **Versión:** 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
 > **Depende de:** DOC 05 (modelo de datos), DOC 06 (arquitectura frontend), DOC 15 (convenciones de Git)
 >
 > Esta versión registra **la configuración real de los servicios externos** tal como quedó al montar Supabase. El resto del documento —deploy previews, checklist de publicación, procedimiento de vuelta atrás— está por escribir; ver §7.
@@ -112,6 +112,22 @@ La tercera cubre los deploy previews por rama del DOC 15 §2: sin ella, probar e
 Migraciones versionadas en `supabase/migrations`, con marca de tiempo en el nombre para que coincida con el historial remoto (DOC 05 §14). Nunca se toca el esquema desde el panel: lo que se cambia ahí no queda en Git y se pierde al recrear el entorno.
 
 Tipos de TypeScript: `npm run db:types`, **en la misma tarea que aplica la migración y en el mismo commit que el `.sql`** (DOC 06 §7.3). El archivo generado va en `.prettierignore`: Prettier lo reformatearía entero y cada regeneración traería miles de líneas de diferencia falsa.
+
+### 5.1 Copias de seguridad
+
+**El plan gratuito de Supabase no hace ninguna.** No incluye copias descargables ni recuperación a un punto en el tiempo, y la propia documentación recomienda a los proyectos gratuitos exportar sus datos con regularidad y guardarlos fuera. A partir de octubre esta base guarda la temporada entera de un equipo: convocatorias, eventos, minutos y sanciones. Un borrado en cascada mal lanzado o un proyecto eliminado por descuido se lo llevan todo sin vuelta atrás.
+
+| Pieza                  | Decisión                                                               |
+| :--------------------- | :--------------------------------------------------------------------- |
+| Herramienta            | `supabase db dump` del CLI                                             |
+| Ritmo                  | Semanal a mano mientras no haya partidos; automatizado cuando los haya |
+| Dónde                  | Fuera del repositorio, más una copia en el Drive ya contratado         |
+| Automatización         | Acción programada de GitHub cuando el volcado semanal se quede corto   |
+| Prueba de restauración | **Una, sobre un proyecto nuevo, antes del 25 de octubre**              |
+
+Una copia que nunca se ha restaurado no es una copia. La prueba de restauración no es opcional y tiene fecha.
+
+Los cubos de Storage no entran en ningún volcado de base de datos: cuando existan escudos que guardar, se copian aparte.
 
 ---
 
