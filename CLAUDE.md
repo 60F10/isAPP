@@ -54,11 +54,11 @@ Vive en `/docs`, es la única copia buena. **Léela antes de proponer arquitectu
 
 1. `docs/00_Indice_Documental_y_Herramientas.md` — índice, principios rectores (P1–P5), método de sesiones, orden de construcción por fases.
 2. `docs/03_Decisiones_Pendientes.md` — decisiones **ya cerradas** (✅). No las reabras ni propongas alternativas.
-3. `docs/05_Modelo_Datos.md` — modelo de datos y políticas RLS _(aún no escrito)_.
-4. `docs/08_TAREAS.md` — plan de tareas atómicas _(aún no escrito)_.
-5. `docs/13_HANDOFF.md` — estado real al cerrar la última sesión _(nace con la primera tarea de código)_.
+3. `docs/05_Modelo_Datos_RLS.md` — modelo de datos y políticas RLS. El esquema está aplicado a Supabase; las migraciones viven en `supabase/migrations/` y los tipos generados en `src/types/database.types.ts`.
+4. `docs/08_TAREAS.md` — plan de tareas atómicas, con estado por tarea.
+5. `docs/13_HANDOFF.md` — estado real al cerrar la última sesión. Se sobrescribe cada vez.
 
-Otros: `01_Backlog_Maestro_Ideas.md` (todas las ideas con ID `Ex-nn`, referencia estable), `02_Pantallas_Navegacion_Accesibilidad.md` (inventario de 21 pantallas del MVP, árbol de rutas, criterios WCAG), `15_Convenciones_Git.md` (ramas, commits y pull requests). `Instrucciones_del_Proyecto.md` es el encuadre pegado en el proyecto de Claude web.
+Otros: `01_Backlog_Maestro_Ideas.md` (todas las ideas con ID `Ex-nn`, referencia estable), `02_Pantallas_Navegacion_Accesibilidad.md` (inventario de 21 pantallas del MVP, árbol de rutas, criterios WCAG), `04_Reglas_Negocio_Glosario.md` (reglamento configurable, cálculo de minutos, casos límite), `06_Arquitectura_Frontend.md` (estructura, capa offline, cola de salida), `07_Sistema_de_Diseno.md` (tokens, escala tipográfica, los 21 iconos), `15_Convenciones_Git.md` (ramas, commits y pull requests). `Instrucciones_del_Proyecto.md` es el encuadre pegado en el proyecto de Claude web.
 
 Cuando se cierre una decisión de arquitectura, se añade al documento que corresponda y se refleja aquí si condiciona el trabajo diario.
 

@@ -3,7 +3,7 @@
 > **Proyecto:** App de gestión y estadísticas de fútbol base (nombre sin decidir → ver DOC 12)
 > **Deadline MVP:** 25 de octubre de 2026 (inicio de liga). Amistosos antes como banco de pruebas.
 > **Presupuesto:** 0 € extra sobre las suscripciones ya contratadas.
-> **Versión:** 1.2 — 11/09/2026 (DOC 06 entregado)
+> **Versión:** 1.3 — 12/09/2026 (estado real de los 15 documentos y de la Fase 1) · 1.2 — 11/09/2026
 
 ---
 
@@ -35,17 +35,17 @@ Estas cinco reglas mandan sobre cualquier decisión posterior. Si un documento l
 
 | Código | Documento                             | Qué contiene                                                                                                                               | Estado                                                |
 | :----- | :------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| **00** | Índice documental y herramientas      | Este archivo. Mapa de docs, tooling y método de sesiones                                                                                   | ✅ v1.0                                               |
+| **00** | Índice documental y herramientas      | Este archivo. Mapa de docs, tooling y método de sesiones                                                                                   | ✅ v1.3                                               |
 | **01** | Backlog maestro de ideas              | Todas las ideas (tuyas y de Gemini) con ID, origen, módulo y fase                                                                          | ✅ v1.0                                               |
 | **02** | Pantallas, navegación y accesibilidad | Inventario de pantallas, árbol de rutas, patrones de navegación y criterios WCAG                                                           | ✅ v1.0                                               |
-| **03** | Decisiones pendientes                 | Preguntas que bloquean los documentos siguientes                                                                                           | ✅ v1.0                                               |
-| **04** | Reglas de negocio y glosario          | Reglamento configurable, cálculo de minutos, casos límite, estados de evento                                                               | ✅ v1.0                                               |
-| **05** | Modelo de datos y políticas RLS       | Tablas, relaciones, índices, trazabilidad y seguridad a nivel de fila. El esquema vive en `supabase/migrations/`, aplicado al proyecto     | ✅ v1.0                                               |
-| **06** | Arquitectura frontend y convenciones  | Estructura de carpetas, límites entre módulos, gestión de estado, capa offline y cola de sincronización, cliente de Supabase, nomenclatura | ✅ v1.0                                               |
-| **07** | Sistema de diseño y tokens            | Variables CSS, escala tipográfica, color de equipo inyectable, componentes base                                                            | ⏳ **Desbloqueado. Siguiente**                        |
-| **08** | `TAREAS.md` — plan de tareas          | Lista atómica de tareas con ID, dependencia, estimación y estado                                                                           | ⏳ Bloqueado por 07                                   |
+| **03** | Decisiones pendientes                 | Preguntas que bloquean los documentos siguientes                                                                                           | ✅ v1.2                                               |
+| **04** | Reglas de negocio y glosario          | Reglamento configurable, cálculo de minutos, casos límite, estados de evento                                                               | ✅ v1.1                                               |
+| **05** | Modelo de datos y políticas RLS       | Tablas, relaciones, índices, trazabilidad y seguridad a nivel de fila. El esquema vive en `supabase/migrations/`, aplicado al proyecto     | ✅ v1.2, esquema migrado                              |
+| **06** | Arquitectura frontend y convenciones  | Estructura de carpetas, límites entre módulos, gestión de estado, capa offline y cola de sincronización, cliente de Supabase, nomenclatura | ✅ v1.1                                               |
+| **07** | Sistema de diseño y tokens            | Variables CSS, escala tipográfica, color de equipo inyectable, componentes base                                                            | ✅ v1.0, tokens e iconos ya en el repositorio         |
+| **08** | `TAREAS.md` — plan de tareas          | Lista atómica de tareas con ID, dependencia, estimación y estado                                                                           | ✅ v1.3, vivo: se actualiza al cerrar cada tarea      |
 | **09** | Observabilidad y registro de errores  | Tabla `error_logs`, Error Boundary global, qué se captura y qué no                                                                         | ⏳ Desbloqueado. La tabla ya existe en el DOC 05      |
-| **10** | Entornos y despliegue                 | Variables de entorno, deploy previews, checklist de release. El modelo de ramas ya vive en DOC 15                                          | 🚧 v0.1 parcial                                       |
+| **10** | Entornos y despliegue                 | Variables de entorno, deploy previews, checklist de release. El modelo de ramas ya vive en DOC 15                                          | 🚧 v0.2 parcial: servicios, acceso y copias           |
 | **11** | RGPD y política de datos              | Base legal, minimización, entidades `Player` sin datos sensibles, retención                                                                | ⏳ Desbloqueado                                       |
 | **12** | Identidad corporativa                 | Nombre, logo SVG, paleta base                                                                                                              | ⏳ No bloqueante. Se puede hacer en cualquier momento |
 | **13** | `HANDOFF.md` — traspaso vivo          | Estado real del desarrollo al cerrar cada sesión                                                                                           | ✅ Vivo. Se sobrescribe en cada cierre de sesión      |
@@ -56,9 +56,13 @@ Estas cinco reglas mandan sobre cualquier decisión posterior. Si un documento l
 
 Todos los documentos viven en `/docs` dentro del repositorio. Esa es la única copia buena.
 
-Al _Knowledge_ del proyecto de Claude suben solo los que hacen falta como contexto permanente: **00, 04, 05, 06, 07, 08, 13**. El **15** no hace falta subirlo: su resumen vive en `CLAUDE.md` y los hooks lo aplican solos. Los demás se adjuntan a mano en la sesión concreta que los necesite. Así el contexto base se mantiene ligero.
+Al _Knowledge_ del proyecto de Claude suben solo los que hacen falta como contexto permanente: **00, 03, 04, 05, 06, 07, 08, 13**. El **03** entra porque las instrucciones del proyecto mandan leerlo, y un chat que lo lea desfasado reabre decisiones ya cerradas. El **15** no hace falta subirlo: su resumen vive en `CLAUDE.md` y los hooks lo aplican solos. Los demás se adjuntan a mano en la sesión concreta que los necesite. Así el contexto base se mantiene ligero.
+
+Hoy están arriba además el **01**, el **02**, el **10**, el **14** y las instrucciones del proyecto. No estorban mientras estén al día, pero entran en la misma regla: o se actualizan al cambiar, o se bajan.
 
 Cuando un documento cambia, se actualiza en `/docs`, se hace commit y se vuelve a subir al _Knowledge_ la versión nueva. Un documento desactualizado en el _Knowledge_ provoca más daño que su ausencia.
+
+**Y no vale editar solo arriba.** El 12/09 se encontró el _Knowledge_ con un DOC 00 que decía v1.2 igual que el del repositorio pero con una celda distinta: alguien corrigió la copia de arriba y no la de `/docs`. Si la copia buena es el repositorio, toda corrección empieza ahí.
 
 ---
 
@@ -81,7 +85,7 @@ Lo que **no** es posible: trabajar solo por las noches sin ti delante. Las sesio
 ### 4.2 Qué necesito de ti en cada sesión
 
 1. **Acceso a los archivos** por el modo A, B o C.
-2. **Los documentos de contexto** actualizados (DOC 00, 04, 05, 06, 08, 13 como mínimo).
+2. **Los documentos de contexto** actualizados (DOC 00, 03, 04, 05, 06, 07, 08, 13 como mínimo).
 3. **Datos reales de prueba**: una plantilla ficticia de 18–20 jugadores con apodos y dorsales.
 4. **Ejemplos de los documentos que la app tendrá que leer** en fase 2: una ficha de alineación real en PDF o foto, y un acta de partido de la federación.
 5. **Salida de errores literal** cuando algo falle: consola del navegador, terminal o captura. Un «no va» no permite diagnosticar.
@@ -94,7 +98,7 @@ Claves de Supabase (`service_role`), secretos de OAuth de Google, tokens de Netl
 
 | Servicio                 | Para qué                                                    | Coste             | Ojo con                                                                                                                                                             |
 | :----------------------- | :---------------------------------------------------------- | :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **GitHub**               | Repositorio y despliegue continuo                           | Gratis            | Decide público o privado antes del primer commit                                                                                                                    |
+| **GitHub**               | Repositorio y despliegue continuo                           | Gratis            | Dado de alta: `60F10/isAPP`, privado, con `main` protegida                                                                                                          |
 | **Netlify**              | Hosting del frontend, variables de entorno, deploy previews | Gratis            | El _deploy preview_ de cada rama sirve para probar en el móvil sin tocar producción                                                                                 |
 | **Supabase** ✅          | PostgreSQL, autenticación, RLS, Storage, Edge Functions     | Gratis            | Dado de alta: proyecto **GavetaStats**, región West EU (Irlanda). El plan gratuito pausa proyectos tras inactividad prolongada; con uso semanal real no es problema |
 | **Google Cloud Console** | Cliente OAuth para el login con Google                      | Gratis            | Paso que se olvida siempre. Hay que registrar los _redirect URI_ de Supabase, de Netlify y de `localhost`                                                           |
@@ -170,8 +174,8 @@ Una tarea se considera terminada cuando cumple las cinco condiciones:
 ## 7. Orden de construcción
 
 ```
-FASE 0 · Documentación        DOC 00→06 hechos → pendientes DOC 07 y 08
-FASE 1 · Cimientos            Repo + Vite/PWA + Supabase + login Google + error_logs
+FASE 0 · Documentación        DOC 00→08 hechos → pendientes DOC 09, 11 y 12, ninguno bloqueante
+FASE 1 · Cimientos            Repo y esquema aplicados → Vite/PWA + cliente Supabase + login Google + error_logs
 FASE 2 · Meter datos (P1)     Club → Equipo → Jugadores → Competición → Calendario
                               → Convocatoria → PARTIDO EN DIRECTO → Post-partido
 FASE 3 · Concurrencia         Invitaciones, roles, prueba con los tres alphatesters

@@ -101,7 +101,26 @@ Nada de la T-100b: queda cerrada. Lo que sigue abierto es de fuera de la tarea:
 | Siete funciones de disparador con `grant execute` a `authenticated` que no necesitan                           | Abierta. Siete líneas en la próxima migración de endurecimiento                           |
 | `coverage_update` y `matches_update` siguen citando `match.close`                                              | Correcto a propósito: el acta es del cierre. Anotado para que nadie lo cambie por inercia |
 
-Las de sesiones anteriores siguen todas abiertas: `btree_gist` en `public`, claves ajenas sin índice, trece tablas con dos políticas permisivas de `SELECT`, la `anon key` heredada, el borrado de club bloqueado por `match_squad`, `CLAUDE.md` citando `docs/05_Modelo_Datos.md`, el DOC 14 sin subagentes, el subconjunto de Inter sin afinar y el tema oscuro fuera del MVP.
+Las de sesiones anteriores siguen abiertas, menos la de `CLAUDE.md`, cerrada hoy: `btree_gist` en `public`, claves ajenas sin índice, trece tablas con dos políticas permisivas de `SELECT`, la `anon key` heredada, el borrado de club bloqueado por `match_squad`, el DOC 14 sin subagentes, el subconjunto de Inter sin afinar y el tema oscuro fuera del MVP.
+
+### AUDITORÍA DE SINCRONÍA (añadido al cierre)
+
+Se comparó documento a documento el repositorio contra el _Knowledge_ del proyecto. El desfase de fondo no estaba arriba: **estaba en el propio DOC 00**, que seguía describiendo un proyecto de hace dos días.
+
+| Dónde                  | Qué estaba mal                                                                                                        |
+| :--------------------- | :-------------------------------------------------------------------------------------------------------------------- |
+| DOC 00 §3.1            | 07 «desbloqueado, siguiente» y 08 «bloqueado por 07», estando los dos escritos. 03, 04, 05, 06 y 10 con versión vieja |
+| DOC 00 §7              | La Fase 0 daba por pendientes el 07 y el 08                                                                           |
+| DOC 00 §4.4            | GitHub «decide público o privado antes del primer commit», decidido hace días                                         |
+| DOC 00, las dos copias | La del _Knowledge_ y la de `/docs` decían v1.2 y **no eran el mismo archivo**: una celda distinta                     |
+| `CLAUDE.md`            | Citaba `docs/05_Modelo_Datos.md`, que no existe, y daba el 05, el 08 y el 13 por no escritos                          |
+| _Knowledge_            | Sin el **07**. Con el **03**, el **04**, el **06** y el **10** en versiones anteriores al 12/09                       |
+
+Corregido todo: DOC 00 a v1.3, `CLAUDE.md` al día, y el _Knowledge_ resincronizado desde el repositorio.
+
+**La regla que se saltó, y que ahora está escrita en el §3.2:** la copia buena es `/docs`. Editar solo la copia del _Knowledge_ produce exactamente lo que se encontró hoy, dos archivos con el mismo número de versión y distinto contenido.
+
+El **15** no sube al _Knowledge_ a propósito: su resumen vive en `CLAUDE.md` y los hooks lo aplican solos.
 
 ### SIGUIENTE TAREA SUGERIDA
 
