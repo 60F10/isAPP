@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.2 — 12/09/2026 (T-100b: migración de correcciones escrita y validada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — cuatro archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones. Ver §14
@@ -600,7 +600,7 @@ Todo cambio de esquema entra como archivo de migración numerado en `supabase/mi
 | `20260912142001_permiso_event_approve.sql`    | `20260912142001`   | Valor `event.approve` en `app_permission`             |
 | `20260912142131_correcciones_auditoria.sql`   | `20260912142131`   | Correcciones de la auditoría del 12/09 (§14.2)        |
 
-Las dos primeras están aplicadas al proyecto GavetaStats desde el 11/09/2026. Las dos del 12/09 se escribieron y se aplicaron en la T-100b.
+Las cuatro están aplicadas al proyecto GavetaStats: las dos primeras desde el 11/09/2026 y las dos del 12/09 en la T-100b. Las versiones registradas en el historial remoto coinciden con los prefijos de los archivos.
 
 Las migraciones siguientes las crea el propio CLI con `supabase migration new <nombre>`, que pone la marca de tiempo sola. **Nunca renombres una migración ya aplicada**: el historial remoto dejaría de encontrarla.
 
@@ -616,7 +616,7 @@ El auditor de Supabase destapó tres cosas al aplicar el esquema inicial, y una 
 
 ### 14.2 Qué corrigió la migración del 12/09
 
-Escrita y validada en la T-100b contra el esquema aplicado, no de memoria. Se reparte en dos archivos porque PostgreSQL no deja **usar** un valor de enumeración dentro de la misma transacción que lo crea: el `event.approve` va solo en el primero y las políticas que lo citan viven en el segundo.
+Escrita, validada y aplicada en la T-100b contra el esquema real, no de memoria. Se reparte en dos archivos porque PostgreSQL no deja **usar** un valor de enumeración dentro de la misma transacción que lo crea: el `event.approve` va solo en el primero y las políticas que lo citan viven en el segundo.
 
 | Cambio                                                                                                          | Origen                     |
 | :-------------------------------------------------------------------------------------------------------------- | :------------------------- |
