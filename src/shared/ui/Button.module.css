@@ -1,0 +1,98 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+
+  /* 48×48 px, el mínimo real del DOC 02 §5.1. La separación entre botones la
+     pone quien los coloca, con --tap-gap. */
+  min-block-size: var(--tap-min);
+  min-inline-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  text-align: center;
+
+  cursor: pointer;
+  /* Quita el retardo de 300 ms del toque sin tocar el resto del gesto. */
+  touch-action: manipulation;
+
+  transition:
+    background-color var(--duration-fast) var(--easing),
+    border-color var(--duration-fast) var(--easing),
+    color var(--duration-fast) var(--easing);
+}
+
+.button:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.button:disabled {
+  background-color: var(--color-disabled-bg);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+/* Un botón solo con icono sigue midiendo 48×48: el relleno lateral sobra. */
+.iconOnly {
+  padding-inline: var(--space-2);
+}
+
+.label {
+  /* Que el texto largo parta en dos líneas antes que desbordar a 320 px
+     (criterio 1.4.10). */
+  min-inline-size: 0;
+}
+
+/* --- Variantes ----------------------------------------------------------- */
+
+.primary {
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.primary:hover:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+.primary:active:not(:disabled) {
+  background-color: var(--color-accent-active);
+}
+
+.secondary {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: var(--color-bg-sunken);
+}
+
+.secondary:active:not(:disabled) {
+  background-color: var(--color-surface-pressed);
+}
+
+.ghost {
+  background-color: transparent;
+  color: var(--color-accent-ink);
+}
+
+.ghost:hover:not(:disabled) {
+  background-color: var(--color-accent-soft);
+}
+
+.ghost:active:not(:disabled) {
+  background-color: var(--color-surface-pressed);
+}
+
+.fullWidth {
+  inline-size: 100%;
+}

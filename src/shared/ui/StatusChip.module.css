@@ -1,0 +1,33 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  padding: var(--space-1) var(--space-3);
+
+  border: 1px solid currentcolor;
+  border-radius: var(--radius-pill);
+
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+}
+
+/* El borde toma la tinta: en alto contraste los fondos suaves se vuelven
+   blancos y el distintivo se sostiene sobre la forma, el icono y la palabra. */
+
+.pending {
+  background-color: var(--color-pending-soft);
+  color: var(--color-pending);
+}
+
+.approved {
+  background-color: var(--color-approved-soft);
+  color: var(--color-approved);
+}
+
+.rejected {
+  background-color: var(--color-rejected-soft);
+  color: var(--color-rejected);
+}
