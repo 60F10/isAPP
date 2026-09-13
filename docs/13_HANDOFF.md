@@ -5,185 +5,182 @@
 
 ---
 
-## Sesión 12/09/2026 — Tarea: T-101 · dependencias, `env.ts` y `supabase.ts`
+## Sesión 13/09/2026 — Tarea: T-103 · sistema de diseño
 
-Primera tarea que escribe código de aplicación. Sesión autónoma, con Raúl fuera.
+Sesión autónoma, de noche, con Raúl durmiendo.
 
-> **Aviso que manda sobre todo lo demás: la tarea está hecha y verificada, pero NO fusionada.**
-> Las dos pull requests están abiertas, con el CI entero en verde y sin conflictos. La sesión
-> no tenía permiso para fusionar sin revisión humana, así que los dos «Squash and merge» los
-> tiene que dar Raúl. Hasta entonces, `main` sigue en `6f2ad7d` y el _Knowledge_ del proyecto
-> sigue en la versión anterior a propósito: la copia buena es `/docs`, y subir arriba lo que
-> aún no está fusionado abajo produce exactamente el desfase que el DOC 00 §3.2 prohíbe.
+> **La tarea está hecha, verificada y fusionada.** La sesión automática la dejó lista pero sin
+> fusionar: **no tiene permiso para fusionar sin revisión humana**, y es la segunda vez que
+> pasa, después de la T-101. Las dos pull requests se cerraron a la mañana siguiente desde la
+> conversación que lanzó la tarea, con el _Knowledge_ resincronizado después.
+>
+> **Con una sesión autónoma hay que contar con esto:** llega hasta la pull request con el CI
+> en verde y ahí se planta. El «Squash and merge» lo da una persona, o una conversación
+> abierta con alguien delante.
+
+| PR      | Rama                           | Contenido                                                                                    | CI                             |
+| :------ | :----------------------------- | :------------------------------------------------------------------------------------------- | :----------------------------- |
+| **#21** | `feat/platform-sistema-diseno` | Seis commits: el sprite de la plantilla, `jsx-a11y`, tokens, iconos, componentes y andamiaje | Verde · fusionada en `0edd66e` |
+| **#22** | `docs/docs-traspaso-t-103`     | DOC 07 v1.1, DOC 08 v1.5, este DOC 13 y `CLAUDE.md`                                          | Verde · fusionada tras la #21  |
+
+Las dos nacieron de `957bb1d` y no tocan los mismos archivos. Se fusionaron en ese orden, con
+squash; la #22 se rebasó sobre el `main` nuevo para corregir este documento, que se había
+escrito dando las dos por abiertas.
 
 ### HECHO
 
-**Dependencias del DOC 06 §2.3, las trece y ni una más** (regla D06-01). Cuatro de producción
-—`react-router`, `@tanstack/react-query`, `@supabase/supabase-js`, `dexie`— y nueve de
-desarrollo —`vite-plugin-pwa`, `vitest`, `@vitest/coverage-v8`, `jsdom`, `fake-indexeddb`,
-las tres de Testing Library y el CLI `supabase`, que es el que ejecuta `npm run db:types`—.
+**`tokens.css` ya no está suelto.** Lo importa `src/app/main.tsx`, y con él una hoja global
+nueva. Era la deuda que la T-101 dejó abierta.
 
-**Fuera la plantilla de Vite.** Se borraron `src/App.tsx`, `src/App.css`, `src/index.css`,
-`src/main.tsx`, `src/assets/react.svg` y `src/assets/vite.svg`. Se quedan el logo, el hero,
-los veintiún iconos de `src/shared/ui/icons/`, `src/styles/tokens.css` y
-`src/types/database.types.ts`.
+| Archivo                                 | Qué lleva                                                                   |
+| :-------------------------------------- | :-------------------------------------------------------------------------- |
+| `src/styles/base.css`                   | Hoja global: caja, tipografía, foco visible de serie, movimiento reducido   |
+| `src/styles/tokens.css`                 | Tokens nuevos de icono, pulsado, deshabilitado y duración de confirmación   |
+| `src/shared/ui/icons/registry.ts`       | Los 21 SVG importados con `?raw`, y el tipo `IconName`                      |
+| `src/shared/ui/Icon.tsx`                | El único componente de icono. Tres tamaños, siempre `aria-hidden`           |
+| `src/shared/ui/Button.tsx`              | `primary`, `secondary`, `ghost`. 48×48 mínimo, `type="button"` por defecto  |
+| `src/shared/ui/Field.tsx`               | Etiqueta atada, ayuda, error con icono, `aria-invalid` y `aria-describedby` |
+| `src/shared/ui/Card.tsx`                | Borde siempre presente: en alto contraste la sombra desaparece              |
+| `src/shared/ui/StatusChip.tsx`          | Los tres estados del DOC 07 §2.2, con icono y palabra                       |
+| `src/shared/ui/Toast.tsx`               | Región viva pintada siempre, mensaje de 2 s leído del token                 |
+| `src/app/scaffolding/DesignGallery.tsx` | **ANDAMIAJE.** Galería de comprobación. La T-104 la borra                   |
+| `src/app/main.tsx`                      | Importa las dos hojas, las primeras de todo, y monta la galería             |
+| `.oxlintrc.json`                        | Plugin `jsx-a11y` activado (decisión D06-19, que estaba sin aplicar)        |
+| `public/icons.svg`                      | **Borrado.** Sprite de la plantilla original, sin una sola referencia       |
+| `src/shared/ui/icons/LEEME.md`          | Corregido: ya no dice que los iconos entren por SVGR                        |
 
-**Archivos nuevos y tocados:**
+**Verificado en local, los tres en verde:** `npm run lint` (0 avisos, 0 errores sobre 151
+reglas), `npx prettier --check .` y `npm run build` con `tsc -b` dentro. Y en remoto, los dos
+trabajos del CI de la #21.
 
-| Archivo                      | Qué lleva                                                                   |
-| :--------------------------- | :-------------------------------------------------------------------------- |
-| `src/app/main.tsx`           | Punto de entrada del §3.1. Monta React, valida el entorno y crea el cliente |
-| `src/shared/lib/env.ts`      | Lectura y validación de las tres variables `VITE_` al arrancar (D06-21)     |
-| `src/shared/lib/supabase.ts` | Cliente único tipado con `Database`, tal cual el §7.1                       |
-| `tsconfig.app.json`          | `paths` con los cuatro alias del §4.3                                       |
-| `vite.config.ts`             | El mismo mapa en `resolve.alias`, resuelto desde `import.meta.url`          |
-| `index.html`                 | Apunta a `/src/app/main.tsx` y declara `lang="es"`                          |
+**Verificado en el navegador**, con `npm run dev` levantado y la página abierta de verdad:
 
-**Verificado en local, los tres en verde:** `npm run lint` (0 avisos, 0 errores),
-`npx prettier --check .` y `npm run build` (`tsc -b` incluido). Y en remoto: los dos trabajos
-del CI de la PR #18, más el deploy preview de Netlify.
-
-**Peso del paquete, medido y contrastado con el presupuesto del DOC 06 §10.3.** Lo que entra
-hoy pesa **436,08 kB en crudo y 124,10 kB comprimidos**. Por debajo de los 200 kB, sí, pero
-la cifra que importa es otra: con las cuatro dependencias de producción dentro del grafo
-—que es lo que pasa en cuanto la T-104 monte el enrutador— la medición sube a **190,27 kB
-comprimidos**, el 95 % del presupuesto, con un `main.tsx` que no pinta nada. Las tres salidas
-posibles, con sus consecuencias, quedan escritas en el DOC 06 §10.3.
-
-**Documentación al día:** DOC 00 v1.4, DOC 06 v1.2, DOC 08 v1.4 (T-101 en ✅), este DOC 13
-y `CLAUDE.md`, que seguía diciendo que no existía `package.json`.
+- Sin desplazamiento horizontal a 320 px de ancho, ni con el tamaño base del texto al doble.
+- Los catorce botones miden 48 px de alto; el que va solo con icono, 48 × 48.
+- Los cuatro campos, 48 px de alto y 16 px de texto, con la etiqueta atada por `htmlFor`.
+- Los treinta iconos de la página salen con `currentColor`, `viewBox="0 0 24 24"` y
+  `aria-hidden="true"`.
+- Una sola región `aria-live="polite"`, presente y vacía antes del primer mensaje. La
+  confirmación entra al pulsar y se va sola entre 1,6 s y 2,3 s.
+- Anillo de foco de 3 px sólido en `--indigo-600` con 2 px de separación, contraste 7.62.
+- En alto contraste: texto y bordes a negro, sombra a `none`, fondos suaves a blanco, foco a
+  4 px y color de equipo a negro. Todo lo que promete el DOC 07 §4.
 
 ### DECISIONES TOMADAS
 
-**Alias de importación, no ruta relativa.** Es lo que fija el DOC 06 §4.3 y no había motivo
-para desviarse: el propio `import` enseña el límite entre módulos. `@modules/match` se lee
-como un contrato; `../../../match/model/clock` canta que alguien se saltó la valla.
+**Los SVG entran con `?raw`, no con SVGR.** El LEEME de los iconos daba SVGR por hecho y SVGR
+no está instalado ni figura en la lista cerrada del DOC 06 §2.3. La regla D06-01 obliga a
+justificar cada paquete nuevo por el problema que resuelve, y este no resuelve ninguno: lo que
+aporta `vite-plugin-svgr` es un envoltorio que aquí cuesta seis líneas de CSS. Con `?raw` el
+`.svg` sigue siendo la única fuente de verdad —viewBox, trazo, `currentColor` y `aria-hidden`
+viven dentro del archivo— y sustituir un icono es cambiar un archivo, que es justo lo que
+promete el contrato del §8.1.
 
-**El §4.3 estaba mal escrito y se ha corregido con la herramienta delante.** Dos cosas, las
-dos descubiertas al compilar, no al leer:
+Se descartaron dos salidas más: el **sprite con `<use>` externo**, que mete una petición de red
+en la pantalla que tiene que abrir sin cobertura y un archivo generado que hay que mantener a
+la par de los veintiún originales; y **escribir los iconos a mano en TSX**, que deja dos
+fuentes de verdad para el mismo dibujo. El razonamiento entero y su coste están en el DOC 07
+§8.4, que es nuevo.
 
-- **`baseUrl` fuera.** TypeScript 6 lo da por obsoleto y aborta con **TS5101**. Quitarlo
-  obliga a que las rutas de `paths` sean relativas a la carpeta del `tsconfig` (**TS5090**),
-  de ahí el `./src/...` de cada entrada.
-- **`@types/*` pasa a `@app-types/*`.** TypeScript rechaza con **TS6137** toda importación
-  que empiece por `@types/`, porque reserva ese prefijo para los paquetes de declaraciones.
-  No es una manía del linter: no compila. El nombre nuevo se ha aplicado en el código, en el
-  DOC 06 §4.3 y §7.1, y en `CLAUDE.md`.
+**`public/icons.svg` fuera.** Cinco kilobytes de la plantilla de la que nació el repositorio,
+con seis símbolos ajenos al proyecto —bluesky, discord, github, x, social y documentation— y
+ninguno del inventario del DOC 07 §8.2. `git grep icons.svg` fuera del propio archivo no
+devolvía una sola línea. El favicon de la plantilla sigue donde estaba: los metadatos de
+`index.html` son de la T-102.
 
-**`env.ts` lee con acceso estático, no dinámico.** Un `import.meta.env[nombre]` habría
-quedado más corto, pero Vite solo sustituye el acceso estático `import.meta.env.VITE_X` por
-su valor literal al compilar. El dinámico funciona en `npm run dev` y llega vacío a
-producción, que es justo el fallo que la decisión D06-21 quiere evitar.
+**Cinco componentes base, no siete.** `EventButton` y `ReliabilityMeter` se quedan fuera y se
+van a la T-208 y al bloque de cobertura. No es recorte por tiempo: el `EventButton` tiene que
+llevar dentro la definición del DOC 04 §7.6 y el estado presionado del flujo encadenado, y el
+`ReliabilityMeter` necesita el cálculo de fiabilidad. Escribirlos hoy, a ciegas, es garantizar
+que hay que reescribirlos cuando llegue su pantalla.
 
-**Los fallos de entorno se acumulan y se lanzan juntos.** Arrancar, corregir una variable,
-volver a arrancar y descubrir que falta otra es una pérdida de tiempo evitable. El valor de
-la `anon key` no se imprime nunca, aunque sea público.
+**La galería del andamiaje se queda commiteada.** Sin ella, `main.tsx` no importaría ni un
+componente del sistema de diseño y `tokens.css` seguiría, en la práctica, sin engancharse a
+nada. Está marcada como andamiaje en el encabezado del archivo, en la propia pantalla y aquí.
+**La T-104 borra `src/app/scaffolding/` entera** y `main.tsx` pasa a montar `App`.
 
-**`VITE_APP_ENV` con lista cerrada: `development` o `production`.** Son los dos valores que
-define el DOC 10 §3. Un tercero rompe al arrancar, a propósito. Si algún día hace falta uno
-para los deploy previews, se añade a `env.ts`, a `.env.example` y a Netlify en el mismo
-commit, que es la regla del DOC 06 §12.
+**`jsx-a11y` activado en `oxlint`.** La decisión D06-19 estaba escrita en el DOC 06 §10.2 y sin
+llevar al archivo. Llega ahora, con los primeros componentes de interfaz del proyecto, porque
+activarlo después habría sido revisar código ya escrito en vez de vigilarlo mientras se
+escribe. La cobertura del plugin es parcial: sigue siendo un filtro, no una garantía.
 
-**`main.tsx` importa el cliente de Supabase por su efecto.** Sin esa línea, Vite lo sacaría
-del paquete por no usarse y la medición del peso saldría optimista y falsa. Además es lo que
-hace que la validación del entorno corra de verdad al arrancar.
+**Sin barril en `shared/ui`.** Se importa `@shared/ui/Button`, no `@shared/ui`. Un barril mete
+los seis componentes en el grafo por pedir uno, y el presupuesto no está para eso.
 
-**`index.html` pasa a `lang="es"`.** La interfaz va en español y el idioma de la página es el
-criterio 3.1.1 de WCAG, que el principio P5 manda aplicar al construir. El título, el
-manifiesto y los iconos **no** se han tocado: son de la T-102.
+**Dos reglas de accesibilidad cerradas en el tipo, no en la revisión.** Un `Button` sin texto
+visible no compila sin `aria-label`, y un `Field` no se puede montar sin `label`.
 
-**Ni `npm run test` ni configuración de Vitest.** `vitest` está instalado porque la lista del
-§2.3 se instala de una vez, pero el bloque `test` de `vite.config.ts` y el paso de CI del
-DOC 06 §11 quedan fuera del alcance de esta tarea. Un `npm run test` sin un solo archivo de
-prueba falla, así que ni siquiera se ha añadido el script: se añade con la primera prueba.
+**Tokens nuevos, y por qué cada uno.** La regla del DOC 07 §10 prohíbe escribir un valor en el
+componente, así que todo estado que necesitaba color o tiempo necesitaba token: `--icon-sm`,
+`--icon-md` y `--icon-lg` (en `rem`, para que acompañen al zoom del texto al 200 %);
+`--duration-toast`, **fuera del bloque de movimiento reducido a propósito**, porque es tiempo
+de lectura y no meneo; `--color-accent-active` y `--color-surface-pressed`, sin los cuales en
+el móvil no hay forma de saber si el dedo cayó dentro del botón; y los tres de deshabilitado,
+con la tinta en 6.59 sobre su propio fondo aunque el criterio 1.4.3 exima a los controles
+inactivos.
 
-### HALLAZGO DEL ENTORNO: `NODE_ENV=production` en la máquina
+### PESO DEL PAQUETE
 
-La máquina de desarrollo tiene **`NODE_ENV=production`** puesta en el entorno del sistema.
-Con esa variable delante, `npm ci` y `npm install` **se saltan las devDependencies**: la
-primera instalación de esta sesión dejó el proyecto sin Vite, sin TypeScript, sin oxlint y
-sin Prettier, y npm no dijo ni una palabra. Y al revés, poner `NODE_ENV=development` para
-sortearlo hace que `vite build` empaquete React en modo desarrollo: la primera medición del
-paquete dio 185 kB comprimidos cuando la real eran 124.
+Medido con `vite build` y sin `NODE_ENV` en la terminal.
 
-Ninguna de las dos cosas falla de forma ruidosa, y las dos mienten. Queda escrito en
-`CLAUDE.md` y en el DOC 06 §10.3. Antes de instalar o de medir, en la terminal de la sesión:
+| Qué se mide                   | Crudo     | Comprimido    |
+| :---------------------------- | :-------- | :------------ |
+| T-101, solo JavaScript        | 436,08 kB | 124,10 kB     |
+| **Sin andamiaje: JavaScript** | 435,99 kB | **123,99 kB** |
+| **Sin andamiaje: CSS**        | 4,93 kB   | **1,72 kB**   |
+| Con el andamiaje: JavaScript  | 450,45 kB | 127,83 kB     |
+| Con el andamiaje: CSS         | 11,69 kB  | 3,08 kB       |
 
-```powershell
-Remove-Item Env:\NODE_ENV
-```
+Las dos filas en negrita son el dato bueno: **125,71 kB comprimidos** es el punto de partida
+real de la T-104, con los tokens y la hoja global dentro y los componentes fuera del grafo por
+no usarlos todavía ninguna pantalla. El sistema de diseño entero, iconos incluidos, cuesta
+**unos 5 kB comprimidos** cuando se usa de verdad.
 
-Lo suyo sería quitarla del entorno del sistema, pero eso es tocar la configuración de la
-máquina de Raúl y no entraba en esta tarea.
-
-### ESTADO DEL REPOSITORIO
-
-**Las dos pull requests están fusionadas.** Se cerraron desde la conversación de la que salió
-esta tarea, después de que la sesión automática dejara de responder con el CI de la #19
-encolado:
-
-| PR  | Rama                             | Contenido                                                                                                        | CI                             |
-| :-- | :------------------------------- | :--------------------------------------------------------------------------------------------------------------- | :----------------------------- |
-| #18 | `feat/platform-cliente-supabase` | `build(deps)` · `build(platform)` los alias · `feat(platform)` env y cliente · `refactor(platform)` la plantilla | Verde · fusionada en `6321b98` |
-| #19 | `docs/docs-traspaso-t-101`       | `docs(docs)` los DOC 00, 06, 08, 13 y `CLAUDE.md`                                                                | Verde · fusionada en `ff64d33` |
-
-**Las dos con squash**, que es la única estrategia habilitada, y con las ramas remotas y
-locales ya borradas. El CI de `main` quedó en verde en los dos merges.
-
-La #19 hubo que **rebasarla sobre `6321b98`** antes de fusionarla, y de paso se corrigió este
-mismo documento, que daba las dos pull requests por abiertas.
-
-**El CI se quedó encolado 35 minutos** en el run del `docs/docs-traspaso-t-101` de las 21:13,
-con los dos trabajos en `queued` y sin runner que los cogiera. No era un fallo del código: el
-run anterior de esa misma rama había pasado en verde. Un push nuevo sobre la rama lo cancela
-por el `concurrency` del workflow y lanza otro, que es la salida cuando vuelva a pasar.
-
-**Las once ramas locales viejas ya están borradas**, con Raúl delante dando el visto bueno.
-No salían con `git branch -d`, y no por descuido: el repositorio fusiona con **squash**, así
-que los commits de una rama nunca llegan a ser antepasados de `main` y `git branch -d` las da
-todas por «not fully merged». Que están fusionadas se comprueba por otro lado: sus ramas
-remotas ya no existen, porque GitHub las borra al fusionar. La única salida es forzar, y eso
-no lo hace una sesión autónoma sin preguntar:
-
-```powershell
-git branch -D chore/repo-cerrar-proteccion-main chore/repo-subagentes `
-  docs/docs-arquitectura-frontend docs/docs-estado-tras-fusiones docs/docs-readme `
-  docs/docs-reglas-negocio-y-modelo-datos docs/docs-traspaso-sesion `
-  docs/docs-traspaso-t-100b feat/db-aplicar-esquema-inicial `
-  feat/db-correcciones-auditoria feat/db-esquema-inicial
-```
-
-Conviene saberlo porque va a pasar con todas: **con squash merge, `git branch -d` no sirve
-nunca.** La comprobación buena antes de forzar es `git ls-remote --heads origin <rama>`: si
-no devuelve nada, la rama se fusionó y se puede borrar.
+**Lo que eso significa para el presupuesto del DOC 06 §10.3.** La proyección de la T-101 dejaba
+las cuatro dependencias de producción en 190,27 kB comprimidos en cuanto la T-104 monte el
+enrutador. Con el sistema de diseño encima, la T-104 arranca en torno a **195 kB**, el 97 % de
+los 200 kB. La decisión del §10.3 sigue siendo suya y ahora tiene menos margen que ayer.
 
 ### PENDIENTE DE LA TAREA
 
-**Nada. La T-101 queda cerrada**, con las cinco condiciones del DOC 00 §6 cumplidas. Lo que
-seguía abierto al apagarse la sesión automática se remató esa misma noche:
+**Nada de la T-103.** Las dos fusiones, el borrado de las ramas locales y la resincronización
+del _Knowledge_ con el DOC 07, el DOC 08 y este DOC 13 se remataron a la mañana siguiente. El
+DOC 15 no sube, a propósito.
 
-- Las dos pull requests, fusionadas y con sus ramas borradas, arriba.
-- **_Knowledge_ resincronizado** desde `/docs` con los DOC 00, 06, 08 y 13. El 15 no sube, a
-  propósito.
-- **Condiciones 1 y 2 comprobadas en el navegador**, con `npm run dev` levantado en la máquina
-  de Raúl. La página sirve «GavetaStats — Andamiaje de la Fase 1. Entorno: development.» y la
-  consola sale limpia: solo el enganche de Vite y el aviso de React DevTools. Renombrando
-  `VITE_SUPABASE_URL` a `VITE_SUPABASE_URL_ROTO`, el arranque se detiene en `env.ts:68` con
-  «VITE_SUPABASE_URL: falta o está vacía.» y deja la pantalla en blanco: **el error nombra la
-  variable**, que era lo que había que verificar. El `.env.local` quedó restaurado, y sigue
-  ignorado por `.gitignore:20`.
+**Ojo con las ramas locales:** con fusión por _squash_, `git branch -d` nunca las da por
+fusionadas. La comprobación buena es `git ls-remote --heads origin <rama>`; si no devuelve
+nada, se fusionó y se puede borrar con `-D`.
+
+**Lo que quedó fuera del alcance, a propósito:** la T-102 (PWA, manifiesto, iconos y la fuente)
+y el enrutado de la T-104, tal como fijaba el encargo de la sesión.
 
 ### DEUDA TÉCNICA GENERADA
 
-| Deuda                                                                                                          | Estado                                                                                                         |
-| :------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- |
-| El presupuesto de 200 kB del DOC 06 §10.3 se queda en 10 kB de margen en cuanto entren las cuatro dependencias | Abierta. Se decide en la **T-104**, con las tres salidas escritas en el §10.3                                  |
-| `vitest` y `@vitest/coverage-v8` instalados, sin bloque `test` en `vite.config.ts` ni paso de CI               | Abierta. Entra con la primera prueba, que por el DOC 06 §11 será del `model/` de `match`                       |
-| `vite-plugin-pwa` instalado y sin configurar                                                                   | Abierta hasta la T-102, que es la tarea que lo configura                                                       |
-| `src/styles/tokens.css` sigue sin engancharse a nada: nadie lo importa                                         | Abierta hasta la T-103, que monta el sistema de diseño                                                         |
-| Los alias viven duplicados en `tsconfig.app.json` y en `vite.config.ts`, sincronizados a mano                  | Asumida. Es la forma que tiene Vite; una desviación entre los dos compila pero no arranca                      |
-| `index.html` mantiene `<title>scaffold</title>` y el favicon de la plantilla                                   | A propósito: los metadatos son de la T-102                                                                     |
-| El error de entorno se lanza sin interfaz: pantalla en blanco y mensaje en consola                             | Asumida hasta la T-106, que trae el Error Boundary. En despliegue el fallo es de configuración, no del usuario |
+| Deuda                                                               | Estado                                                                                                                                                |
+| :------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **El `.woff2` de Inter no existe y se nota**                        | **Abierta, la cierra la T-102.** Ver abajo                                                                                                            |
+| La galería del andamiaje vive commiteada en `src/app/scaffolding/`  | Abierta hasta la T-104, que la borra                                                                                                                  |
+| `Icon` usa `dangerouslySetInnerHTML`                                | Asumida. El contenido son archivos del repositorio, no entrada de usuario. Si algún día un icono llegara de fuera, hay que replantearlo (DOC 07 §8.4) |
+| `Field` solo cubre `input`                                          | Abierta. `textarea` y `select` cuando una pantalla los pida                                                                                           |
+| `Toast` lee `--duration-toast` del documento con `getComputedStyle` | Asumida. Es el rodeo que mantiene el tiempo en `tokens.css` y no en dos sitios. Lleva un valor de respaldo de 2000 ms por si no se pudiera leer       |
+| El componente que conmuta el alto contraste vive en el andamiaje    | Abierta hasta la T-107, que trae Ajustes. La preferencia tiene que aplicarse antes del primer pintado, y eso el andamiaje no lo hace                  |
+| El presupuesto de 200 kB se queda en unos 5 kB de margen            | Abierta. Se decide en la **T-104**, con las tres salidas del DOC 06 §10.3                                                                             |
+
+**La deuda de la fuente, con detalle, porque es la única visible.** `tokens.css` declara Inter
+autoalojada desde la T-101 y apunta a `public/fonts/InterVariable-latin.woff2`, que todavía no
+está. Consecuencias medidas, no supuestas:
+
+- La familia de reserva funciona. La página se pinta con `system-ui` y no se rompe nada.
+- `vite build` avisa de que la URL no resuelve en tiempo de construcción.
+- El navegador deja **dos avisos por carga**: el servidor devuelve `index.html` para esa ruta
+  —lo hace el servidor de desarrollo y lo hará la redirección de SPA de Netlify— y el navegador
+  no puede decodificar HTML como fuente. En el _deploy preview_ de la #21 pasa lo mismo.
+
+O sea que la condición 2 del DOC 00 §6, «no lanza errores ni avisos en la consola», se cumple
+salvo por esos dos avisos, que no los pone el sistema de diseño. **Se apagan los tres en cuanto
+la T-102 deje el archivo en `public/fonts/`.** Se dejó así a propósito: comentar el `@font-face`
+habría dejado la consola limpia a cambio de esconder un aviso que se anuncia solo, y de fiarlo
+todo a que alguien se acuerde de descomentarlo.
 
 ### LO QUE SIGUE ABIERTO DE SESIONES ANTERIORES
 
@@ -192,39 +189,48 @@ Nada de esto se ha tocado hoy, y se pierde si no se arrastra:
 1. **Decidir qué hacer con `public.rls_auto_enable()`**, la función de la plataforma que el
    auditor de Supabase marca como ejecutable por `anon`. Riesgo práctico bajo; la salida
    —revocarla desde una migración— mete en el repositorio una función que gestiona Supabase.
-2. **Quitar el `grant execute` a `authenticated` de las siete funciones de disparador**, que
-   no lo necesitan. Siete líneas en la próxima migración de endurecimiento.
+2. **Quitar el `grant execute` a `authenticated` de las siete funciones de disparador**, que no
+   lo necesitan. Siete líneas en la próxima migración de endurecimiento.
 3. La columna «Fase» del DOC 02 §2 sigue desfasada en A15, A16 y el Bloque B.
-4. La descarga de `InterVariable-latin.woff2` y el subconjunto sin afinar.
+4. El subconjunto de Inter sin afinar (la descarga en sí ya es de la T-102, arriba).
 5. Marcar `event.approve` a quien lleve el registro, cuando exista la T-301.
 6. Los cubos de Storage `crests` y `docs`, sin crear.
-7. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
-   índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
-   comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones
-   repetidas viviendo solo en el retorno de la función.
+7. `vitest` instalado sin bloque `test` en `vite.config.ts` ni paso de CI. Entra con la primera
+   prueba, que por el DOC 06 §11 será del `model/` de `match`.
+8. `index.html` mantiene `<title>scaffold</title>` y el favicon de la plantilla. Es de la T-102.
+9. Los alias viven duplicados en `tsconfig.app.json` y en `vite.config.ts`, a mano.
+10. El error de entorno se lanza sin interfaz: pantalla en blanco y mensaje en consola, hasta
+    la T-106.
+11. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
+    índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
+    comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones
+    repetidas viviendo solo en el retorno de la función.
 
 ### SIGUIENTE TAREA SUGERIDA
 
-**T-102**: PWA y metadatos —`vite-plugin-pwa` con `registerType: 'prompt'` (D06-14),
-manifiesto, iconos, precaché de la fuente y Lighthouse ≥ 90 en PWA—. El paquete ya está
-instalado, así que la tarea empieza por la configuración.
+**T-104**, enrutado y división del paquete, o **T-102**, PWA y metadatos. Ninguna depende de la
+otra y las dos están desbloqueadas.
 
-Dos avisos para quien la coja:
+Si se puede elegir, **la T-104 primero**. Es la que tiene que decidir qué hacer con el
+presupuesto de 200 kB, y ese número solo empeora según entran pantallas: cuanto antes se tome
+la decisión, más barata sale. Además es la que borra el andamiaje de la T-103, y cuanto menos
+tiempo viva la galería, menos posibilidades hay de que alguien empiece a construir encima.
 
-- **El título, el idioma y el favicon de `index.html` son suyos.** Hoy solo se cambió el
-  `lang` y la referencia al punto de entrada; el resto sigue siendo de la plantilla.
-- **El nombre visible sale de una sola constante** (decisión F1 del DOC 03). El manifiesto es
-  el primer sitio donde aparece «GavetaStats»: conviene que no se escriba a mano en dos
-  sitios desde el primer día.
+Tres avisos para quien coja la T-104:
 
-La **T-103** también está desbloqueada y no depende de la T-102. Si la T-102 se atasca con
-Lighthouse, se puede adelantar la T-103 sin romper nada.
+- **Borra `src/app/scaffolding/` entera** y deja `main.tsx` montando `App`.
+- El interruptor de alto contraste del andamiaje se va con ella. Quien lo necesite de verdad es
+  la T-107, y ahí tiene que aplicarse **antes del primer pintado**, no en un `useState`.
+- Los componentes se importan uno a uno, `@shared/ui/Button`. No montes un barril.
+
+Y para la T-102: el archivo de la fuente apaga tres avisos de golpe, y `public/icons.svg` ya no
+está, así que los iconos de la PWA salen de `src/assets/logo.svg`.
 
 ### COMANDOS PARA VERIFICAR
 
 ```powershell
 cd D:\Documentos\Proyectos\ProyectoSASI\App
-Remove-Item Env:\NODE_ENV          # imprescindible, ver el hallazgo de arriba
+Remove-Item Env:\NODE_ENV          # imprescindible, ver el hallazgo de la T-101
 git switch main
 git pull
 git log --oneline -3
@@ -235,24 +241,30 @@ npx prettier --check .
 npm run build
 ```
 
-El build tiene que terminar en verde y decir `436.08 kB` en crudo y `124.10 kB` comprimidos.
-Si sale bastante más, `NODE_ENV` volvió a colarse.
+El build tiene que terminar en verde. Con el andamiaje dentro dice `450.45 kB` en crudo y
+`127.83 kB` comprimidos de JavaScript, más `11.69 kB` y `3.08 kB` de CSS. Si sale bastante más,
+`NODE_ENV` volvió a colarse.
 
-Después, la comprobación que no se pudo hacer sin navegador:
+Después, la galería:
 
 ```powershell
 npm run dev
 ```
 
-1. Abrir `http://localhost:5173`: se ve «GavetaStats» y la línea con el entorno leído de
-   `.env.local`. La consola, limpia.
-2. Renombrar `VITE_SUPABASE_URL` a cualquier otra cosa en `.env.local`, reiniciar el
-   servidor y recargar: la consola tiene que lanzar «Configuración de entorno incompleta o
-   incorrecta» nombrando la variable que falta. Devolver el nombre bueno después.
+1. Abrir `http://localhost:5173`: salen los veintiún iconos con su nombre y los cinco
+   componentes en todos sus estados.
+2. Pulsar «Probar el alto contraste»: los fondos suaves se van a blanco, la sombra de las
+   tarjetas pasa a borde negro y el anillo de foco engorda.
+3. Pulsar cualquiera de las tres confirmaciones: el mensaje aparece abajo y se va solo a los
+   dos segundos.
+4. Recorrer la pantalla con el tabulador de principio a fin: anillo de foco visible en todos
+   los controles, y los tres botones deshabilitados fuera del recorrido.
+5. La consola, limpia salvo los dos avisos de la fuente que faltan. Cualquier otra cosa es
+   nueva y hay que mirarla.
 
 ### AVISO DE SEGURIDAD
 
 Sigue vigente: al abrir el panel del proveedor de Google en Supabase, **Chrome autorrellena
 «Client IDs» y «Client Secret»** con credenciales guardadas. Vacía los dos campos antes de
-tocar nada; si se pulsa «Save» con eso dentro, tu contraseña acaba escrita en la
-configuración del proveedor.
+tocar nada; si se pulsa «Save» con eso dentro, tu contraseña acaba escrita en la configuración
+del proveedor.

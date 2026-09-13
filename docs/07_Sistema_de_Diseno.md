@@ -1,10 +1,10 @@
 # DOC 07 — Sistema de diseño y tokens
 
-> **Versión:** 1.0 — 12/09/2026
+> **Versión:** 1.1 — 13/09/2026 (T-103: iconos sin SVGR, tokens de control, hoja global) · 1.0 — 12/09/2026
 > **Para qué sirve:** fija el color, la tipografía, el espaciado, el movimiento y los componentes base de GavetaStats. Es la única fuente de verdad de la capa visual.
 > **Se apoya en:** DOC 02 (accesibilidad y pantallas), DOC 03 bloque F (identidad), DOC 04 §7 (catálogo de eventos), DOC 06 §6 (dónde viven los tokens)
 > **Alimenta a:** DOC 08 (tareas) y todo el código de interfaz
-> **Archivo asociado:** `src/styles/tokens.css`, importado una sola vez en `src/main.tsx`
+> **Archivos asociados:** `src/styles/tokens.css` y `src/styles/base.css`, importados una sola vez y en ese orden desde `src/app/main.tsx`
 
 ---
 
@@ -123,6 +123,8 @@ La preferencia se guarda en el perfil del usuario y se aplica antes del primer p
 | Precaché        | Añadir `woff2` a los `globPatterns` de `vite-plugin-pwa` (DOC 06 §9)           |
 | Descarga a mano | Se coge la versión variable del proyecto Inter y se coloca en `public/fonts/`  |
 
+> **Ojo: el archivo todavía no está** (13/09/2026). El `@font-face` vive en `tokens.css` desde la T-101 y apunta a una ruta vacía. La familia de reserva —`system-ui` y siguientes— funciona y no se rompe nada, pero el servidor devuelve `index.html` para esa ruta y el navegador deja dos avisos por carga al no poder decodificarlo como fuente. **Lo cierra la T-102**, que es quien descarga el archivo y lo mete en el precaché.
+
 Se descartó Helvetica: es una fuente comercial de Monotype, la licencia web se paga y solo está instalada de serie en iPhone y Mac, así que ni pagándola se vería igual en Android.
 
 ### 5.2 Escala
@@ -151,6 +153,17 @@ Espaciado en múltiplos de 4 px. Radios en tres pasos más la píldora. Dos nive
 
 El movimiento se queda en 120 ms para respuestas de control y 200 ms para transiciones de capa. Con `prefers-reduced-motion` ambos pasan a cero: en pleno partido una animación que distrae cuesta un evento sin registrar.
 
+**`--duration-toast`, los 2 s de la confirmación de registro, se queda fuera de esa regla a propósito.** No es movimiento, es tiempo de lectura: ponerlo a cero haría desaparecer el aviso al instante justo para quien ha pedido menos animación.
+
+**Tokens de estado de control, añadidos en la T-103.** Los componentes no pueden escribir un color, así que el pulsado y el deshabilitado necesitan el suyo:
+
+| Token                                                                     | Para qué                                                                                                                                                             |
+| :------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--color-accent-active`                                                   | Botón primario pulsado. Índigo 800, 12.09                                                                                                                            |
+| `--color-surface-pressed`                                                 | Pulsado del resto. Gris muy claro, 18.5 con la tinta principal encima. Sobrevive al alto contraste: es la única señal de que el dedo cayó dentro                     |
+| `--color-disabled-bg`, `--color-disabled-text`, `--color-disabled-border` | Control inactivo. El criterio 1.4.3 los exime del contraste mínimo, pero la tinta se queda en 6.59 sobre su propio fondo: un botón que no se lee tampoco se entiende |
+| `--icon-sm`, `--icon-md`, `--icon-lg`                                     | 20, 24 y 32 px de lienzo de icono. En `rem`, para que acompañen al zoom del texto al 200 % (criterio 1.4.4)                                                          |
+
 ---
 
 ## 7. Objetivos táctiles, foco y gesto
@@ -174,15 +187,16 @@ Sin librería. Veintiún SVG propios, monocolor, dibujados contra un contrato fi
 
 ### 8.1 Contrato del icono
 
-| Punto         | Valor                                                                     |
-| :------------ | :------------------------------------------------------------------------ |
-| Lienzo        | `viewBox="0 0 24 24"`                                                     |
-| Trazo         | 2 px, extremos y uniones redondeados                                      |
-| Color         | `stroke="currentColor"` y `fill="none"`. Ningún color escrito dentro      |
-| Tamaño        | Lo fija quien lo usa con `width`/`height`. Por defecto, 24 px             |
-| Accesibilidad | `aria-hidden="true"`. El nombre accesible lo pone el control que lo lleva |
-| Ubicación     | `src/shared/ui/icons/<nombre>.svg`, importados como componentes por SVGR  |
-| Consumo       | Un único componente `<Icon name="goal" />`                                |
+| Punto         | Valor                                                                                                                                                                  |
+| :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lienzo        | `viewBox="0 0 24 24"`                                                                                                                                                  |
+| Trazo         | 2 px, extremos y uniones redondeados                                                                                                                                   |
+| Color         | `stroke="currentColor"` y `fill="none"`. Ningún color escrito dentro                                                                                                   |
+| Tamaño        | Lo fija quien lo usa con `--icon-sm`, `--icon-md` o `--icon-lg`. Por defecto, 24 px. **El archivo no lleva `width` ni `height`**: los pondría por encima de los tokens |
+| Accesibilidad | `aria-hidden="true"`. El nombre accesible lo pone el control que lo lleva                                                                                              |
+| Ubicación     | `src/shared/ui/icons/<nombre>.svg`, con el registro en `registry.ts`                                                                                                   |
+| Importación   | Como texto, con el sufijo `?raw` de Vite. Sin SVGR (§8.4)                                                                                                              |
+| Consumo       | Un único componente `<Icon name="goal" />`                                                                                                                             |
 
 ### 8.2 Inventario
 
@@ -195,6 +209,24 @@ Los ocho tipos apagados no se dibujan hasta que se enciendan.
 ### 8.3 Aviso
 
 Dibujar veintiún iconos son tres o cuatro horas que no van a la pantalla de directo. Si el calendario aprieta camino del 25 de octubre, el MVP puede salir con los once de evento dibujados y los diez de interfaz resueltos con formas elementales. Queda anotado como deuda asumida, no como descuido.
+
+**Cerrado el 12/09:** los veintiún están dibujados y en el repositorio. La deuda no llegó a vencer.
+
+### 8.4 Cómo entran los SVG en el código, y por qué no con SVGR (T-103)
+
+La v1.0 de este documento daba SVGR por hecho. Al montar el componente se vio que **SVGR no está instalado ni figura en la lista cerrada de dependencias del DOC 06 §2.3**, y la regla D06-01 obliga a justificar cada paquete nuevo por el problema que resuelve.
+
+**Lo elegido: `?raw`.** Cada `.svg` entra como texto con el sufijo de Vite y el componente lo inyecta tal cual dentro de un envoltorio que solo pone el tamaño. El `viewBox`, el trazo, el `currentColor` y el `aria-hidden` siguen viviendo en el propio archivo, así que la promesa del §8 —«que la sustitución futura sea cambiar archivos y no tocar pantallas»— se cumple igual y sin dependencia nueva. Añadir un icono es dejar el `.svg` en la carpeta y sumar su línea en `registry.ts`.
+
+**Lo descartado:**
+
+| Salida                                  | Por qué no                                                                                                                                                                |
+| :-------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `vite-plugin-svgr`                      | Una dependencia de mantenimiento para ganar un envoltorio que cuesta seis líneas de CSS. Ninguna ventaja que la regla D06-01 justifique                                   |
+| Sprite con `<use href="/sprite.svg#…">` | Mete una petición de red en la pantalla de directo, que es la que tiene que abrir sin cobertura, y un archivo generado que hay que mantener a la par de los 21 originales |
+| Iconos escritos a mano en TSX           | Dos fuentes de verdad para el mismo dibujo. El primer retoque de un icono las desincroniza                                                                                |
+
+**El coste, que conviene saber:** el componente usa `dangerouslySetInnerHTML`. El contenido son archivos del propio repositorio, no entrada de usuario, y la alternativa era la dependencia. Si algún día un icono llegara de fuera del repositorio —de una API, de un campo de base de datos—, esto deja de valer y hay que volver a plantearlo.
 
 ---
 
@@ -212,6 +244,30 @@ Cada uno con su `.module.css` al lado, consumiendo solo variables.
 | `Card`                 | Superficie elevada con `--shadow-raised`, que en alto contraste pasa a borde                                                                                                                              |
 | `Toast`                | Confirmación de 2 s, `aria-live="polite"`, por encima de la botonera                                                                                                                                      |
 | `Clock` y `Scoreboard` | Cifras tabulares, 44 y 36 px, contraste 17.62                                                                                                                                                             |
+
+### 9.1 Qué está construido (T-103, 13/09/2026)
+
+| Componente             | Estado                                                                      |
+| :--------------------- | :-------------------------------------------------------------------------- |
+| `Icon`                 | ✅ `src/shared/ui/Icon.tsx`, con los 21 iconos                              |
+| `Button`               | ✅ Tres variantes, icono delante o detrás, ancho completo                   |
+| `Field`                | ✅ Solo `input`. `textarea` y `select` cuando alguna pantalla los pida      |
+| `Card`                 | ✅                                                                          |
+| `Toast`                | ✅                                                                          |
+| `StatusChip`           | ✅                                                                          |
+| `EventButton`          | ⬜ Es de la T-208, que es la que sabe cómo se registra un evento            |
+| `ReliabilityMeter`     | ⬜ Espera a que exista el cálculo de cobertura                              |
+| `Clock` y `Scoreboard` | ⬜ De la T-207. La clase `.tabular` de `base.css` ya está puesta para ellos |
+
+**Sin barril en `shared/ui`.** Cada pantalla importa el componente que usa, `@shared/ui/Button` y no `@shared/ui`. Un barril mete los seis en el grafo por pedir uno, y el presupuesto del DOC 06 §10.3 no está para regalar kilobytes.
+
+**Dos reglas de accesibilidad que el tipo hace cumplir, no la revisión:** un `Button` sin texto visible no compila sin `aria-label`, y un `Field` no se puede montar sin `label`. Lo que se puede cerrar en el tipo, se cierra ahí.
+
+### 9.2 La hoja global
+
+`src/styles/base.css` acompaña a `tokens.css` y no hace nada más que lo imprescindible: normalizar la caja, atar la tipografía, el color y el fondo del documento a las variables, dejar el anillo de foco visible de serie y poner una red de seguridad de `prefers-reduced-motion` para lo que no pase por los tokens. Lleva además una única clase de utilidad, `.tabular`, para las cifras que no deben bailar (§5.2).
+
+Las dos hojas se importan desde `src/app/main.tsx` y **en ese orden, antes que cualquier otra cosa**: el orden de importación es el orden del CSS en el paquete, y las variables tienen que estar declaradas antes de que las use el primer `.module.css`.
 
 ---
 
@@ -234,10 +290,13 @@ La del DOC 02 §5.3, sin cambios. Se añade una comprobación al sistema de dise
 
 ## 12. Deuda y fuera de alcance
 
-| Punto                                              | Estado                                                                        |
-| :------------------------------------------------- | :---------------------------------------------------------------------------- |
-| Tema oscuro                                        | Fuera del MVP. Duplica tokens y contrastes                                    |
-| Veintiún iconos por dibujar                        | Abierta. Tres o cuatro horas de ruta crítica                                  |
-| Identidad definitiva (logo y marca)                | Aplazada a la diseñadora, DOC 03 §F                                           |
-| Subconjunto de Inter afinado por caracteres reales | Abierta. El subconjunto latino basta; afinar ahorraría unos kB                |
-| Componentes de gráfica                             | Pendientes del bloque de visualización, que va después de la entrada de datos |
+| Punto                                              | Estado                                                                                                                                                                                                                              |
+| :------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tema oscuro                                        | Fuera del MVP. Duplica tokens y contrastes                                                                                                                                                                                          |
+| Veintiún iconos por dibujar                        | ✅ Cerrada el 12/09. Los veintiuno están en `src/shared/ui/icons/`                                                                                                                                                                  |
+| **`public/fonts/InterVariable-latin.woff2`**       | **Abierta y con consecuencia visible.** El `@font-face` del §5.1 apunta a un archivo que todavía no existe: la familia de reserva funciona, pero el navegador deja dos avisos por carga y `vite build` otro. **La cierra la T-102** |
+| Identidad definitiva (logo y marca)                | Aplazada a la diseñadora, DOC 03 §F                                                                                                                                                                                                 |
+| Subconjunto de Inter afinado por caracteres reales | Abierta. El subconjunto latino basta; afinar ahorraría unos kB                                                                                                                                                                      |
+| `Field` solo cubre `input`                         | Abierta. Se amplía a `textarea` o `select` cuando una pantalla los pida                                                                                                                                                             |
+| `Icon` usa `dangerouslySetInnerHTML`               | Asumida. Solo vale mientras el SVG venga del repositorio (§8.4)                                                                                                                                                                     |
+| Componentes de gráfica                             | Pendientes del bloque de visualización, que va después de la entrada de datos                                                                                                                                                       |
