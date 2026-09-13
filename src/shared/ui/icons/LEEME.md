@@ -8,7 +8,15 @@ Contrato en el DOC 07 §8.1: lienzo de 24, trazo de 2, `currentColor`, `fill="no
     src/shared/ui/icons/*.svg      los 21 iconos
     src/assets/logo.svg            marca provisional (DOC 03 F2)
 
-Se importan como componentes con SVGR y se consumen por un único `<Icon name="goal" />`.
+Se consumen por un único `<Icon name="goal" />`. Cada archivo entra como texto
+con el sufijo `?raw` de Vite y el componente lo inyecta tal cual, sin SVGR y sin
+dependencia nueva: el envoltorio, el trazo y el `aria-hidden` siguen viviendo en
+el propio `.svg`. El registro está en `registry.ts`, y añadir un icono es dejar
+el archivo aquí y sumar su línea allí.
+
+Por eso los archivos **no llevan `width` ni `height`**: el tamaño lo pone el
+componente con `--icon-sm`, `--icon-md` o `--icon-lg`. Un icono con medidas
+propias dentro se saltaría esos tokens.
 
 ## De evento (11)
 

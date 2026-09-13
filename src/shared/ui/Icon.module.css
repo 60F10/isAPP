@@ -1,0 +1,28 @@
+.icon {
+  display: inline-flex;
+  flex: none;
+  color: inherit;
+}
+
+/* El .svg no trae width ni height, solo viewBox: el tamaño lo manda la clase
+   del envoltorio y el dibujo lo rellena. */
+.icon > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sm {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.md {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+.lg {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+}

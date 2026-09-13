@@ -91,8 +91,22 @@
   /* Acento */
   --color-accent: var(--indigo-600);
   --color-accent-hover: var(--indigo-700);
+  --color-accent-active: var(--indigo-800); /* 12.09 · pulsado */
   --color-accent-soft: var(--indigo-50);
   --color-accent-ink: var(--indigo-600);
+
+  /* Estados de control (T-103). El pulsado no es decorativo: sin él, en el
+     móvil no hay forma de saber si el dedo cayó dentro del botón. */
+  --color-surface-pressed: var(--gray-100); /* 18.5 con --gray-900 encima */
+
+  /* Controles deshabilitados. El criterio 1.4.3 los exime del contraste
+     mínimo, pero un botón que no se lee tampoco se entiende: la tinta
+     mantiene 6.59 sobre su propio fondo. El borde se queda en 2.56, por
+     debajo del 3:1 de 1.4.11, que es justo lo que el criterio permite
+     a un control inactivo. */
+  --color-disabled-bg: var(--gray-100);
+  --color-disabled-text: var(--gray-600); /* 6.59 sobre --color-disabled-bg */
+  --color-disabled-border: var(--gray-400); /* 2.56 sobre --color-disabled-bg */
 
   /* Estados de dato: pending / approved / rejected.
      El color nunca va solo. Siempre acompañado de icono y texto. */
@@ -164,6 +178,12 @@
   --focus-offset: 2px;
   --focus-color: var(--indigo-600);
 
+  /* Tamaño del lienzo del icono (contrato del DOC 07 §8.1). En rem, para que
+     acompañe al zoom del texto al 200 % que pide el criterio 1.4.4. */
+  --icon-sm: 1.25rem; /* 20 px · dentro de un chip o de una etiqueta */
+  --icon-md: 1.5rem; /* 24 px · tamaño por defecto */
+  --icon-lg: 2rem; /* 32 px · botón de evento del directo */
+
   /* ==========================================================================
      6 · RADIOS, ELEVACIÓN Y MOVIMIENTO
      ========================================================================== */
@@ -179,6 +199,11 @@
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --easing: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* Cuánto se queda en pantalla la confirmación de registro (DOC 07 §7).
+     No es movimiento, es tiempo de lectura: el bloque de movimiento
+     reducido de abajo NO lo pone a cero a propósito. */
+  --duration-toast: 2000ms;
 
   --z-header: 10;
   --z-sticky-actions: 20;
@@ -208,8 +233,17 @@
 
   --color-accent: var(--indigo-900); /* 15:1 */
   --color-accent-hover: #000000;
+  --color-accent-active: #000000;
   --color-accent-soft: #ffffff;
   --color-accent-ink: var(--indigo-900);
+
+  /* El pulsado sobrevive al alto contraste: un gris muy claro deja 18.5 con
+     la tinta negra encima y es la única señal de que el dedo cayó dentro. */
+  --color-surface-pressed: var(--gray-100);
+
+  --color-disabled-bg: #ffffff;
+  --color-disabled-text: var(--gray-700); /* 11.07 */
+  --color-disabled-border: #000000;
 
   --color-pending-soft: #ffffff;
   --color-approved-soft: #ffffff;

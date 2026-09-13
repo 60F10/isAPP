@@ -1,0 +1,109 @@
+/* ============================================================================
+   GavetaStats · src/styles/base.css
+   Hoja global mínima (DOC 07). Se importa justo después de tokens.css, y solo
+   consume variables: aquí tampoco se escribe un literal de color, tamaño ni
+   duración.
+
+   Lo que hace, y nada más: normalizar la caja, atar la tipografía y el color
+   del documento a los tokens, y dejar un anillo de foco visible por defecto
+   en todo elemento enfocable (criterio 2.4.7). Todo lo demás vive en el
+   .module.css de cada componente.
+   ============================================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Nada de user-scalable=no ni de bloqueo de orientación (DOC 02 §5.1). */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
+  letter-spacing: var(--letter-spacing-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Los controles no heredan la tipografía por su cuenta en ningún navegador. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+/* Foco visible por defecto. Un componente puede sustituir el indicador, pero
+   nunca quitarlo sin poner otro (DOC 07 §10, regla 5). */
+:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+h1 {
+  font-size: var(--font-size-400);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+h2 {
+  font-size: var(--font-size-300);
+}
+
+h3 {
+  font-size: var(--font-size-200);
+}
+
+h4 {
+  font-size: var(--font-size-100);
+}
+
+p {
+  margin: 0;
+}
+
+/* Cifras que no bailan: reloj, marcador, minutos y columnas numéricas
+   (DOC 07 §5.2). Se aplica con la clase, no de serie, porque en texto
+   corrido las tabulares se leen peor. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Red de seguridad para lo que no pase por los tokens —una animación de una
+   dependencia, por ejemplo—. En pleno partido una animación que distrae
+   cuesta un evento sin registrar (DOC 07 §6). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
