@@ -15,7 +15,9 @@ Repositorio: `https://github.com/60F10/isAPP.git` (privado, rama por defecto `ma
 
 Hay documentación (`/docs`), configuración del repositorio (Git, commitlint, Husky, Prettier, CI y Netlify), los comandos de `.claude/`, el esquema de Supabase en `supabase/migrations/` (cuatro migraciones aplicadas) y, desde la **T-101**, el andamiaje de la aplicación: React 19 + Vite 8 + TypeScript 6, punto de entrada en `src/app/main.tsx`, `src/shared/lib/env.ts` y `src/shared/lib/supabase.ts`. Los restos de la plantilla de Vite ya no están.
 
-Siguiente tarea de código: **T-102**, PWA y metadatos.
+Desde la **T-103** está el sistema de diseño: `src/styles/tokens.css` y `src/styles/base.css` importados desde `main.tsx`, y en `src/shared/ui/` el componente `Icon` —con los 21 SVG, importados con `?raw` y **sin SVGR**, ver DOC 07 §8.4— más `Button`, `Field`, `Card`, `Toast` y `StatusChip`. Cada uno con su `.module.css` y sin barril: se importa `@shared/ui/Button`, no `@shared/ui`. En `src/app/scaffolding/` hay una galería de comprobación que **la T-104 borra**.
+
+Siguiente tarea de código: **T-102**, PWA y metadatos, o **T-104**, enrutado. Ninguna depende de la otra.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 
