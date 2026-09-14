@@ -1,0 +1,15 @@
+.marco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-block-size: 100dvh;
+  padding: var(--space-6) var(--space-4);
+}
+
+.caja {
+  inline-size: 100%;
+  /* Nueve veces el objetivo táctil mínimo: sin token de anchura de maqueta en
+     el DOC 07, se deriva del que sí hay en vez de inventarse uno. */
+  max-inline-size: calc(var(--tap-min) * 9);
+}
