@@ -15,9 +15,13 @@ Repositorio: `https://github.com/60F10/isAPP.git` (privado, rama por defecto `ma
 
 Hay documentación (`/docs`), configuración del repositorio (Git, commitlint, Husky, Prettier, CI y Netlify), los comandos de `.claude/`, el esquema de Supabase en `supabase/migrations/` (cuatro migraciones aplicadas) y, desde la **T-101**, el andamiaje de la aplicación: React 19 + Vite 8 + TypeScript 6, punto de entrada en `src/app/main.tsx`, `src/shared/lib/env.ts` y `src/shared/lib/supabase.ts`. Los restos de la plantilla de Vite ya no están.
 
-Desde la **T-103** está el sistema de diseño: `src/styles/tokens.css` y `src/styles/base.css` importados desde `main.tsx`, y en `src/shared/ui/` el componente `Icon` —con los 21 SVG, importados con `?raw` y **sin SVGR**, ver DOC 07 §8.4— más `Button`, `Field`, `Card`, `Toast` y `StatusChip`. Cada uno con su `.module.css` y sin barril: se importa `@shared/ui/Button`, no `@shared/ui`. En `src/app/scaffolding/` hay una galería de comprobación que **la T-104 borra**.
+Desde la **T-103** está el sistema de diseño: `src/styles/tokens.css` y `src/styles/base.css` importados desde `main.tsx`, y en `src/shared/ui/` el componente `Icon` —con los 21 SVG, importados con `?raw` y **sin SVGR**, ver DOC 07 §8.4— más `Button`, `Field`, `Card`, `Toast` y `StatusChip`. Cada uno con su `.module.css` y sin barril: se importa `@shared/ui/Button`, no `@shared/ui`.
 
-Siguiente tarea de código: **T-102**, PWA y metadatos, o **T-104**, enrutado. Ninguna depende de la otra.
+Desde la **T-104** está el enrutado y el andamiaje ya no existe. `src/app/` tiene `App.tsx`, `router.tsx`, los proveedores (`QueryProvider`, `AuthProvider`, `AnnounceProvider`), las guardias (`RequireAuth`, `RequirePermission`), los tres layouts (`AppLayout` con los cinco destinos, `BareLayout`, `FullScreenLayout`) y las pantallas compartidas de carga, error y pendiente. `src/shared/ui/Pantalla.tsx` envuelve cada pantalla y le pone el foco al `h1` y el título del documento. En `src/modules/` hay `auth` (A01 y C05), `core` (A02, Inicio) y `match` (A12, marcador de posición), cada uno con su `index.ts` de contrato.
+
+**Ojo con dos cosas al escribir pantallas ahora mismo:** `AuthProvider` solo trae la sesión, así que `permisos` vale `null` y toda ruta con `RequirePermission` se queda en «Cargando…» hasta la T-105. Y el paquete inicial mide **167,83 kB comprimidos** de los 200 kB del presupuesto: quedan 32 kB para A12 de verdad, la PWA y Dexie.
+
+Siguiente tarea de código: **T-105**, acceso con Google, o **T-102**, PWA y metadatos. Ninguna depende de la otra.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 
