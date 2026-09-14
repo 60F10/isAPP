@@ -1,0 +1,6 @@
+/* El reparto vertical lo pone ya `Pantalla`. Aquí solo el marco: aire alrededor
+   y un ancho de lectura cómodo. */
+.marco {
+  max-inline-size: 40ch;
+  padding: var(--space-6) var(--space-4);
+}

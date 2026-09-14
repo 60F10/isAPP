@@ -1,0 +1,11 @@
+.cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-block-size: var(--tap-min);
+  padding: var(--space-6) var(--space-4);
+
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-100);
+}
