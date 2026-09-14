@@ -1,0 +1,212 @@
+.marco {
+  /* Holgura al final del contenido. Se declara una vez y de aquí la leen el
+     relleno y el desplazamiento: repetida a mano, el día que cambie se queda
+     una de las dos sin tocar y el anillo de foco vuelve a salir cortado. */
+  --hueco-foco: var(--space-5);
+  /* Ancho del rail de escritorio. Cuatro veces el objetivo táctil mínimo: sin
+     token de anchura de maqueta en el DOC 07, se deriva del que sí hay. */
+  --ancho-rail: calc(var(--tap-min) * 4);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  block-size: 100dvh;
+}
+
+/* CRITERIO 2.4.11, FOCO NO OSCURECIDO. Este es el fallo probable de esta
+   maqueta y se resuelve por estructura, no por cuentas.
+
+   El marco ocupa exactamente la altura de la ventana y reparte: la barra se
+   queda con la suya y el contenido desplaza por dentro con el resto. La barra
+   queda igual de quieta que con `position: fixed` —nunca se va con el
+   desplazamiento— pero no se superpone a nada, así que no hay hueco que
+   reservar ni altura que adivinar.
+
+   Se descartó la barra fija con `padding-block-end` del alto de la barra: con
+   el texto al 200 % las etiquetas parten en dos y tres líneas, la barra pasa
+   de 85 px a 234 px medidos, y cualquier reserva escrita a ojo se queda corta
+   justo ahí. Medirla en JavaScript era la otra salida, y añade un observador
+   para sostener algo que la propia maqueta ya garantiza. */
+.contenido {
+  /* En el DOM la navegación va antes que el contenido, para que se alcance en
+     la primera tabulación. Aquí solo se invierte lo que se ve: la barra abajo,
+     en la zona del pulgar (DOC 02 §5.2). */
+  order: 1;
+  flex: 1 1 auto;
+  overflow-y: auto;
+
+  padding: var(--space-5) var(--space-4);
+  /* Ya solo es holgura para que el anillo de foco no salga pegado al borde. */
+  padding-block-end: var(--hueco-foco);
+  scroll-padding-block-end: var(--hueco-foco);
+  scroll-padding-block-start: var(--hueco-foco);
+}
+
+.contenido:focus {
+  outline: none;
+}
+
+.contenido:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+/* --- Barra inferior, hasta 767 px ---------------------------------------- */
+
+.navegacion {
+  order: 2;
+  /* Nunca se encoge: el contenido cede sitio, la barra no. */
+  flex: 0 0 auto;
+
+  background-color: var(--color-surface);
+  border-block-start: 1px solid var(--color-border-subtle);
+  /* La barra de gestos del móvil se come el borde inferior si no se aparta. */
+  padding-block-end: env(safe-area-inset-bottom);
+}
+
+.lista {
+  display: flex;
+  /* Separación mínima obligatoria entre objetivos táctiles (DOC 02 §5.1). */
+  gap: var(--tap-gap);
+  /* El relleno deja sitio al anillo de foco, que si no se saldría por el
+     borde de la pantalla y quedaría a medio pintar. */
+  padding: var(--space-2);
+  margin: 0;
+  list-style: none;
+}
+
+.elemento {
+  /* Los cinco reparten el ancho a partes iguales. A 320 px salen a 54 px cada
+     uno, por encima de los 48 px de mínimo. */
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+.enlace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+
+  min-block-size: var(--tap-min);
+  min-inline-size: var(--tap-min);
+  padding: var(--space-1);
+
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  text-align: center;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.enlace:hover {
+  background-color: var(--color-accent-soft);
+}
+
+.enlace:active {
+  background-color: var(--color-surface-pressed);
+}
+
+/* El destino activo se distingue por subrayado y peso, no solo por color
+   (criterio 1.4.1). En escala de grises y al sol, el color no llega. */
+.activo {
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-bold);
+  text-decoration: underline;
+  text-decoration-thickness: var(--focus-offset);
+  text-underline-offset: var(--space-1);
+}
+
+/* La etiqueta parte en dos líneas antes que desbordar: a 320 px con el texto
+   al 200 % es lo único que evita el desplazamiento horizontal (1.4.10). */
+.etiqueta {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- Saltar al contenido ------------------------------------------------- */
+
+.saltar {
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: var(--z-overlay);
+
+  display: inline-flex;
+  align-items: center;
+
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+
+  /* Fuera de la vista mientras no tenga el foco, pero enfocable. Con
+     `display: none` se saldría del orden de tabulación y el enlace no
+     existiría para nadie. */
+  transform: translateY(-200%);
+}
+
+.saltar:focus {
+  transform: translateY(0);
+}
+
+/* --- Rail lateral, de 768 px en adelante --------------------------------- */
+
+/* La consulta va en `rem` a propósito: con el texto al 200 % el rail se
+   retira y vuelve la barra inferior, que es la maqueta que aguanta el texto
+   grande sin desplazamiento horizontal. */
+@media (min-width: 48rem) {
+  .marco {
+    /* El rail es una columna más del marco, igual que la barra era una fila.
+       Mismo motivo: sin superposición no hay foco tapado (criterio 2.4.11). */
+    flex-direction: row;
+  }
+
+  .navegacion {
+    order: 1;
+
+    inline-size: var(--ancho-rail);
+    /* Con muchos destinos o el texto muy grande, el rail desplaza por dentro
+       en vez de empujar la maqueta. */
+    overflow-y: auto;
+
+    border-block-start: none;
+    border-inline-end: 1px solid var(--color-border-subtle);
+    padding-block-end: 0;
+  }
+
+  .lista {
+    flex-direction: column;
+  }
+
+  .elemento {
+    flex: 0 0 auto;
+  }
+
+  .enlace {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-3);
+
+    padding: var(--space-2) var(--space-3);
+
+    font-size: var(--font-size-100);
+    text-align: start;
+  }
+
+  .contenido {
+    order: 2;
+    /* El rail ya ocupa su columna: aquí solo hace falta aire, no una reserva
+       del ancho del rail. */
+    padding-inline-start: var(--space-5);
+  }
+}
