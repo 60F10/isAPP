@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 1.5 — 13/09/2026 (T-103 cerrada) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
+> **Versión:** 1.6 — 14/09/2026 (T-104 cerrada) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -67,7 +67,7 @@ Veintiuna tareas. **T-301 y T-302 no son opcionales**: con cuatro anotadores en 
 | **T-101**  | Dependencias del DOC 06 §2.3, `shared/lib/env.ts` y `shared/lib/supabase.ts`. `tsc -b` y CI en verde         | —         | T-100      | 1        | `feat/platform-cliente-supabase`  | ✅     |
 | **T-102**  | PWA y metadatos: `vite-plugin-pwa`, manifiesto, iconos, precaché de la fuente, Lighthouse ≥ 90 en PWA        | —         | T-101      | 1        | `feat/platform-pwa-y-metadatos`   | ⬜     |
 | **T-103**  | `tokens.css`, `Icon` con los 21 SVG ya dibujados, `Button`, `Field`, `Card`, `Toast`, `StatusChip`           | —         | T-101      | 1        | `feat/platform-sistema-diseno`    | ✅     |
-| **T-104**  | Enrutado, guardias de sesión y permiso, esqueleto de navegación, foco al navegar, división del paquete       | A02       | T-103      | 1        | `feat/platform-enrutado`          | ⬜     |
+| **T-104**  | Enrutado, guardias de sesión y permiso, esqueleto de navegación, foco al navegar, división del paquete       | A02       | T-103      | 1        | `feat/platform-enrutado`          | ✅     |
 | **T-105**  | Acceso con Google en la aplicación, sesión, equipo activo y permisos en memoria                              | A01       | T-104      | 1        | `feat/auth-login-google`          | ⬜     |
 | **T-105b** | Prueba de aislamiento entre clubes: segundo club, otro usuario, y que no vea nada del primero                | —         | T-105      | 0,5      | —                                 | ⬜     |
 | **T-106**  | Error boundary, escritura en `error_logs` y aviso de sesión a punto de expirar                               | C03       | T-104      | 1        | `feat/logging-captura-errores`    | ⬜     |
@@ -75,9 +75,9 @@ Veintiuna tareas. **T-301 y T-302 no son opcionales**: con cuatro anotadores en 
 
 La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya estaban dibujados desde el 12/09. **Cerrada el 13/09** con el componente `Icon` y cinco de los siete componentes base: `EventButton` se va a la T-208 y `ReliabilityMeter` al bloque de cobertura, porque ninguno de los dos se puede escribir bien sin la pantalla que los usa.
 
-**Aviso que sale de la T-101 y condiciona la T-104.** Las cuatro dependencias de producción del DOC 06 §2.3, medidas con `vite build` y con un `main.tsx` que no pinta nada, ocupan **190,27 kB comprimidos**: el 95 % del presupuesto de 200 kB del DOC 06 §10.3, antes de la primera pantalla. La división del paquete de la T-104 deja de ser una mejora y pasa a ser la tarea que decide si el presupuesto se cumple o se cambia. Las tres salidas, con sus consecuencias, están escritas en el DOC 06 §10.3.
+**El presupuesto de 200 kB, resuelto en la T-104 con el dato delante.** El paquete inicial mide **167,83 kB comprimidos**: 165,08 de JavaScript y 2,75 de CSS. Quedan **32,2 kB de margen** y **no hace falta ninguna de las tres salidas del DOC 06 §10.3**: ni sacar Supabase del arranque, ni aflojar la excepción de A12, ni subir la cifra.
 
-**Y la T-103 lo aprieta un poco más.** El sistema de diseño entero —tokens, hoja global, los veintiún iconos y los cinco componentes— cuesta **unos 5 kB comprimidos** cuando se usa de verdad. Con eso encima de la proyección anterior, la T-104 arranca en torno a **195 kB**, el 97 % del presupuesto. La medición completa está en el DOC 13.
+**Por qué la proyección se quedaba corta.** La T-101 daba 190,27 kB y la T-103 sumaba unos 5 kB del sistema de diseño, o sea unos 195 kB para el arranque de la T-104. Aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie todavía**: entra con la T-206. Lo que queda por meter en esos 32 kB es A12 de verdad (T-207 y T-208), el runtime de la PWA (T-102) y el propio Dexie. No sobran. La medición completa está en el DOC 13.
 
 **Dos avisos para la T-102**, que salen de la T-103 y ahorran un rato a quien la coja:
 
