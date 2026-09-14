@@ -1,0 +1,19 @@
+.pantalla {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* El encabezado recibe el foco por script al entrar en la pantalla, no porque
+   nadie lo haya tabulado. Con `:focus` a secas quedaría un anillo permanente
+   en cada pantalla, también con el ratón, y eso ensucia sin informar de nada.
+   `:focus-visible` solo lo enciende cuando la interacción fue de teclado, que
+   es justo a quien le sirve (criterio 2.4.7). */
+.titulo:focus {
+  outline: none;
+}
+
+.titulo:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
