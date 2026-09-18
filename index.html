@@ -3,8 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Ni `user-scalable=no` ni `maximum-scale`: el criterio 1.4.4 pide zoom
+         al 200 % sin perder función, y esta línea es lo único que lo protege
+         (DOC 02 §5.1). No se toca. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>scaffold</title>
+    <meta name="theme-color" content="#3f45b8" />
+    <meta
+      name="description"
+      content="Gestión y estadísticas de fútbol base: partido en directo, plantilla y calendario."
+    />
+    <!-- Las dos, y hacen falta las dos. `apple-` es la que lee iOS; Chrome la
+         da por obsoleta y avisa por consola si no va acompañada de la
+         estándar. Con el par, iOS sigue abriendo a pantalla completa y la
+         consola queda limpia. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>GavetaStats</title>
   </head>
   <body>
     <div id="root"></div>
