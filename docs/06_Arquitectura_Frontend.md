@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -26,15 +26,15 @@ React 19 + Vite 8 + TypeScript 6 con la plantilla `react-ts`, `oxlint`, Prettier
 
 ### 2.2 Lo que falta y este documento decide
 
-Columna de estado al cerrar la **T-101**. Las decisiones de este documento no cambian; lo que cambia es cuánto de ellas está ya en el repositorio.
+Columna de estado al cerrar la **T-102**. Las decisiones de este documento no cambian; lo que cambia es cuánto de ellas está ya en el repositorio.
 
 | Pieza                | Estado                                                                           |
 | :------------------- | :------------------------------------------------------------------------------- |
-| Enrutador            | Instalado, sin montar. Se monta en la T-104. Se decide en §6                     |
+| Enrutador            | **Hecho** en la T-104: `src/app/router.tsx`. Se decide en §6                     |
 | Cliente de Supabase  | **Hecho**: `src/shared/lib/supabase.ts`. Se decide en §7                         |
-| Caché de lectura     | Instalada, sin proveedor. Entra con la T-104. Se decide en §5                    |
+| Caché de lectura     | **Hecha** en la T-104: `app/providers/QueryProvider.tsx`. Se decide en §5        |
 | Almacén local y cola | Dexie instalado, sin esquema local. Es la T-206. Se decide en §8                 |
-| `vite-plugin-pwa`    | Instalado, sin configurar. Es la T-102. Se decide en §8.7                        |
+| `vite-plugin-pwa`    | **Hecho** en la T-102: manifiesto, iconos y service worker. Se decide en §8.7    |
 | Pruebas              | Vitest instalado, sin bloque en `vite.config.ts` ni paso de CI. Se decide en §11 |
 | Esquema de la base   | **Aplicado** a GavetaStats: cuatro migraciones (DOC 05 §14)                      |
 | Login con Google     | Cliente de OAuth configurado (DOC 10 §4); sin enchufar a la aplicación (T-105)   |
@@ -613,7 +613,11 @@ La pantalla que importa es A12 y su enemigo es el render en cascada. Tres reglas
 2. La lista de eventos se renderiza por clave estable (`clientEventId`), nunca por índice.
 3. Presupuesto del paquete inicial: **por debajo de 200 kB comprimidos**. Se mide con `vite build` en cada entrega. Sin herramienta automática todavía (§13).
 
-**El presupuesto ya está casi gastado, y eso lo decide la T-104.** La medición de la T-101 (§2.3) deja las cuatro dependencias de producción en 190,27 kB comprimidos con un punto de entrada que no pinta nada. Quedan menos de 10 kB para veintiuna pantallas, los siete componentes base, los iconos y el runtime de la PWA. Hay tres salidas y ninguna es gratis:
+**El presupuesto se resolvió en la T-104, y no hizo falta ninguna de las tres salidas.** Medido con el enrutado montado de verdad, el paquete inicial fue de **167,83 kB comprimidos**, y con la PWA de la T-102 encima está en **171,58 kB**: quedan unos 28 kB de margen. La proyección que sigue abajo se quedaba corta por un motivo concreto: aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie hasta la T-206**.
+
+Las tres salidas se dejan escritas porque el margen se va a estrechar —faltan por entrar A12 de verdad (T-207 y T-208), Dexie (T-206) y las pantallas del bloque de datos—, y la primera tarea que cruce los 200 kB decide con esta misma tabla.
+
+**La proyección de la T-101, para entender la tabla.** Las cuatro dependencias de producción daban 190,27 kB comprimidos con un punto de entrada que no pintaba nada, o sea menos de 10 kB para veintiuna pantallas, los componentes base, los iconos y el runtime de la PWA. Las tres salidas, y ninguna es gratis:
 
 | Salida                                                       | Qué gana                                              | Qué cuesta                                                                                                                         |
 | :----------------------------------------------------------- | :---------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
@@ -621,7 +625,7 @@ La pantalla que importa es A12 y su enemigo es el render en cascada. Tres reglas
 | Aflojar la excepción de D06-06 y dejar A12 fuera del inicial | Recupera margen sin tocar dependencias                | Cambia «A12 abre sin cobertura sin haber pasado por ella» por «A12 abre sin cobertura si pasaste antes por la convocatoria» (§8.3) |
 | Subir el presupuesto                                         | Honesto: una cifra medida contra el 3G de un campo    | Hay que medirla de verdad antes de escribirla, no elegirla para que quepa lo que ya hay                                            |
 
-Se decide en la **T-104**, que es la tarea que parte el paquete. Antes no hay dato suficiente, porque falta saber cuánto ocupan las pantallas.
+Ninguna está aplicada. La medición real de la T-104 dejó margen de sobra y aplicarlas «por si acaso» habría pagado su coste sin necesidad.
 
 **Herramienta de medición.** `vite build` con la variable `NODE_ENV` puesta a `development` empaqueta React en modo desarrollo y da una cifra falsa, un 50 % por encima. La máquina de desarrollo la tiene puesta a `production` en el sistema, lo que a su vez hace que `npm ci` se salte las devDependencies. Se quita de la terminal antes de instalar y antes de medir.
 

@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 1.6 — 14/09/2026 (T-104 cerrada) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
+> **Versión:** 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -65,7 +65,7 @@ Veintiuna tareas. **T-301 y T-302 no son opcionales**: con cuatro anotadores en 
 | **T-100**  | Cerrar la tarea de base de datos: commit, merge y `.env.local`                                               | —         | —          | 0,5      | `feat/db-aplicar-esquema-inicial` | ✅     |
 | **T-100b** | Migración de correcciones de la auditoría y del permiso `event.approve` (DOC 05 §14.2). Aplicada y fusionada | —         | T-100      | 0,5      | `feat/db-correcciones-auditoria`  | ✅     |
 | **T-101**  | Dependencias del DOC 06 §2.3, `shared/lib/env.ts` y `shared/lib/supabase.ts`. `tsc -b` y CI en verde         | —         | T-100      | 1        | `feat/platform-cliente-supabase`  | ✅     |
-| **T-102**  | PWA y metadatos: `vite-plugin-pwa`, manifiesto, iconos, precaché de la fuente, Lighthouse ≥ 90 en PWA        | —         | T-101      | 1        | `feat/platform-pwa-y-metadatos`   | ⬜     |
+| **T-102**  | PWA y metadatos: `vite-plugin-pwa`, manifiesto, iconos, precaché de la fuente, instalable de verdad          | —         | T-101      | 1        | `feat/platform-pwa-y-metadatos`   | ✅     |
 | **T-103**  | `tokens.css`, `Icon` con los 21 SVG ya dibujados, `Button`, `Field`, `Card`, `Toast`, `StatusChip`           | —         | T-101      | 1        | `feat/platform-sistema-diseno`    | ✅     |
 | **T-104**  | Enrutado, guardias de sesión y permiso, esqueleto de navegación, foco al navegar, división del paquete       | A02       | T-103      | 1        | `feat/platform-enrutado`          | ✅     |
 | **T-105**  | Acceso con Google en la aplicación, sesión, equipo activo y permisos en memoria                              | A01       | T-104      | 1        | `feat/auth-login-google`          | ⬜     |
@@ -77,12 +77,13 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 
 **El presupuesto de 200 kB, resuelto en la T-104 con el dato delante.** El paquete inicial mide **167,83 kB comprimidos**: 165,08 de JavaScript y 2,75 de CSS. Quedan **32,2 kB de margen** y **no hace falta ninguna de las tres salidas del DOC 06 §10.3**: ni sacar Supabase del arranque, ni aflojar la excepción de A12, ni subir la cifra.
 
-**Por qué la proyección se quedaba corta.** La T-101 daba 190,27 kB y la T-103 sumaba unos 5 kB del sistema de diseño, o sea unos 195 kB para el arranque de la T-104. Aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie todavía**: entra con la T-206. Lo que queda por meter en esos 32 kB es A12 de verdad (T-207 y T-208), el runtime de la PWA (T-102) y el propio Dexie. No sobran. La medición completa está en el DOC 13.
+**Por qué la proyección se quedaba corta.** La T-101 daba 190,27 kB y la T-103 sumaba unos 5 kB del sistema de diseño, o sea unos 195 kB para el arranque de la T-104. Aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie todavía**: entra con la T-206.
 
-**Dos avisos para la T-102**, que salen de la T-103 y ahorran un rato a quien la coja:
+**Y la T-102 se comió 3,75 kB de ese margen.** El paquete inicial está ahora en **171,58 kB comprimidos**, contando el trozo de `workbox-window`. Quedan **28,4 kB** para A12 de verdad (T-207 y T-208) y Dexie (T-206). La medición completa está en el DOC 13.
 
-- El `@font-face` de Inter apunta a `public/fonts/InterVariable-latin.woff2`, que no existe. Hoy eso deja dos avisos por carga en la consola del navegador y uno en `vite build`. Poner el archivo los apaga los tres.
-- `public/icons.svg`, el sprite de la plantilla original, ya no está. Los iconos de la PWA salen de `src/assets/logo.svg`, como dice el LEEME de los iconos.
+**La T-102, además, apagó la deuda de la fuente.** Inter vive autoalojada en `public/fonts/InterVariable-latin.woff2`, subconjunto latino del eje variable, 48 kB, y entra en la precaché. Con eso se van los tres avisos que arrastrábamos desde la T-101: los dos por carga del navegador y el de `vite build`.
+
+**El criterio de la T-102 cambió de redacción, y conviene saber por qué.** La versión original pedía «Lighthouse ≥ 90 en PWA». **Esa categoría ya no existe**: Lighthouse la retiró en la versión 12 y la máquina de desarrollo tiene la 13.5.0, cuyas categorías son `accessibility`, `best-practices`, `performance`, `seo` y `agentic-browsing`. El criterio pasa a ser lo que aquella categoría medía, y se comprueba a mano: manifiesto servido como `application/manifest+json` y sin errores de parseo, service worker registrado, activo y controlando la página tras recargar, iconos de 192 y 512 más el maskable resueltos, `start_url` respondiendo 200 y `display: standalone`.
 
 ---
 

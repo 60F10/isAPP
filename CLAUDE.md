@@ -19,9 +19,11 @@ Desde la **T-103** está el sistema de diseño: `src/styles/tokens.css` y `src/s
 
 Desde la **T-104** está el enrutado y el andamiaje ya no existe. `src/app/` tiene `App.tsx`, `router.tsx`, los proveedores (`QueryProvider`, `AuthProvider`, `AnnounceProvider`), las guardias (`RequireAuth`, `RequirePermission`), los tres layouts (`AppLayout` con los cinco destinos, `BareLayout`, `FullScreenLayout`) y las pantallas compartidas de carga, error y pendiente. `src/shared/ui/Pantalla.tsx` envuelve cada pantalla y le pone el foco al `h1` y el título del documento. En `src/modules/` hay `auth` (A01 y C05), `core` (A02, Inicio) y `match` (A12, marcador de posición), cada uno con su `index.ts` de contrato.
 
-**Ojo con dos cosas al escribir pantallas ahora mismo:** `AuthProvider` solo trae la sesión, así que `permisos` vale `null` y toda ruta con `RequirePermission` se queda en «Cargando…» hasta la T-105. Y el paquete inicial mide **167,83 kB comprimidos** de los 200 kB del presupuesto: quedan 32 kB para A12 de verdad, la PWA y Dexie.
+Desde la **T-102** es una PWA instalable: `vite-plugin-pwa` con `registerType: 'prompt'` en `vite.config.ts`, manifiesto e iconos en `public/`, Inter autoalojada en `public/fonts/InterVariable-latin.woff2`, los metadatos de `index.html` y la banda `ActualizacionDisponible` que ofrece la versión nueva. El service worker **no cachea jamás** la API (decisión D06-09): no hay ni una regla de `runtimeCaching`, y no se añade. El marco de la ventana vive en `App.module.css` y las maquetas llenan el hueco que les deja, para que ninguna banda tape el elemento enfocado.
 
-Siguiente tarea de código: **T-105**, acceso con Google, o **T-102**, PWA y metadatos. Ninguna depende de la otra.
+**Ojo con dos cosas al escribir pantallas ahora mismo:** `AuthProvider` solo trae la sesión, así que `permisos` vale `null` y toda ruta con `RequirePermission` se queda en «Cargando…» hasta la T-105. Y el paquete inicial mide **171,58 kB comprimidos** de los 200 kB del presupuesto: quedan 28 kB para A12 de verdad y Dexie.
+
+Siguiente tarea de código: **T-105**, acceso con Google. Es la que desatasca las veinte rutas que hoy se quedan en «Cargando…», y **necesita a una persona delante**: el clic en la pantalla de cuenta de Google no lo da una sesión automática.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 
