@@ -1,0 +1,49 @@
+/* Banda del aviso de versión nueva.
+
+   NO LLEVA `position: fixed`, Y ESE ES EL PUNTO. Criterio 2.4.11, foco no
+   oscurecido: una banda superpuesta tapa lo que haya debajo, y lo que haya
+   debajo puede ser justo el control que acaba de recibir el foco. Se resuelve
+   igual que la barra de navegación en `AppLayout.module.css`: la banda es una
+   fila más del marco, el marco ocupa la altura de la ventana y la ruta
+   desplaza por dentro con lo que sobra. Nada se superpone, así que no hay
+   hueco que reservar ni altura que medir en JavaScript. */
+
+.banda {
+  /* Nunca se encoge: quien cede sitio es el contenido, no el aviso. */
+  flex: 0 0 auto;
+
+  display: flex;
+  /* A 320 px con el texto al 200 % el botonaje baja a su propia línea antes
+     que provocar desplazamiento horizontal (criterio 1.4.10). */
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tap-gap);
+
+  padding: var(--space-3) var(--space-4);
+  /* La muesca de la pantalla se come la primera línea si no se aparta. */
+  padding-block-start: calc(var(--space-3) + env(safe-area-inset-top));
+
+  background-color: var(--color-accent-soft);
+  border-block-end: 1px solid var(--color-border-subtle);
+  color: var(--color-text);
+}
+
+.texto {
+  /* Que el texto parta antes de desbordar, mismo motivo que las etiquetas de
+     la barra de navegación. */
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  /* Separación mínima obligatoria entre objetivos táctiles (DOC 02 §5.1). Los
+     48 px de alto los trae ya `Button`. */
+  gap: var(--tap-gap);
+}

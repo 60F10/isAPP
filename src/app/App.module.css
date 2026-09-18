@@ -1,0 +1,28 @@
+/* Marco de la aplicación (DOC 06 §3.1).
+
+   Existe por el aviso de versión nueva y por el criterio 2.4.11: el aviso
+   tiene que caber sin taparle nada a nadie. Mismo reparto que el de
+   `AppLayout.module.css`, un piso más arriba: el marco ocupa exactamente la
+   altura de la ventana, el aviso se queda con la fila que necesite y la ruta
+   se lleva el resto y desplaza por dentro.
+
+   Sin aviso en pantalla —lo normal— la ruta ocupa los 100dvh de siempre y
+   esta capa no cambia nada de lo que ya había. */
+
+.marco {
+  display: flex;
+  flex-direction: column;
+  block-size: 100dvh;
+}
+
+.ruta {
+  flex: 1 1 auto;
+  /* Sin esto, un contenido alto estira la fila, el marco crece por encima de
+     la ventana y el aviso se va fuera: un elemento flexible no baja de su
+     tamaño mínimo de contenido mientras no se le diga. */
+  min-block-size: 0;
+  /* Las maquetas de ruta caben justas en esta zona y desplazan por dentro.
+     La de sesión (`BareLayout`) sí puede crecer con el texto al 200 %, y
+     entonces es esta caja la que desplaza. */
+  overflow-y: auto;
+}

@@ -10,7 +10,11 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  block-size: 100dvh;
+  /* La altura la reparte el marco de `App.module.css`: son los 100dvh menos
+     lo que ocupe el aviso de versión nueva, que casi siempre es nada. Aquí en
+     100dvh a pelo, la barra de navegación se iría por debajo de la ventana
+     cada vez que el aviso saliera. */
+  block-size: 100%;
 }
 
 /* CRITERIO 2.4.11, FOCO NO OSCURECIDO. Este es el fallo probable de esta
