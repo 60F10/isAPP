@@ -1,6 +1,6 @@
 # DOC 10 — Entornos y despliegue
 
-> **Versión:** 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
+> **Versión:** 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
 > **Depende de:** DOC 05 (modelo de datos), DOC 06 (arquitectura frontend), DOC 15 (convenciones de Git)
 >
 > Esta versión registra **la configuración real de los servicios externos** tal como quedó al montar Supabase. El resto del documento —deploy previews, checklist de publicación, procedimiento de vuelta atrás— está por escribir; ver §7.
@@ -25,6 +25,38 @@ Dice dónde vive cada servicio, qué valor tiene configurado y quién lo guarda.
 | **GitHub**       | Repositorio                    | Gratuito | `60F10/isAPP`, privado                                              |
 
 Todo dentro del presupuesto de 0 € del proyecto. La región de Supabase es Irlanda: lo más cercano a Canarias dentro de la UE, que es lo que pide el DOC 11.
+
+### 2.1 El recurso que se agota en Netlify: los minutos de compilación
+
+El plan gratuito de Netlify trae **300 minutos de compilación al mes**, y el equipo es `60F10`. Es el único recurso del proyecto que se puede agotar sin que nadie lo note hasta que deja de desplegar.
+
+**Netlify compila dos veces por cada pull request:** una al subir la rama, que genera la previsualización, y otra al fusionar a `main`. Con el método del DOC 00 §5 —una pull request de código y otra de documentación por tarea— eso son **cuatro compilaciones por tarea**, y las dos de la documentación producen exactamente el mismo `dist/` que la anterior.
+
+**Por eso `netlify.toml` lleva un comando `ignore`.** Cancela la compilación cuando el commit no toca nada que acabe en `dist/`: `docs/`, cualquier `.md`, `.github/`, `.claude/`, `.husky/` y `supabase/migrations/`. Todo lo demás compila.
+
+| Concepto                | Detalle                                                                                                   |
+| :---------------------- | :-------------------------------------------------------------------------------------------------------- |
+| Polaridad               | **Salida 0 cancela** la compilación; distinta de 0 la lanza. `git diff --quiet` da justo esa polaridad    |
+| Tipo de lista           | **De exclusión**, no de inclusión. Lo que no reconozca, compila                                           |
+| Por qué de exclusión    | Compilar de más cuesta minutos; no compilar deja el sitio viejo y nadie se entera                         |
+| `netlify.toml` excluido | **No.** Aquí viven la redirección de SPA y las cabeceras de caché: un cambio ahí sí tiene que desplegarse |
+| Sin caché previa        | `CACHED_COMMIT_REF` vacío hace fallar la primera condición, así que compila                               |
+
+**Comprobado contra commits reales del repositorio** el 19/09/2026, no razonado sobre el papel:
+
+| Caso                       | Salida | Resultado |
+| :------------------------- | -----: | :-------- |
+| PR #27, solo documentación |      0 | Cancela   |
+| PR #26, solo documentación |      0 | Cancela   |
+| PR #25, código de la PWA   |      1 | Compila   |
+| PR #23, código de la T-104 |      1 | Compila   |
+| Sin caché previa           |      1 | Compila   |
+
+De las diez compilaciones de las sesiones del 14 y el 18 de septiembre, **cuatro se habrían cancelado**.
+
+**Si algún día el sitio deja de actualizarse tras una fusión**, mira esto lo primero: el registro del despliegue en Netlify dice «Build cancelled» y el motivo. Lo más probable es que alguien haya metido en una carpeta excluida un archivo que sí acaba en `dist/`.
+
+**Lo que no se tocó, y por qué.** Desactivar las previsualizaciones por rama ahorraría más, pero el DOC 14 §5 las señala como lo que «te deja probar en el móvil sin tocar producción», y en un proyecto cuyo núcleo se usa a pie de campo eso vale más que unos minutos. Juntar las dos pull requests en una también ahorraría, y se descartó para no ensuciar el diff de código con documentación.
 
 ---
 
