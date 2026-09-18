@@ -3,7 +3,9 @@
   align-items: center;
   justify-content: center;
 
-  min-block-size: 100dvh;
+  /* Mismo motivo que en las otras dos maquetas: la ventana la mide el marco
+     de `App.module.css`. */
+  min-block-size: 100%;
   padding: var(--space-6) var(--space-4);
 }
 
