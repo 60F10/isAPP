@@ -130,7 +130,7 @@ La T-302 no es código. Es la única tarea que valida de verdad lo construido, y
 
 Las cuatro están marcadas MVP en el DOC 02. El recorte es consciente y queda confirmado: **el MVP termina donde termina la entrada de datos de partido.** Qué se hace luego con esos datos, y qué pasa con los entrenamientos, se decide con la liga ya en marcha y con partidos reales dentro, no ahora.
 
-El DOC 02 §2 queda desfasado en la columna «Fase» de A15, A16 y el Bloque B. Se corrige en la próxima sesión que toque documentación.
+**Corregido el 19/09.** El DOC 02 §2 arrastraba la columna «Fase» desfasada en A15, A16 y el Bloque B desde este mismo recorte. Ya está al día: las seis pasan a «Post-liga» y el total del MVP baja de 21 pantallas a **19**.
 
 ---
 

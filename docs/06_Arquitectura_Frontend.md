@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -136,7 +136,7 @@ Tres ámbitos del DOC 15 no tienen directorio propio en `modules/`, y conviene d
 | `design`   | `src/styles/` y `src/shared/ui/`                                |
 | `db`       | `supabase/migrations/` y `src/types/database.types.ts`          |
 
-### 3.4 Reparto de las 21 pantallas del MVP
+### 3.4 Reparto de las pantallas del MVP
 
 Cada pantalla del DOC 02 pertenece a un solo módulo. El módulo dueño es quien la construye, la prueba y la arregla.
 
