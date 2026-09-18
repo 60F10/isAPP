@@ -167,6 +167,8 @@ Convención completa en `docs/15_Convenciones_Git.md`. Los hooks de `.husky` y e
 - **Ámbitos** (= módulos): `auth` `core` `rules` `agenda` `training` `discipline` `lineup` `match` `sync` `review` `stats` `logging` `platform` `design` `db` `docs` `deps` `ci` `repo`.
 - Ruptura: `tipo(ámbito)!:` más pie `BREAKING CHANGE:` con la migración.
 - **Pull request por rama**, título con el mismo formato que un commit, plantilla rellenada, CI en verde, **squash merge**.
+- **Cada subida de rama y cada fusión gasta minutos de compilación de Netlify**, y el plan gratuito trae 300 al mes. Por eso `netlify.toml` lleva un comando `ignore` que cancela la compilación cuando el commit solo toca `docs/`, `.md`, `.github/`, `.claude/`, `.husky/` o `supabase/`. Si añades un archivo que **sí** acaba en `dist/` dentro de alguna de esas carpetas, quita esa carpeta de la lista o el sitio dejará de actualizarse en silencio. El detalle está en el DOC 10 §2.1.
+- **Agrupa los commits y sube la rama una sola vez.** Cada `git push` a una rama con pull request abierta lanza una compilación nueva.
 - Ámbito o módulo nuevo: se añade a `commitlint.config.mjs`, al patrón de `.husky/pre-commit` y a DOC 15, en el mismo commit.
 
 Ejemplos buenos: `feat(match): add internal running clock with manual pause` · `fix(sync): drop duplicate events within the 30s window` · `chore(repo): configure husky and commitlint`.
@@ -183,7 +185,7 @@ Ejemplos buenos: `feat(match): add internal running clock with manual pause` · 
 | `.husky/pre-commit`                  | Bloquea `main`, valida el nombre de la rama y pasa `lint-staged`                                                  |
 | `.prettierrc.json` · `.editorconfig` | Formato                                                                                                           |
 | `.github/workflows/ci.yml`           | Lint, formato, build y validación de commits en cada push y PR                                                    |
-| `netlify.toml`                       | Build, redirección SPA y cabeceras de caché de la PWA                                                             |
+| `netlify.toml`                       | Build, redirección SPA, cabeceras de caché de la PWA y el `ignore` que cancela compilaciones de solo documentos   |
 | `.nvmrc`                             | Versión de Node del proyecto: **22**. Vite 7 y `create-vite` no arrancan con Node 18                              |
 
 ## Accesibilidad (condiciona el diseño, no es un repaso final)

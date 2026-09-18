@@ -6,6 +6,28 @@
   command = "npm run build"
   publish = "dist"
 
+  # Netlify compila en cada subida a una rama con previsualización y en cada
+  # fusión a main, y el plan Free trae 300 minutos de compilación al mes. Un
+  # cambio que solo toca documentación produce exactamente el mismo `dist/`:
+  # compilarlo gasta minutos para publicar lo de siempre.
+  #
+  # Este comando decide si merece la pena. La polaridad es la de Netlify y es
+  # fácil de invertir sin querer: **salida 0 cancela la compilación**, salida
+  # distinta de 0 la lanza. `git diff --quiet` da justo eso, porque devuelve 0
+  # cuando no encuentra diferencias.
+  #
+  # La lista es de exclusión a propósito, no de inclusión. Lo que el comando no
+  # reconozca, compila. Equivocarse hacia compilar de más cuesta minutos;
+  # equivocarse hacia no compilar deja el sitio sin actualizar y nadie se entera
+  # hasta que alguien abre la aplicación y ve la versión vieja.
+  #
+  # `netlify.toml` no está excluido a propósito: aquí viven la redirección de
+  # SPA y las cabeceras de caché, y un cambio en ellas sí tiene que desplegarse.
+  #
+  # Si `CACHED_COMMIT_REF` viene vacío —primera compilación de un contexto— la
+  # primera condición falla, la cadena devuelve distinto de 0 y se compila.
+  ignore = '''test -n "$CACHED_COMMIT_REF" && git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- . ':(exclude)docs' ':(exclude)*.md' ':(exclude).github' ':(exclude).claude' ':(exclude).husky' ':(exclude)supabase' '''
+
 [build.environment]
   NODE_VERSION = "22"
 
