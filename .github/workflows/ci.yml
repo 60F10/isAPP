@@ -54,6 +54,12 @@ jobs:
         if: steps.check.outputs.node == 'true'
         run: npx prettier --check .
 
+      # `--run` fuerza una pasada única: sin él, `vitest` se queda en modo
+      # vigilancia y el trabajo agota los diez minutos de `timeout-minutes`.
+      - name: Pruebas
+        if: steps.check.outputs.node == 'true'
+        run: npm run test -- --run
+
       - name: Build
         if: steps.check.outputs.node == 'true'
         run: npm run build
