@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url';
 
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { defineConfig } from 'vitest/config';
 
 // Alias de importación del DOC 06 §4.3. Este mapa y el de `paths` en
 // tsconfig.app.json son el mismo: si se toca uno, se toca el otro. TypeScript
@@ -91,6 +91,44 @@ export default defineConfig({
       '@modules': rutaDe('./src/modules'),
       '@shared': rutaDe('./src/shared'),
       '@app-types': rutaDe('./src/types'),
+    },
+  },
+
+  // Arnés de pruebas (DOC 06 §11, decisión D06-20). Vive aquí y no en un
+  // `vitest.config.ts` aparte a propósito: así los alias de `resolve` y el
+  // resto de la configuración de Vite son literalmente los mismos que usa la
+  // aplicación. Un archivo separado obligaría a mantener el mapa de alias por
+  // tercera vez, y ya son dos (tsconfig.app.json y este archivo).
+  //
+  // `defineConfig` se importa de 'vitest/config' —no de 'vite'— porque es la
+  // que tipa la clave `test`. Reexporta la de Vite, así que `vite build` y
+  // `vite dev` no cambian en nada.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+
+    // Sin `globals: true`: cada prueba importa de 'vitest' lo que usa, igual
+    // que cualquier otro módulo del proyecto. Evita ampliar los `types` de
+    // tsconfig.app.json y deja que `tsc -b` compruebe las pruebas tal cual.
+    globals: false,
+
+    // Higiene entre pruebas, para que un caso no herede el estado del
+    // anterior. `unstubEnvs` importa de verdad aquí: la prueba de `env.ts`
+    // reescribe `import.meta.env` en cada caso.
+    restoreMocks: true,
+    unstubEnvs: true,
+
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/types/**'],
+
+      // SIN UMBRALES, Y NO ES UN OLVIDO. El §11 dice que la cobertura se mide,
+      // se mira y no se convierte en objetivo. Un umbral aquí rompería la
+      // construcción por una cifra que nadie ha acordado, y el camino corto
+      // para arreglarlo son pruebas que tocan líneas sin comprobar nada.
     },
   },
 });
