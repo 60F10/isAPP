@@ -1,9 +1,9 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
-> **Anexo:** `supabase/migrations/` — cuatro archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones. Ver §14
+> **Anexo:** `supabase/migrations/` — cinco archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
 
 ---
 
@@ -593,14 +593,15 @@ Todo cambio de esquema entra como archivo de migración numerado en `supabase/mi
 
 **Nombres de archivo: marca de tiempo, no número correlativo.** El CLI de Supabase deriva la versión de la migración del prefijo del nombre, y el historial remoto guarda esa misma versión. Si los dos no coinciden, `supabase db push` da por aplicar migraciones que ya están dentro e intenta repetirlas.
 
-| Archivo                                       | Versión registrada | Qué hace                                              |
-| :-------------------------------------------- | :----------------- | :---------------------------------------------------- |
-| `20260911213846_initial_schema.sql`           | `20260911213846`   | Esquema inicial: el anexo de este documento           |
-| `20260911214032_hardening_rls_y_permisos.sql` | `20260911214032`   | Endurecimiento tras el primer auditor (ver más abajo) |
-| `20260912142001_permiso_event_approve.sql`    | `20260912142001`   | Valor `event.approve` en `app_permission`             |
-| `20260912142131_correcciones_auditoria.sql`   | `20260912142131`   | Correcciones de la auditoría del 12/09 (§14.2)        |
+| Archivo                                                | Versión registrada | Qué hace                                              |
+| :----------------------------------------------------- | :----------------- | :---------------------------------------------------- |
+| `20260911213846_initial_schema.sql`                    | `20260911213846`   | Esquema inicial: el anexo de este documento           |
+| `20260911214032_hardening_rls_y_permisos.sql`          | `20260911214032`   | Endurecimiento tras el primer auditor (ver más abajo) |
+| `20260912142001_permiso_event_approve.sql`             | `20260912142001`   | Valor `event.approve` en `app_permission`             |
+| `20260912142131_correcciones_auditoria.sql`            | `20260912142131`   | Correcciones de la auditoría del 12/09 (§14.2)        |
+| `20260919040657_endurecimiento_permisos_funciones.sql` | `20260919040657`   | Endurecimiento de permisos sobre funciones (§14.3)    |
 
-Las cuatro están aplicadas al proyecto GavetaStats: las dos primeras desde el 11/09/2026 y las dos del 12/09 en la T-100b. Las versiones registradas en el historial remoto coinciden con los prefijos de los archivos.
+Las cinco están aplicadas al proyecto GavetaStats: las dos primeras desde el 11/09/2026, las dos del 12/09 en la T-100b y la del 19/09 fuera de tarea, como deuda arrastrada. Las versiones registradas en el historial remoto coinciden con los prefijos de los archivos.
 
 Las migraciones siguientes las crea el propio CLI con `supabase migration new <nombre>`, que pone la marca de tiempo sola. **Nunca renombres una migración ya aplicada**: el historial remoto dejaría de encontrarla.
 
@@ -636,6 +637,31 @@ Escrita, validada y aplicada en la T-100b contra el esquema real, no de memoria.
 **La regla del endurecimiento que esta migración vuelve a aplicar.** PostgreSQL concede `EXECUTE` a `PUBLIC` al **crear** una función. `CREATE OR REPLACE` conserva los permisos; `DROP` + `CREATE` los pierde y la función renace abierta a `anon`. Las tres funciones que aquí nacen o renacen enteras —`set_event_seconds`, `backfill_event_seconds` y `rebuild_match_stints`— llevan su `revoke ... from public, anon` detrás. `metric_reliability` y `flag_duplicate_candidates` se reemplazan con la misma firma y conservan los suyos.
 
 **Al sembrar los permisos a mano, quien tenga `match.close` necesita también `event.approve`** si va a corregir eventos ajenos. Son dos permisos desde esta migración, y `match.close` ya no da acceso a `match_events`.
+
+---
+
+### 14.3 Qué endureció la migración del 19/09
+
+No sale de ninguna tarea del DOC 08: son los puntos 3 y 4 de «lo que sigue abierto» del DOC 13, abiertos desde la T-100b. La migración solo toca permisos —ni una definición de función, ni una política, ni una columna— y se aplicó a producción antes de fusionar, porque no hay entorno de pruebas.
+
+| Cambio                                                                        | Origen                 |
+| :---------------------------------------------------------------------------- | :--------------------- |
+| `rls_auto_enable()` pierde el `EXECUTE` de `public`, `anon` y `authenticated` | Aviso 0028 del auditor |
+| Las siete funciones de disparador pierden el `EXECUTE` de `authenticated`     | Aviso 0029 del auditor |
+
+**El punto 3 no obligaba a meter en el repositorio una función que gestiona Supabase**, que era la pega que lo tenía parado desde el 12/09. `REVOKE` trabaja sobre la firma y no sobre el cuerpo: se revoca sin redefinir nada. Cuando una salida parece cara, conviene mirar si la operación necesita de verdad lo que se le supone.
+
+**Revocar solo de `anon` no habría servido de nada, y esto es lo que de verdad importa del punto 3.** La ACL de la función era `=X/postgres | postgres=X/postgres | authenticated=X/postgres | service_role=X/postgres`, y ese `=X` sin nombre delante es PUBLIC. El permiso de `anon` era el de PUBLIC, no una concesión suya, así que un `revoke ... from anon` habría dejado el aviso donde estaba. Es la regla del §14.1 otra vez: **revocar de una función se hace siempre de `public` además de `anon`**. Van tres veces que la misma trampa aparece en este proyecto.
+
+**Revocar el `EXECUTE` de una función de disparador no rompe el disparador.** PostgreSQL lo comprueba al crear el disparador, no al dispararlo: de ahí en adelante la llamada la hace el motor y no consulta la ACL. Se comprobó antes de aplicar, no se supuso: un disparador `BEFORE INSERT` cuya función no tenía `EXECUTE` ni para PUBLIC ni para `authenticated` saltó igual al insertar con `set local role authenticated`. Lo mismo vale para el disparador de eventos `ensure_rls`, que invoca a `rls_auto_enable()` al final de cada DDL y que después del revoke sigue activando la RLS en cada tabla nueva de `public`.
+
+**Antes y después, medido sobre la base de producción.** Las ocho funciones pasan de tener `authenticated=X` —y PUBLIC en el caso de `rls_auto_enable`— a quedarse en `postgres=X | service_role=X`. `has_function_privilege` da falso para `anon` y para `authenticated` en las ocho. El auditor pasa de un hallazgo 0028 a ninguno y de diecinueve hallazgos 0029 a once. Los veintiocho disparadores siguen activos, las ocho huellas `md5(prosrc)` son idénticas antes y después, y los tipos generados coinciden byte a byte con los del repositorio, que es lo que se espera de una migración de solo permisos.
+
+**Lo que el aviso 0029 sigue marcando se queda a propósito.** Las once funciones que quedan —`can_read_club`, `can_read_team`, `has_club_permission`, `has_team_permission`, `is_club_member`, `is_platform_admin`, `is_team_follower`, `is_team_member`, `team_of_match`, `rebuild_match_stints` y `flag_duplicate_candidates`— necesitan ese `EXECUTE`: las llaman las políticas RLS y el cliente. Ahí el aviso es informativo.
+
+**Queda una línea pendiente.** `set_updated_at()` es la octava función de disparador y arrastra el mismo `EXECUTE` de `authenticated` que sobra. No entró aquí porque el auditor no la marca —es `SECURITY INVOKER`, así que llamarla a mano no salta la RLS— y porque el alcance eran los siete del DOC 13. Entra en la próxima migración que toque permisos.
+
+**Si Supabase recrea `rls_auto_enable()` con `DROP` + `CREATE`, el permiso de PUBLIC vuelve** y el aviso 0028 con él. `CREATE OR REPLACE` conserva la ACL; un `DROP` no. Merece una mirada al auditor después de cada actualización de la plataforma.
 
 ---
 
