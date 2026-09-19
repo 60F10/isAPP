@@ -5,144 +5,165 @@
 
 ---
 
-## Sesión 18/09/2026 — Tarea: T-102 · PWA y metadatos
+## Sesión 19/09/2026 — Endurecimiento de permisos en la base de datos
 
-Sesión de Cowork sobre el repositorio local, de noche. Ciclo completo sin intervención:
-desarrollo, commits, push, pull request y fusión.
+Sesión de Cowork sobre el repositorio local, de madrugada y sin nadie delante. Ciclo completo:
+desarrollo, commit, push, pull request y fusión con squash.
 
-> **Se eligió la T-102 por delante de la T-105 a propósito.** El traspaso anterior recomendaba
-> la T-105, pero el viaje completo del acceso con Google necesita un clic humano en la pantalla
-> de cuenta, y esta sesión iba a correr sola. La T-102 se verifica entera sin credenciales.
-> La T-105 sigue siendo la siguiente, y ahora con más razón.
+> **Esto no es una tarea del DOC 08.** Son los puntos 3 y 4 de «lo que sigue abierto» del
+> traspaso anterior, arrastrados desde la T-100b. Deuda, no tarea, y así queda anotada: el DOC 08
+> no se toca.
 
-| PR      | Rama                            | Contenido                                                                           | CI                             |
-| :------ | :------------------------------ | :---------------------------------------------------------------------------------- | :----------------------------- |
-| **#25** | `feat/platform-pwa-y-metadatos` | Cinco commits: fuente, iconos, plugin de la PWA, metadatos y aviso de versión nueva | Verde · fusionada en `bd2640d` |
-| **#26** | `docs/docs-traspaso-t-102`      | DOC 06 v1.3, DOC 08 v1.7, este DOC 13 y `CLAUDE.md`                                 | —                              |
+> **Y falta un traspaso por el camino.** Entre la sesión del 18/09 y esta entraron las PR #27
+> —inventario de pantallas al día con el recorte del DOC 08 §7— y #28 —el `ignore` de Netlify
+> para los commits de solo documentación—, y ninguna dejó constancia aquí. Lo que cerró la #27
+> está retirado de la lista de abajo; lo de la #28 vive en el DOC 10 §2.1 y en `CLAUDE.md`.
+
+| PR      | Rama                                | Contenido                                                                      | CI                                                    |
+| :------ | :---------------------------------- | :----------------------------------------------------------------------------- | :---------------------------------------------------- |
+| **#29** | `feat/db-endurecimiento-permisos`   | Un commit: la migración `20260919040657_endurecimiento_permisos_funciones.sql` | Verde · 1 neutro y 5 correctos · fusionada con squash |
+| **#30** | `docs/docs-endurecimiento-permisos` | DOC 05 v1.3 (§14 y §14.3 nuevo) y este DOC 13                                  | —                                                     |
 
 ---
 
 ## HECHO
 
-**La aplicación se instala.** Y se fue el último resto de la plantilla de Vite.
+**Ocho funciones del esquema `public` dejan de ser llamables desde la API.** Nada más. Ni una
+definición de función, ni una política, ni una columna: la migración son nueve `revoke` y el
+resto son comentarios.
 
-| Archivo                                          | Qué lleva                                                                             |
-| :----------------------------------------------- | :------------------------------------------------------------------------------------ |
-| `public/fonts/InterVariable-latin.woff2`         | Inter, eje `wght` 100–900, subconjunto latino, 48 kB. Sin cursiva: no se usa          |
-| `public/pwa-192.png` · `public/pwa-512.png`      | Iconos del manifiesto: barras blancas sobre el índigo del acento                      |
-| `public/pwa-maskable-512.png`                    | El dibujo al 52 % del lienzo, para sobrevivir al recorte del 80 % de Android          |
-| `public/apple-touch-icon.png`                    | 180×180 para iOS                                                                      |
-| `public/favicon.svg`                             | **Sustituido.** Era el de la plantilla original                                       |
-| `vite.config.ts`                                 | `VitePWA` con `registerType: 'prompt'`, manifiesto y `workbox` sin `runtimeCaching`   |
-| `tsconfig.app.json`                              | `vite-plugin-pwa/react` en `types`, para el módulo virtual                            |
-| `index.html`                                     | Título, descripción, color de tema, icono de iOS y las dos metas de pantalla completa |
-| `src/app/components/ActualizacionDisponible.tsx` | La banda que ofrece actualizar cuando hay versión nueva                               |
-| `src/app/App.module.css`                         | **Nuevo.** El marco de la ventana, que sube un piso. Ver abajo                        |
-| `src/app/layouts/*.module.css`                   | Las tres maquetas pasan de reclamar `100dvh` a llenar el hueco del marco              |
+| Qué                     | Antes                                                                              | Después                         |
+| :---------------------- | :--------------------------------------------------------------------------------- | :------------------------------ |
+| `rls_auto_enable()`     | `=X/postgres` (o sea PUBLIC) · `postgres=X` · `authenticated=X` · `service_role=X` | `postgres=X` · `service_role=X` |
+| Las siete de disparador | `postgres=X` · `authenticated=X` · `service_role=X`                                | `postgres=X` · `service_role=X` |
 
-**Verificado en local, los tres en verde:** `npm run lint` (0 avisos y 0 errores sobre 151
-reglas en 38 archivos), `npx prettier --check .` y `npm run build`. Y en remoto, los cinco
-trabajos del CI de la #25 más el _deploy preview_ de Netlify.
+Las siete de disparador son `audit_row`, `backfill_event_seconds`, `enforce_match_changes`,
+`handle_new_user`, `set_event_seconds`, `set_match_club_id` y `validate_match_event`.
 
-**Verificado en el navegador**, con `npm run preview` y la página abierta de verdad:
-
-- Service worker registrado, activo, ámbito `/`, y **controlando la página** tras recargar.
-- Precaché con 14 URL: la fuente y los cinco iconos entre ellas.
-- `document.fonts.check('16px Inter')` da cierto y la familia calculada del `body` empieza por
-  `Inter`. O sea que la fuente no solo se descarga: se usa.
-- Manifiesto servido como `application/manifest+json`, sin errores de parseo.
-- **Una sola región `aria-live` en el DOM.** La banda no trae la suya.
-- Sin desplazamiento horizontal, ni a 320 px ni con el texto al 200 %.
-- **Consola limpia del todo.** Se fueron los dos avisos de la fuente que arrastrábamos desde la
-  T-101. Lo único que queda es un mensaje de una extensión del navegador, ajeno a la aplicación.
-
-**El marco, medido y no supuesto.** Con una banda simulada de 96 px: el marco se queda en los
-726 px de la ventana, la ruta baja a 630 y empieza justo donde acaba la banda. El documento no
-desplaza en ningún eje.
+La migración se aplicó **a producción** con `apply_migration` antes de fusionar, porque no hay
+entorno de pruebas. El archivo del repositorio es idéntico a lo aplicado, y su prefijo coincide
+con la versión del historial remoto: `20260919040657`.
 
 ---
 
-## PESO DEL PAQUETE
+## LA PRUEBA, ANTES Y DESPUÉS
 
-Medido con `vite build` y sin `NODE_ENV` en la terminal.
+Todo medido contra la base de producción, que es la única que hay.
 
-| Qué                      |     Crudo |    Comprimido |
-| :----------------------- | --------: | ------------: |
-| `index-*.js`             | 572,51 kB | **166,26 kB** |
-| `index-*.css`            |  11,61 kB |   **3,12 kB** |
-| `workbox-window`         |   5,65 kB |   **2,20 kB** |
-| **Paquete inicial**      |           | **171,58 kB** |
-| `core-*` (perezoso, A02) |   2,36 kB |       1,06 kB |
-| `auth-*` (perezoso)      |   0,79 kB |       0,47 kB |
+**1 · Privilegios.** `has_function_privilege` sobre las ocho funciones:
 
-La T-104 cerró en 167,83 kB, así que **la PWA cuesta 3,75 kB** y quedan **28,4 kB** de los
-200 kB del DOC 06 §10.3. Lo que falta por entrar ahí: A12 de verdad (T-207 y T-208) y Dexie
-(T-206).
+| Rol             | Antes                                                         | Después               |
+| :-------------- | :------------------------------------------------------------ | :-------------------- |
+| `anon`          | cierto en `rls_auto_enable`, falso en las siete de disparador | **falso en las ocho** |
+| `authenticated` | cierto en las ocho                                            | **falso en las ocho** |
+| `service_role`  | cierto en las ocho                                            | cierto en las ocho    |
 
-**La precaché es otra cifra y conviene no confundirlas: 641,88 KiB sin comprimir, en 17
-entradas.** Es lo que se descarga al instalar, y la instalación puede pasar en el campo. El
-paquete inicial mide lo que cuesta abrir; la precaché, lo que cuesta instalar.
+**2 · El auditor de Supabase** (`get_advisors`, tipo `security`):
+
+| Aviso                                      | Antes | Después                                |
+| :----------------------------------------- | ----: | :------------------------------------- |
+| `0028` · lo puede ejecutar `anon`          |     1 | **desaparece**                         |
+| `0029` · lo puede ejecutar `authenticated` |    19 | **11**, y ninguno es de las ocho       |
+| `extension_in_public` (`btree_gist`)       |     1 | 1 · ya estaba, es el punto 12 de abajo |
+| `auth_leaked_password_protection`          |     1 | 1 · ya estaba, ajeno a esta migración  |
+
+**Ningún aviso nuevo.** Los once que quedan del `0029` son las funciones auxiliares y de RPC
+—`can_read_club`, `can_read_team`, `has_club_permission`, `has_team_permission`,
+`is_club_member`, `is_platform_admin`, `is_team_follower`, `is_team_member`, `team_of_match`,
+`rebuild_match_stints` y `flag_duplicate_candidates`—, que sí necesitan el `EXECUTE` porque las
+llaman las políticas RLS y el cliente.
+
+**3 · Nada se rompió.** Veintiocho disparadores de veintiocho con `tgenabled = 'O'`. El
+disparador de eventos `ensure_rls`, con `evtenabled = 'O'`. Las ocho huellas `md5(prosrc)`,
+idénticas antes y después: ninguna definición se tocó.
+
+**4 · Dos pruebas funcionales, porque razonar no basta.**
+
+- **Antes de aplicar**, en una prueba aparte: una tabla con un disparador `BEFORE INSERT` cuya
+  función no tenía `EXECUTE` ni para PUBLIC ni para `authenticated`. Se insertó con `set local
+role authenticated` y el disparador saltó igual —el valor entró como 2 en vez de como 1—.
+  Ahí queda demostrado que PostgreSQL comprueba `EXECUTE` al **crear** el disparador, no al
+  dispararlo.
+- **Después de aplicar**: una tabla nueva en `public` nació con `relrowsecurity = true`. El
+  disparador de eventos sigue haciendo su trabajo sin el `EXECUTE` que se le quitó. Los objetos
+  de las dos pruebas se borraron en el acto.
+
+**5 · Los tipos generados no se mueven.** `src/types/database.types.ts` del repositorio y los
+recién generados desde Supabase coinciden byte a byte, mismo SHA-256, 61 580 bytes y 1964
+líneas. Es lo que se espera de una migración de solo permisos; si hubieran cambiado, habría
+que haber parado.
+
+**6 · Local en verde.** `npm run lint` (0 avisos y 0 errores sobre 151 reglas en 38 archivos),
+`npx prettier --check .` y `npm run build`. El build repite las cifras de la T-102: 572,51 kB
+en crudo y 166,26 kB comprimidos de JavaScript, 11,61 kB y 3,12 kB de CSS, y
+`precache 17 entries (641.88 KiB)`.
 
 ---
 
 ## DECISIONES TOMADAS
 
-**El marco de la ventana sube un piso, y toca código cerrado en la T-104.** Para que la banda de
-actualización no tape el elemento enfocado (criterio 2.4.11) sin recurrir a `position: fixed`,
-el marco de `100dvh` vive ahora en `App` y las tres maquetas pasan a llenar el hueco que les
-deja. Sin eso, cada maqueta seguiría reclamando la ventana entera y la barra de navegación se
-saldría por debajo del borde cada vez que apareciera el aviso. Es la misma lógica que llevó a
-quitar el `position: fixed` de la barra en la T-104: no calcular alturas que luego cambian.
-Se revierte tocando cuatro archivos.
+**El punto 3 no obligaba a meter una función de Supabase en el repositorio.** El traspaso
+anterior daba por hecho que revocar `rls_auto_enable()` significaba redefinirla, y por eso
+llevaba una semana parado. `REVOKE` trabaja sobre la firma y no sobre el cuerpo: se revoca sin
+copiar nada de la plataforma. La pega no existía.
 
-**La banda no lleva región viva propia.** El DOC 06 §6.3 exige una sola en toda la aplicación,
-la de `AnnounceProvider`. Esto es interfaz persistente, no un mensaje de estado: se anuncia una
-vez por `anunciar()` y ya.
+**Se revoca de `public`, no solo de `anon`, y esto es lo que de verdad decide el punto 3.** El
+permiso de `anon` no era una concesión suya: era la de PUBLIC, ese `=X/postgres` sin nombre
+delante que aparecía en la ACL. Un `revoke ... from anon` a secas habría dejado el aviso donde
+estaba y la sesión habría cerrado creyendo que arreglaba algo. Es la regla que ya dejó el
+endurecimiento del 11/09 (DOC 05 §14.1), y van tres veces que la misma trampa aparece.
 
-**No se pinta el «lista para trabajar sin conexión».** `vite-plugin-pwa` lo ofrece y es la
-tentación fácil. Esa promesa la hace de verdad la precarga del partido de la T-206; decirla hoy,
-con la aplicación sin datos locales, sería mentirle a quien está a pie de campo.
+**Se revoca también el `EXECUTE` de `authenticated` sobre `rls_auto_enable()`.** El punto 3
+hablaba solo de `anon`, pero el auditor la marcaba dos veces y el criterio era que el aviso
+desapareciera. A una función de disparador de eventos no la llama nadie por RPC.
 
-**Sin `includeAssets`.** Todo lo de `public/` se copia a `dist/` y `globPatterns` ya caza ahí
-los `.svg` y los `.png`. Declararlo además duplicaba cinco entradas en el manifiesto de
-precaché: Workbox las deduplica, pero la lista mentía sobre lo que hay.
+**`service_role` conserva el suyo en las ocho.** Es la llave del servidor, no sale al
+frontend y el auditor no la marca. Quitárselo no arregla nada y puede romper mantenimiento
+futuro.
 
-**`mobile-web-app-capable` junto a la de Apple.** Chrome da `apple-mobile-web-app-capable` por
-obsoleta y avisa por consola si va sola. Van las dos: iOS lee la suya.
+**`set_updated_at()` se queda fuera, y es discutible.** Es la octava función de disparador y
+arrastra el mismo `EXECUTE` de `authenticated` que sobra. Quedó fuera por dos razones: el
+auditor no la marca —es `SECURITY INVOKER`, así que llamarla a mano no salta la RLS— y el
+alcance escrito eran siete funciones, no ocho. Cuesta una línea y el riesgo es cero, ya está
+demostrado; se deja para que lo decida una persona en vez de ampliar el alcance de madrugada.
 
-**Los iconos llegaron con metadatos de procedencia incrustados, y se quitaron.** Se generaron
-fuera de la máquina y el traslado les metió un trozo `caBX` con un manifiesto C2PA: 5 758 bytes
-en cada PNG, o sea 7,5 kB para un icono de 192 px, más 7,8 kB en el favicon. Quitados los
-trozos no esenciales, la precaché bajó de 672 a 641,88 KiB. **Aviso para la próxima vez que un
-binario entre al repositorio desde fuera de la máquina: comprueba el tamaño antes de
-commitearlo.**
+**Una sola migración para los dos puntos.** Son el mismo tipo de cambio y comparten el
+razonamiento. Partirla en dos archivos habría duplicado el comentario sin ganar nada.
+
+**Se aplicó a producción antes de fusionar.** No hay entorno de pruebas, así que el archivo del
+repositorio documenta lo aplicado y no una intención. Con la comprobación de antes y después
+hecha en la misma sesión, el orden inverso —fusionar y luego aplicar— dejaría una ventana en la
+que el repositorio miente.
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-| Deuda                                                                              | Estado                                                                                   |
-| :--------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
-| **El aviso de versión nueva sale también en mitad de un partido**                  | **Abierta hasta la T-207.** Ver abajo, porque contradice una regla de producto           |
-| El criterio «Lighthouse ≥ 90 en PWA» del DOC 08 ya no se puede medir               | **Cerrada aquí**: el DOC 08 v1.7 lo reescribe por lo que aquella categoría medía         |
-| `vite build` avisa de que el trozo inicial pasa de 500 kB en crudo                 | Asumida desde la T-104. El aviso dice la verdad y es el único control automático que hay |
-| El marco de la ventana en `App` es una pieza más entre el enrutador y las maquetas | Asumida. Es lo que permite que cualquier banda futura no tape el foco                    |
+Esta migración no genera deuda nueva de esquema. Lo que sí deja es esto:
 
-**La deuda del aviso, con detalle, porque choca con una regla de producto.** La decisión D06-14
-dice que mientras haya un partido en curso el aviso se guarda y no se muestra. El estado de
-partido no existe todavía —es la T-207— y no se inventó. Hoy, si se despliega una corrección
-con el directo abierto, la banda aparece y le quita alto a la pantalla que, según las reglas de
-producto, no cede ante nada. El punto de enganche está comentado en
-`ActualizacionDisponible.tsx` y es una línea: `if (!hayVersionNueva || partidoEnCurso) return
-null;`. **Quien coja la T-207 tiene que cerrarla.**
+| Deuda                                                                                     | Estado                                                             |
+| :---------------------------------------------------------------------------------------- | :----------------------------------------------------------------- |
+| **`npm run db:types` destruye el archivo de tipos cuando el CLI falla**                   | **Abierta.** Ver abajo, que muerde                                 |
+| `set_updated_at()` con el `EXECUTE` de `authenticated` que sobra                          | Abierta. Una línea en la próxima migración que toque permisos      |
+| Si Supabase recrea `rls_auto_enable()` con `DROP` + `CREATE`, el permiso de PUBLIC vuelve | Asumida. Mirar el auditor tras cada actualización de la plataforma |
+
+**La del `db:types`, con detalle, porque pasó de verdad hoy.** El script es
+`supabase gen types typescript --project-id ... > src/types/database.types.ts`. El `>` crea el
+archivo vacío **antes** de que el comando escriba nada, así que si el comando falla —hoy falló
+por no haber `SUPABASE_ACCESS_TOKEN` en el entorno ni sesión de `supabase login`— el archivo se
+queda en cero bytes y el fallo parece un borrado misterioso. Se restauró con
+`git checkout -- src/types/database.types.ts`, y la comprobación de tipos de esta sesión se hizo
+por el MCP de Supabase. **Antes de tocar ese script, haz copia.** La salida buena es escribir a
+un temporal y mover solo si el comando termina bien.
 
 ---
 
 ## LO QUE SIGUE ABIERTO DE SESIONES ANTERIORES
 
-Nada de esto se ha tocado hoy, y se pierde si no se arrastra. **Dos puntos de la lista anterior
-se han cerrado con esta tarea** y ya no están: el subconjunto de Inter y el `<title>scaffold</title>`
-de `index.html` con el favicon de la plantilla.
+Nada de esto se ha tocado hoy, y se pierde si no se arrastra. **Tres puntos de la lista
+anterior ya no están:** los puntos 3 y 4 los cierra esta sesión —`rls_auto_enable()` y el
+`EXECUTE` de las siete funciones de disparador—, y el 5 lo cerró la PR #27, que puso al día la
+columna «Fase» del DOC 02 §2.
 
 Pendiente de decidir, que no lo decide el código:
 
@@ -155,12 +176,15 @@ Pendiente de decidir, que no lo decide el código:
 
 Pendiente de hacer:
 
-3. **Decidir qué hacer con `public.rls_auto_enable()`**, la función de la plataforma que el
-   auditor de Supabase marca como ejecutable por `anon`. Riesgo práctico bajo; la salida
-   —revocarla desde una migración— mete en el repositorio una función que gestiona Supabase.
-4. **Quitar el `grant execute` a `authenticated` de las siete funciones de disparador**, que no
-   lo necesitan. Siete líneas en la próxima migración de endurecimiento.
-5. La columna «Fase» del DOC 02 §2 sigue desfasada en A15, A16 y el Bloque B.
+3. **El aviso de versión nueva sale también en mitad de un partido**, y eso contradice la
+   decisión D06-14: mientras haya partido en curso, el aviso se guarda y no se muestra. El
+   estado de partido no existe todavía —es la T-207— y no se inventó. El punto de enganche está
+   comentado en `ActualizacionDisponible.tsx` y es una línea:
+   `if (!hayVersionNueva || partidoEnCurso) return null;`. **Quien coja la T-207 tiene que
+   cerrarla.** Viene de la T-102.
+4. **`set_updated_at()` arrastra el `EXECUTE` de `authenticated` que no necesita.** Una línea en
+   la próxima migración de permisos. Nace hoy, con la explicación en el DOC 05 §14.3.
+5. **`npm run db:types` deja el archivo de tipos a cero bytes si el CLI falla.** Nace hoy.
 6. Marcar `event.approve` a quien lleve el registro, cuando exista la T-301.
 7. Los cubos de Storage `crests` y `docs`, sin crear.
 8. `vitest` instalado sin bloque `test` en `vite.config.ts` ni paso de CI. Entra con la primera
@@ -180,20 +204,25 @@ Pendiente de hacer:
     comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones
     repetidas viviendo solo en el retorno de la función.
 
+Asumidas y sin fecha, que no son tareas pero conviene no olvidar: `vite build` avisa de que el
+trozo inicial pasa de 500 kB en crudo —el aviso dice la verdad y es el único control automático
+que hay—, y el marco de la ventana vive en `App` como una pieza más entre el enrutador y las
+maquetas, que es lo que permite que ninguna banda tape el elemento enfocado.
+
 ---
 
 ## SIGUIENTE TAREA SUGERIDA
 
-**T-105**, acceso con Google. Ya no hay alternativa cómoda: la T-102 y la T-104 están cerradas,
-y de las tres tareas desbloqueadas de la Fase 1 —T-105, T-106 y T-107—, la T-105 es la única que
-desatasca las veinte rutas que hoy se quedan en «Cargando…». Sin ella, la T-106 y la T-107 se
-prueban a ciegas y toda la Fase 2 sigue parada.
+**T-105**, acceso con Google. Sigue siendo la única que desatasca las veinte rutas que hoy se
+quedan en «Cargando…». Sin ella, la T-106 y la T-107 se prueban a ciegas y toda la Fase 2 sigue
+parada.
 
-**Y una advertencia de método, que es lo que más importa de este traspaso:** el viaje completo
-del acceso con Google **necesita una persona delante**. Una sesión automática puede escribir el
-código, montar el proveedor y comprobar que la redirección a Google sale bien, pero el clic en
-la pantalla de cuenta y la aceptación de permisos no los da una máquina. **No programes la
-T-105 para que corra sola de madrugada:** llegará hasta la redirección y ahí se planta.
+**Y el aviso de método, otra vez, porque es lo que más se pierde entre traspasos: la T-105 no
+se puede dejar corriendo sola.** Una sesión automática escribe el código, monta el proveedor y
+comprueba que la redirección a Google sale bien, pero el clic en la pantalla de cuenta y la
+aceptación de permisos los da una persona. **No la programes de madrugada:** llega hasta la
+redirección y ahí se planta. Ya van dos sesiones eligiendo otra cosa por este motivo; la
+siguiente tiene que ser con Raúl delante.
 
 Cuatro avisos para quien la coja:
 
@@ -225,34 +254,45 @@ npx prettier --check .
 npm run build
 ```
 
-El build tiene que terminar en verde, **sin el aviso de la fuente que faltaba**, y decir
-`572.51 kB` en crudo y `166.26 kB` comprimidos de JavaScript, más `11.61 kB` y `3.12 kB` de CSS.
-Al final, `precache 17 entries (641.88 KiB)`. Si sale bastante más, `NODE_ENV` volvió a colarse.
+El build tiene que terminar en verde y decir `572.51 kB` en crudo y `166.26 kB` comprimidos de
+JavaScript, más `11.61 kB` y `3.12 kB` de CSS. Al final, `precache 17 entries (641.88 KiB)`. Si
+sale bastante más, `NODE_ENV` volvió a colarse. **Y ojo con `set NODE_ENV=` en `cmd`:** deja la
+variable a cadena vacía, empaqueta React en modo desarrollo y el mismo build da 794 kB y 230 kB
+comprimidos. La forma buena es `Remove-Item Env:\NODE_ENV` en PowerShell.
 
-**Ojo con cómo se lanzan estos comandos si vas por una terminal automatizada:** `set NODE_ENV=`
-en `cmd` deja la variable a cadena vacía, y eso empaqueta React en modo desarrollo igual que
-`development`. Con esa medición el mismo build da 794 kB y 230 kB comprimidos, y parece que el
-presupuesto ha reventado. La forma buena es `Remove-Item Env:\NODE_ENV` en PowerShell.
+**`npm run db:types` NO se lanza a la ligera.** Sin `SUPABASE_ACCESS_TOKEN` en el entorno o sin
+`supabase login`, el comando falla y el `>` del script deja `src/types/database.types.ts` en
+cero bytes. Si pasa: `git checkout -- src/types/database.types.ts`.
 
-Después, la PWA de verdad (el service worker no corre en `npm run dev`, va apagado a propósito):
+Para volver a comprobar los permisos de esta sesión, en el editor SQL de Supabase:
 
-```powershell
-npm run preview
+```sql
+select p.proname,
+       coalesce(array_to_string(p.proacl, ' | '), '<<NULL>>') as acl,
+       has_function_privilege('anon', p.oid, 'execute')          as anon_puede,
+       has_function_privilege('authenticated', p.oid, 'execute') as auth_puede
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('rls_auto_enable','audit_row','backfill_event_seconds',
+                    'enforce_match_changes','handle_new_user','set_event_seconds',
+                    'set_match_club_id','validate_match_event')
+order by p.proname;
 ```
 
-1. Abrir `http://localhost:4173`: la consola tiene que quedar limpia.
-2. `await navigator.serviceWorker.getRegistration()` da un registro activo con ámbito `/`.
-   Recargar, y `navigator.serviceWorker.controller` deja de ser nulo.
-3. `document.fonts.check('16px Inter')` da `true`.
-4. Pestaña Application: manifiesto sin errores, los tres iconos resueltos, `display: standalone`.
-5. Estrechar a 320 px y poner el texto al 200 %: sin desplazamiento horizontal.
+Las ocho tienen que salir con `postgres=X/postgres | service_role=X/postgres` y las dos
+columnas de la derecha en falso. Y los disparadores, todos vivos:
 
-Para ver el esqueleto de navegación por dentro sigue haciendo falta sesión, y la sesión es la
-T-105.
+```sql
+select count(*) filter (where tgenabled = 'O') as activos, count(*) as total
+from pg_trigger t
+join pg_proc p on p.oid = t.tgfoid
+join pg_namespace n on n.oid = p.pronamespace
+where not t.tgisinternal and n.nspname = 'public';
+```
 
-**El panel de navegador de la aplicación de Claude no registra service workers** —da «An unknown
-error occurred when fetching the script»—. Es limitación de ese panel, no de la aplicación: en
-Chrome de verdad funciona. Si vas a comprobar la PWA, hazlo en Chrome.
+Veintiocho de veintiocho. El auditor, con `get_advisors` de tipo `security`: sin el aviso
+`0028` y con once hallazgos del `0029`, ninguno de las ocho funciones de arriba.
 
 ---
 
@@ -260,5 +300,5 @@ Chrome de verdad funciona. Si vas a comprobar la PWA, hazlo en Chrome.
 
 Sigue vigente, y **la siguiente tarea es justo la que lo pisa**: al abrir el panel del proveedor
 de Google en Supabase, **Chrome autorrellena «Client IDs» y «Client Secret»** con credenciales
-guardadas. Vacía los dos campos antes de tocar nada; si se pulsa «Save» con eso dentro, tu
+guardadas. **Vacía los dos campos antes de tocar nada.** Si se pulsa «Save» con eso dentro, tu
 contraseña acaba escrita en la configuración del proveedor.
