@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -28,16 +28,16 @@ React 19 + Vite 8 + TypeScript 6 con la plantilla `react-ts`, `oxlint`, Prettier
 
 Columna de estado al cerrar la **T-102**. Las decisiones de este documento no cambian; lo que cambia es cuánto de ellas está ya en el repositorio.
 
-| Pieza                | Estado                                                                           |
-| :------------------- | :------------------------------------------------------------------------------- |
-| Enrutador            | **Hecho** en la T-104: `src/app/router.tsx`. Se decide en §6                     |
-| Cliente de Supabase  | **Hecho**: `src/shared/lib/supabase.ts`. Se decide en §7                         |
-| Caché de lectura     | **Hecha** en la T-104: `app/providers/QueryProvider.tsx`. Se decide en §5        |
-| Almacén local y cola | Dexie instalado, sin esquema local. Es la T-206. Se decide en §8                 |
-| `vite-plugin-pwa`    | **Hecho** en la T-102: manifiesto, iconos y service worker. Se decide en §8.7    |
-| Pruebas              | Vitest instalado, sin bloque en `vite.config.ts` ni paso de CI. Se decide en §11 |
-| Esquema de la base   | **Aplicado** a GavetaStats: cuatro migraciones (DOC 05 §14)                      |
-| Login con Google     | Cliente de OAuth configurado (DOC 10 §4); sin enchufar a la aplicación (T-105)   |
+| Pieza                | Estado                                                                               |
+| :------------------- | :----------------------------------------------------------------------------------- |
+| Enrutador            | **Hecho** en la T-104: `src/app/router.tsx`. Se decide en §6                         |
+| Cliente de Supabase  | **Hecho**: `src/shared/lib/supabase.ts`. Se decide en §7                             |
+| Caché de lectura     | **Hecha** en la T-104: `app/providers/QueryProvider.tsx`. Se decide en §5            |
+| Almacén local y cola | Dexie instalado, sin esquema local. Es la T-206. Se decide en §8                     |
+| `vite-plugin-pwa`    | **Hecho** en la T-102: manifiesto, iconos y service worker. Se decide en §8.7        |
+| Pruebas              | **Hecho** el 19/09: bloque `test` en `vite.config.ts` y paso de CI. Se decide en §11 |
+| Esquema de la base   | **Aplicado** a GavetaStats: cuatro migraciones (DOC 05 §14)                          |
+| Login con Google     | Cliente de OAuth configurado (DOC 10 §4); sin enchufar a la aplicación (T-105)       |
 
 ### 2.3 Dependencias que se añaden
 
@@ -102,6 +102,8 @@ App/
 │   │   ├── lib/                  # supabase.ts, db.ts, env.ts, time.ts
 │   │   └── utils/
 │   ├── styles/                   # tokens y hojas globales (DOC 07)
+│   ├── test/
+│   │   └── setup.ts              # preparación común de Vitest (§11)
 │   └── types/
 │       └── database.types.ts     # generado desde Supabase, nunca a mano
 └── index.html
@@ -636,6 +638,21 @@ Ninguna está aplicada. La medición real de la T-104 dejó margen de sobra y ap
 **D06-20 · Vitest más Testing Library desde la primera tarea de código.**
 Con jsdom, `@testing-library/user-event` y `fake-indexeddb` para la cola. Script `npm run test`, y `npm run test -- --run` en el workflow de CI junto al lint y el build.
 
+**Montado el 19/09/2026**, y esto es lo que hay:
+
+| Pieza         | Dónde                                                                              |
+| :------------ | :--------------------------------------------------------------------------------- |
+| Configuración | Bloque `test` en `vite.config.ts`, no en un `vitest.config.ts` aparte              |
+| Entorno       | `jsdom`                                                                            |
+| Preparación   | `src/test/setup.ts`: comparadores de `@testing-library/jest-dom` y limpieza de RTL |
+| Guion         | `npm run test` en `package.json`                                                   |
+| CI            | Paso «Pruebas» con `npm run test -- --run`, dentro del trabajo «Lint y build»      |
+| Cobertura     | `v8`, informes `text` y `html`, **sin umbrales**                                   |
+
+La configuración vive en `vite.config.ts` para que los alias de `resolve` sean literalmente los mismos que usa la aplicación. Un `vitest.config.ts` aparte obligaría a mantener el mapa de alias por tercera vez —ya son dos, con `tsconfig.app.json`— y una desviación entre ellos compila pero no arranca.
+
+**Sin `globals: true`.** Cada prueba importa de `vitest` lo que usa, igual que cualquier otro módulo del proyecto, así que no hace falta ampliar los `types` de `tsconfig.app.json` y `tsc -b` comprueba las pruebas tal cual. El precio: Testing Library no puede engancharse sola a un `afterEach` global, y la limpieza del DOM se registra a mano en `src/test/setup.ts`.
+
 Para que no se coma la ruta crítica hasta el 25 de octubre, el alcance va acotado por escrito:
 
 | Qué                                                                              | ¿Se prueba?                     |
@@ -650,7 +667,14 @@ La regla en una línea: **si un fallo ahí pierde un dato, se prueba.**
 
 Los dobles se ponen en la frontera de `api/`, que es estrecha y propia. Se descartó **MSW**: interceptar peticiones HTTP obliga a imitar la forma de las respuestas de PostgREST, que es un detalle de implementación de Supabase y cambia sin avisar. Simular la función `insertMatchEvent` es más estable y más rápido.
 
-Nada de perseguir un porcentaje de cobertura. Se mide, se mira y no se convierte en objetivo.
+Nada de perseguir un porcentaje de cobertura. Se mide, se mira y no se convierte en objetivo. Por eso la cobertura se configura sin umbrales: uno solo consigue romper la construcción por una cifra que nadie ha acordado, y el camino corto para arreglarlo son pruebas que tocan líneas sin comprobar nada.
+
+**D06-20b · La primera prueba es de `env.ts`, no del `model/` de `match`.**
+La tabla de arriba sigue mandando: el `model/` se prueba siempre y sin excepción. Pero al montar el arnés ese módulo todavía no existía —llega con la T-207— y montar el arnés sin nada que probar es dejarlo a medias otra vez. `shared/lib/env.ts` encaja con la regla de la línea: es lógica pura, sin React ni red, valida las tres variables de entorno al arrancar y su trabajo es romper pronto y con un mensaje claro cuando un despliegue está mal configurado. Un fallo ahí no se ve hasta producción.
+
+Diecisiete casos cubren las tres variables correctas, cada una faltando o con solo espacios, una URL sin `https`, una que ni siquiera es una URL, un entorno fuera de la lista y varios fallos a la vez. Tres de ellos vigilan que la clave anónima **nunca** aparezca en el mensaje de error: `env.ts` la omite a propósito (§12) y es lo primero que rompe una refactorización que busque «mensajes más útiles».
+
+**`env.ts` no se toca para hacerlo más cómodo de probar.** Lanza desde el cuerpo del módulo por la D06-21: el fallo tiene que ocurrir al arrancar. La prueba se adapta a eso —`vi.resetModules()`, `vi.stubEnv()` y un `await import()` por caso, con las tres variables fijadas siempre para que un `.env.local` de la máquina no cambie el resultado—, y esa forma vale de plantilla para cualquier otro módulo que valide al importarse.
 
 ---
 
