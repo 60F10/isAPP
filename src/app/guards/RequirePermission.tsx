@@ -11,7 +11,9 @@
 import { Navigate, Outlet } from 'react-router';
 
 import { LoadingState } from '@app/components/LoadingState';
-import { useHasPermission } from '@app/providers/authContext';
+// Ruta directa y NO el barril `@modules/auth`: misma razón que en
+// `RequireAuth` (DOC 06 §4.1, regla 1 y DOC 13, hallazgo 3).
+import { useHasPermission } from '@modules/auth/hooks/authContext';
 
 interface RequirePermissionProps {
   /** Permiso del DOC 05 §4, por ejemplo `roster.manage`. */

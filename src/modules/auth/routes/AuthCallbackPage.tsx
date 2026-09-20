@@ -6,17 +6,18 @@
 //
 // Qué ocurre aquí: el cliente de Supabase canjea el código que Google deja en
 // la dirección —`detectSessionInUrl`, en `shared/lib/supabase.ts`— y limpia la
-// barra del navegador. `fetchSesionActual()` espera a ese canje, así que su
-// respuesta ya es definitiva: o hay sesión, o el acceso se quedó por el
-// camino.
+// barra del navegador. Ese canje es el mismo que hace `AuthProvider` al
+// arrancar, así que esta pantalla pregunta al contexto de sesión en vez de
+// mantener su propia lectura: mientras `cargando` sea `true` el canje sigue
+// en marcha, y en cuanto termina `session` ya es la respuesta definitiva.
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { Pantalla } from '@shared/ui/Pantalla';
 
 import { recogerDestino } from '../api/session';
-import { fetchSesionActual } from '../api/sesionActual';
+import { useAuth } from '../hooks/authContext';
 
 const MENSAJE_FALLO = 'El acceso no llegó a completarse.';
 
@@ -38,40 +39,25 @@ function codigoDeError(): string | null {
 
 export function AuthCallbackPage() {
   const navigate = useNavigate();
-  const [fallo, setFallo] = useState<string | null>(null);
+  const { session, cargando } = useAuth();
+
+  // Derivado del contexto, no un `useState`: mientras `cargando` sea `true`
+  // el canje del código sigue en marcha, y en cuanto termina `session` ya es
+  // la respuesta definitiva.
+  const fallo = cargando || session !== null ? null : MENSAJE_FALLO;
 
   useEffect(() => {
-    let montado = true;
+    if (cargando || session === null) {
+      return;
+    }
 
-    void fetchSesionActual()
-      .then((sesion) => {
-        if (!montado) {
-          return;
-        }
+    // `replace` a propósito: sin él, el botón de atrás devolvería a esta
+    // pantalla, que ya no tiene código que canjear y acabaría enseñando un
+    // fallo que no ha ocurrido.
+    const destino = recogerDestino();
 
-        if (sesion === null) {
-          setFallo(MENSAJE_FALLO);
-
-          return;
-        }
-
-        // `replace` a propósito: sin él, el botón de atrás devolvería a esta
-        // pantalla, que ya no tiene código que canjear y acabaría enseñando
-        // un fallo que no ha ocurrido.
-        const destino = recogerDestino();
-
-        navigate(destino === null ? '/' : destino, { replace: true });
-      })
-      .catch(() => {
-        if (montado) {
-          setFallo(MENSAJE_FALLO);
-        }
-      });
-
-    return () => {
-      montado = false;
-    };
-  }, [navigate]);
+    navigate(destino === null ? '/' : destino, { replace: true });
+  }, [cargando, session, navigate]);
 
   if (fallo === null) {
     return (
