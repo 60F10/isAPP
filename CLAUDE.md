@@ -21,9 +21,13 @@ Desde la **T-104** está el enrutado y el andamiaje ya no existe. `src/app/` tie
 
 Desde la **T-102** es una PWA instalable: `vite-plugin-pwa` con `registerType: 'prompt'` en `vite.config.ts`, manifiesto e iconos en `public/`, Inter autoalojada en `public/fonts/InterVariable-latin.woff2`, los metadatos de `index.html` y la banda `ActualizacionDisponible` que ofrece la versión nueva. El service worker **no cachea jamás** la API (decisión D06-09): no hay ni una regla de `runtimeCaching`, y no se añade. El marco de la ventana vive en `App.module.css` y las maquetas llenan el hueco que les deja, para que ninguna banda tape el elemento enfocado.
 
-**Ojo con dos cosas al escribir pantallas ahora mismo:** `AuthProvider` solo trae la sesión, así que `permisos` vale `null` y toda ruta con `RequirePermission` se queda en «Cargando…» hasta la T-105. Y el paquete inicial mide **171,58 kB comprimidos** de los 200 kB del presupuesto: quedan 28 kB para A12 de verdad y Dexie.
+Desde la **T-105** se entra con Google de verdad. `AuthProvider` trae sesión, perfil, equipos, equipo activo, temporada activa y permisos; `src/modules/auth/` tiene ya sus carpetas `api/` y `model/`, y la vuelta de Google aterriza en `/auth/callback`. **Dos reglas que no se pueden romper al tocar esto:** `permisos` vale `null` mientras la consulta no conteste y un conjunto —vacío incluido— a partir de ahí, porque rellenarlo antes manda a `/403` a quien sí tiene el permiso; y los permisos salen solo de `team_member_permissions` del equipo activo, sin regalarle ninguno al administrador de plataforma, que en la base tampoco los tiene.
 
-Siguiente tarea de código: **T-105**, acceso con Google. Es la que desatasca las veinte rutas que hoy se quedan en «Cargando…», y **necesita a una persona delante**: el clic en la pantalla de cuenta de Google no lo da una sesión automática.
+**Ojo con dos cosas al escribir pantallas ahora mismo:** el paquete inicial mide **175,19 kB comprimidos** de los 200 kB del presupuesto, así que quedan unos 25 kB para A12 de verdad y Dexie. Y `app/providers/AuthProvider.tsx` importa de `@modules/auth` **por ruta directa y no por el barril**: hacerlo por el barril arrastra las pantallas de `auth` al paquete inicial y el build avisa con `INEFFECTIVE_DYNAMIC_IMPORT`.
+
+**Los datos hay que sembrarlos.** El esquema no deja arrancar solo: crear un club lo permite la RLS, crear el equipo dentro exige `team.manage`, y ese permiso no existe hasta que hay `team_members`. `supabase/seed.sql` rompe ese ciclo y se lanza a mano desde el panel de Supabase. Sin él, se entra y las veinte rutas mandan a `/403`.
+
+Siguiente tarea de código: **T-106**, error boundary y escritura en `error_logs`. Cierra dos deudas que la T-105 deja escritas: el `errorContexto` que nadie pinta y el error de entorno sin interfaz. Antes conviene hacer la **T-105b**, la prueba de aislamiento entre clubes, que ahora por fin tiene un primer club que no ver.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 

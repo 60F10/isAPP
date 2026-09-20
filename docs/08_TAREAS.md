@@ -68,7 +68,7 @@ Veintiuna tareas. **T-301 y T-302 no son opcionales**: con cuatro anotadores en 
 | **T-102**  | PWA y metadatos: `vite-plugin-pwa`, manifiesto, iconos, precaché de la fuente, instalable de verdad          | —         | T-101      | 1        | `feat/platform-pwa-y-metadatos`   | ✅     |
 | **T-103**  | `tokens.css`, `Icon` con los 21 SVG ya dibujados, `Button`, `Field`, `Card`, `Toast`, `StatusChip`           | —         | T-101      | 1        | `feat/platform-sistema-diseno`    | ✅     |
 | **T-104**  | Enrutado, guardias de sesión y permiso, esqueleto de navegación, foco al navegar, división del paquete       | A02       | T-103      | 1        | `feat/platform-enrutado`          | ✅     |
-| **T-105**  | Acceso con Google en la aplicación, sesión, equipo activo y permisos en memoria                              | A01       | T-104      | 1        | `feat/auth-login-google`          | ⬜     |
+| **T-105**  | Acceso con Google en la aplicación, sesión, equipo activo y permisos en memoria                              | A01, A01b | T-104      | 1        | `feat/auth-login-google`          | ✅     |
 | **T-105b** | Prueba de aislamiento entre clubes: segundo club, otro usuario, y que no vea nada del primero                | —         | T-105      | 0,5      | —                                 | ⬜     |
 | **T-106**  | Error boundary, escritura en `error_logs` y aviso de sesión a punto de expirar                               | C03       | T-104      | 1        | `feat/logging-captura-errores`    | ⬜     |
 | **T-107**  | Ajustes de usuario: alto contraste, movimiento reducido, cierre de sesión                                    | C01       | T-103      | 0,5      | `feat/platform-ajustes`           | ⬜     |
@@ -79,7 +79,11 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 
 **Por qué la proyección se quedaba corta.** La T-101 daba 190,27 kB y la T-103 sumaba unos 5 kB del sistema de diseño, o sea unos 195 kB para el arranque de la T-104. Aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie todavía**: entra con la T-206.
 
-**Y la T-102 se comió 3,75 kB de ese margen.** El paquete inicial está ahora en **171,58 kB comprimidos**, contando el trozo de `workbox-window`. Quedan **28,4 kB** para A12 de verdad (T-207 y T-208) y Dexie (T-206). La medición completa está en el DOC 13.
+**Y la T-102 se comió 3,75 kB de ese margen.** El paquete inicial quedó entonces en **171,58 kB comprimidos**, contando el trozo de `workbox-window`.
+
+**La T-105 se comió otros 3,61 kB.** El paquete inicial está ahora en **175,19 kB comprimidos**: 169,87 de JavaScript, 3,12 de CSS y 2,20 de `workbox-window`. Quedan **24,81 kB** para A12 de verdad (T-207 y T-208) y Dexie (T-206). La medición completa está en el DOC 13.
+
+**La T-105 cerró con una persona delante**, que era su condición desde el primer día: el clic en la pantalla de cuenta de Google no lo da una sesión automática. Trajo además una pieza que no estaba en la tarea y sin la cual no se podía verificar: `supabase/seed.sql`, con el club, la temporada, el equipo y los doce permisos, porque la base estaba vacía y sin filas las veinte rutas mandaban a `/403`. El porqué está en el DOC 13.
 
 **La T-102, además, apagó la deuda de la fuente.** Inter vive autoalojada en `public/fonts/InterVariable-latin.woff2`, subconjunto latino del eje variable, 48 kB, y entra en la precaché. Con eso se van los tres avisos que arrastrábamos desde la T-101: los dos por carga del navegador y el de `vite build`.
 
