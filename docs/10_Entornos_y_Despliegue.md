@@ -1,6 +1,6 @@
 # DOC 10 — Entornos y despliegue
 
-> **Versión:** 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
+> **Versión:** 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
 > **Depende de:** DOC 05 (modelo de datos), DOC 06 (arquitectura frontend), DOC 15 (convenciones de Git)
 >
 > Esta versión registra **la configuración real de los servicios externos** tal como quedó al montar Supabase. El resto del documento —deploy previews, checklist de publicación, procedimiento de vuelta atrás— está por escribir; ver §7.
@@ -137,6 +137,10 @@ Si algún día el proyecto pasa a plan de pago, activar el add-on cambia el `red
 
 La tercera cubre los deploy previews por rama del DOC 15 §2: sin ella, probar el login desde el móvil en una rama devuelve un error de redirección.
 
+**La aplicación vuelve a `/auth/callback`** (T-105). Los tres patrones acaban en `/**`, así que esa ruta ya está cubierta y **no hubo que tocar nada aquí**. Si algún día cambia la ruta de vuelta, el valor vive en `RUTA_VUELTA`, en `src/modules/auth/api/session.ts`, y tiene que seguir casando con esta lista.
+
+**La llamada pide `prompt=select_account`**, así que Google enseña siempre el selector de cuenta. Es deliberado: sin él, quien tiene dos cuentas entra siempre con la última y no hay forma de cambiarla desde la aplicación mientras no exista el cierre de sesión (T-107).
+
 ---
 
 ## 5. Base de datos
@@ -144,6 +148,10 @@ La tercera cubre los deploy previews por rama del DOC 15 §2: sin ella, probar e
 Migraciones versionadas en `supabase/migrations`, con marca de tiempo en el nombre para que coincida con el historial remoto (DOC 05 §14). Nunca se toca el esquema desde el panel: lo que se cambia ahí no queda en Git y se pierde al recrear el entorno.
 
 Tipos de TypeScript: `npm run db:types`, **en la misma tarea que aplica la migración y en el mismo commit que el `.sql`** (DOC 06 §7.3). El archivo generado va en `.prettierignore`: Prettier lo reformatearía entero y cada regeneración traería miles de líneas de diferencia falsa.
+
+**Datos de arranque: `supabase/seed.sql`.** Nace con la T-105, y **no es una migración**: son datos, así que vive fuera de `supabase/migrations` y no lo aplica el CLI con `db push`. Se lanza a mano desde el editor SQL del panel o con `psql`, con permisos de servicio, y es idempotente. Siembra el club, la temporada en curso, el equipo gestionado y los doce permisos de la primera persona.
+
+Existe porque el esquema solo no deja arrancar: `clubs_insert` permite crear un club a cualquiera autenticado, pero crear el equipo dentro exige `team.manage`, y ese permiso vive en `team_member_permissions`, que cuelga de un `team_members` que todavía no existe. Ese ciclo lo rompe la siembra mientras no haya pantalla de alta (T-201) ni invitaciones (T-301). **Es también la pieza que hace comprobable la restauración del §5.1**: una copia restaurada sobre un proyecto nuevo se siembra con este archivo y se entra.
 
 ### 5.1 Copias de seguridad
 

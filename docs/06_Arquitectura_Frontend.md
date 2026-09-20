@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -28,16 +28,16 @@ React 19 + Vite 8 + TypeScript 6 con la plantilla `react-ts`, `oxlint`, Prettier
 
 Columna de estado al cerrar la **T-102**. Las decisiones de este documento no cambian; lo que cambia es cuánto de ellas está ya en el repositorio.
 
-| Pieza                | Estado                                                                               |
-| :------------------- | :----------------------------------------------------------------------------------- |
-| Enrutador            | **Hecho** en la T-104: `src/app/router.tsx`. Se decide en §6                         |
-| Cliente de Supabase  | **Hecho**: `src/shared/lib/supabase.ts`. Se decide en §7                             |
-| Caché de lectura     | **Hecha** en la T-104: `app/providers/QueryProvider.tsx`. Se decide en §5            |
-| Almacén local y cola | Dexie instalado, sin esquema local. Es la T-206. Se decide en §8                     |
-| `vite-plugin-pwa`    | **Hecho** en la T-102: manifiesto, iconos y service worker. Se decide en §8.7        |
-| Pruebas              | **Hecho** el 19/09: bloque `test` en `vite.config.ts` y paso de CI. Se decide en §11 |
-| Esquema de la base   | **Aplicado** a GavetaStats: cuatro migraciones (DOC 05 §14)                          |
-| Login con Google     | Cliente de OAuth configurado (DOC 10 §4); sin enchufar a la aplicación (T-105)       |
+| Pieza                | Estado                                                                                |
+| :------------------- | :------------------------------------------------------------------------------------ |
+| Enrutador            | **Hecho** en la T-104: `src/app/router.tsx`. Se decide en §6                          |
+| Cliente de Supabase  | **Hecho**: `src/shared/lib/supabase.ts`. Se decide en §7                              |
+| Caché de lectura     | **Hecha** en la T-104: `app/providers/QueryProvider.tsx`. Se decide en §5             |
+| Almacén local y cola | Dexie instalado, sin esquema local. Es la T-206. Se decide en §8                      |
+| `vite-plugin-pwa`    | **Hecho** en la T-102: manifiesto, iconos y service worker. Se decide en §8.7         |
+| Pruebas              | **Hecho** el 19/09: bloque `test` en `vite.config.ts` y paso de CI. Se decide en §11  |
+| Esquema de la base   | **Aplicado** a GavetaStats: cuatro migraciones (DOC 05 §14)                           |
+| Login con Google     | **Hecho** en la T-105: entrada, vuelta por `/auth/callback`, equipo activo y permisos |
 
 ### 2.3 Dependencias que se añaden
 
@@ -301,7 +301,13 @@ Se descartó **Zustand**: aporta poco sobre `useReducer` cuando el estado vive e
 
 ### 5.5 Sesión, equipo activo y permisos
 
-`AuthProvider` expone `{ session, profile, teams, activeTeamId, activeSeasonId, setActiveTeam }`. Un usuario puede tener función en varios equipos (decisión H3), así que el equipo activo es estado de sesión, se elige en la interfaz y se recuerda en `localStorage`.
+`AuthProvider` expone `{ session, cargando, permisos, profile, teams, activeTeamId, activeSeasonId, setActiveTeam, errorContexto }`. Un usuario puede tener función en varios equipos (decisión H3), así que el equipo activo es estado de sesión, se elige en la interfaz y se recuerda en `localStorage` bajo la clave `sasi.equipo-activo`.
+
+**D06-22 · `permisos` vale `null` hasta que la consulta conteste, y un conjunto —vacío incluido— a partir de ahí.** Son dos cosas distintas: `null` es «todavía no se sabe» y el conjunto vacío es «se preguntó y no tiene ninguno». Rellenarlo antes de tiempo manda a `/403` a quien sí tiene el permiso, y el fallo parece de permisos cuando es de carga. `cargando`, en cambio, habla **solo** de la sesión: encadenarlo también al contexto de acceso dejaría esperando al inicio, que no pide ningún permiso.
+
+**Y el conjunto es espejo exacto de `has_team_permission` (DOC 05 §12.2): los permisos salen de `team_member_permissions` del equipo activo y de ningún otro sitio.** El administrador de plataforma **no** suma permisos, porque la base tampoco se los da: `is_platform_admin()` abre la lectura y nunca la escritura. Concedérselos en el cliente enseñaría botones que la RLS va a rechazar.
+
+Lo que el equipo activo decide es el conjunto entero: quien tenga función en dos equipos cambia de permisos al cambiar de equipo. El equipo recordado se valida siempre contra la lista de membresías, porque a quien le dan de baja le queda el identificador viejo en `localStorage`.
 
 Los permisos se leen una vez por equipo y se cachean como cualquier otra consulta:
 
@@ -615,7 +621,9 @@ La pantalla que importa es A12 y su enemigo es el render en cascada. Tres reglas
 2. La lista de eventos se renderiza por clave estable (`clientEventId`), nunca por índice.
 3. Presupuesto del paquete inicial: **por debajo de 200 kB comprimidos**. Se mide con `vite build` en cada entrega. Sin herramienta automática todavía (§13).
 
-**El presupuesto se resolvió en la T-104, y no hizo falta ninguna de las tres salidas.** Medido con el enrutado montado de verdad, el paquete inicial fue de **167,83 kB comprimidos**, y con la PWA de la T-102 encima está en **171,58 kB**: quedan unos 28 kB de margen. La proyección que sigue abajo se quedaba corta por un motivo concreto: aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie hasta la T-206**.
+**El presupuesto se resolvió en la T-104, y no hizo falta ninguna de las tres salidas.** Medido con el enrutado montado de verdad, el paquete inicial fue de **167,83 kB comprimidos**, con la PWA de la T-102 encima pasó a **171,58 kB** y con el acceso de la T-105 está en **175,19 kB**: quedan unos 25 kB de margen. La proyección que sigue abajo se quedaba corta por un motivo concreto: aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie hasta la T-206**.
+
+**Y una trampa que la T-105 encontró midiendo, porque el aviso es fácil de pasar por alto.** Si un archivo del paquete inicial importa de forma estática el mismo `index.ts` que el enrutador carga en perezoso, el empaquetador renuncia a separarlo y avisa con `INEFFECTIVE_DYNAMIC_IMPORT`: las pantallas del módulo se caen al arranque sin que nadie toque una línea de `router.tsx`. Por eso `app/providers/AuthProvider.tsx` importa `@modules/auth/api/...` y `@modules/auth/model/...` por ruta directa, y no el barril. La regla 3 del §4.1 rige entre módulos; `app/` es la composición.
 
 Las tres salidas se dejan escritas porque el margen se va a estrechar —faltan por entrar A12 de verdad (T-207 y T-208), Dexie (T-206) y las pantallas del bloque de datos—, y la primera tarea que cruce los 200 kB decide con esta misma tabla.
 
