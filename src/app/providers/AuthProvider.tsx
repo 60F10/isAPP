@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 // módulo, y aquí paga la diferencia en kilobytes.
 import { authKeys } from '@modules/auth/api/queryKeys';
 import { fetchContextoDeAcceso } from '@modules/auth/api/session';
+import { AuthContext } from '@modules/auth/hooks/authContext';
 import {
   elegirEquipoActivo,
   leerEquipoRecordado,
@@ -33,9 +34,7 @@ import {
 } from '@modules/auth/model/permissions';
 import { supabase } from '@shared/lib/supabase';
 
-import { AuthContext } from './authContext';
-
-import type { AuthState } from './authContext';
+import type { AuthState } from '@modules/auth/hooks/authContext';
 import type { Session } from '@supabase/supabase-js';
 import type { ReactNode } from 'react';
 

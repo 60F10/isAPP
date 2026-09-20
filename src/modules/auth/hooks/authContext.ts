@@ -1,12 +1,19 @@
 // Contexto de sesión y sus hooks (DOC 06 §5.5).
 //
+// Viven en el módulo y no en `app/` porque a partir de la T-201 toda pantalla
+// que lea datos necesita el equipo activo, y la regla 1 del DOC 06 §4.1 no
+// deja que un módulo importe de `app/`. El grafo del §4.2 ya deja que TODOS
+// los módulos importen de `auth`, así que este es el sitio.
+//
 // Van en un archivo aparte del proveedor a propósito: un módulo que exporta a
 // la vez un componente y un hook rompe el refresco en caliente de React y lo
-// avisa `react/only-export-components`.
+// avisa `react/only-export-components`. El proveedor (`AuthProvider`) se queda
+// en `app/providers/`, que es la composición.
 
 import { createContext, useContext } from 'react';
 
-import type { Membership, Profile } from '@modules/auth';
+import type { Profile } from '../api/session';
+import type { Membership } from '../model/permissions';
 import type { Session } from '@supabase/supabase-js';
 
 export interface AuthState {

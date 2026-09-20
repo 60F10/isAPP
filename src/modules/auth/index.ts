@@ -15,5 +15,8 @@ export {
   recordarEquipo,
 } from './model/permissions';
 
+export { AuthContext, useAuth, useHasPermission } from './hooks/authContext';
+
 export type { ContextoDeAcceso, Profile } from './api/session';
 export type { AppPermission, Membership, Team, TeamRole } from './model/permissions';
+export type { AuthState } from './hooks/authContext';

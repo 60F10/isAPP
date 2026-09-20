@@ -10,11 +10,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { AnnounceContext } from './announceContext';
+import { AnnounceContext } from '@shared/hooks/announceContext';
 
 import styles from './AnnounceProvider.module.css';
 
-import type { AnnounceApi } from './announceContext';
+import type { AnnounceApi } from '@shared/hooks/announceContext';
 import type { ReactNode } from 'react';
 
 interface AnnounceProviderProps {

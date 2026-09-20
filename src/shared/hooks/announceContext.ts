@@ -1,7 +1,12 @@
 // Contexto de la región viva y su hook (DOC 06 §6.3).
 //
-// Separado del proveedor por el mismo motivo que `authContext.ts`: componente
-// y hook en el mismo archivo rompen el refresco en caliente.
+// Vive en `shared/` y no en un módulo: no es estado de dominio, la usa
+// cualquier pantalla y el proveedor (`AnnounceProvider`) se queda en
+// `app/providers/`, que es la composición. Mismo reparto que el contexto de
+// sesión de `@modules/auth/hooks/authContext`.
+//
+// Separado del proveedor por el mismo motivo: componente y hook en el mismo
+// archivo rompen el refresco en caliente.
 
 import { createContext, useContext } from 'react';
 

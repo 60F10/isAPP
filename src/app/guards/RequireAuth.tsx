@@ -7,7 +7,12 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 
 import { LoadingState } from '@app/components/LoadingState';
-import { useAuth } from '@app/providers/authContext';
+// Ruta directa y NO el barril `@modules/auth`: esta guardia se importa de
+// forma estática desde `router.tsx`, que también carga ese barril en
+// perezoso para las pantallas de `auth`. Con el barril aquí, el empaquetador
+// avisaría INEFFECTIVE_DYNAMIC_IMPORT y esas pantallas caerían al arranque
+// (DOC 06 §4.1, regla 1 y DOC 13, hallazgo 3).
+import { useAuth } from '@modules/auth/hooks/authContext';
 
 export function RequireAuth() {
   const { session, cargando } = useAuth();

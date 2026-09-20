@@ -54,7 +54,31 @@ El plan gratuito de Netlify trae **300 minutos de compilación al mes**, y el eq
 
 De las diez compilaciones de las sesiones del 14 y el 18 de septiembre, **cuatro se habrían cancelado**.
 
-**Si algún día el sitio deja de actualizarse tras una fusión**, mira esto lo primero: el registro del despliegue en Netlify dice «Build cancelled» y el motivo. Lo más probable es que alguien haya metido en una carpeta excluida un archivo que sí acaba en `dist/`.
+### 2.2 Los builds están PARADOS desde el 20/09/2026
+
+**Lo primero que hay que saber al ver que el sitio no cambia.** El interruptor está en _Project configuration → Developer settings → Continuous deployment → Build settings_, con **Build status** en **Stopped builds**. Mientras siga así, Netlify **no compila nada**: ni producción, ni vistas previas de pull request, ni branch deploys; los _build hooks_ se ignoran y «Trigger deploy» está deshabilitado. El sitio ya publicado sigue en pie.
+
+**Por qué.** Hasta que haya pantallas que enseñar, cada fusión gastaba minutos en una compilación que además no publicaba: la cuenta está en créditos operativos y los despliegues de producción están parados (DOC 13). Se pagaba por no desplegar.
+
+**Qué se pierde, y no es gratis.** Las vistas previas por rama, que el §2.1 defiende por una razón buena: dejan probar en el móvil sin tocar producción. Para el desarrollo diario lo cubre `npm run dev -- --host` por la red local. Para probar la PWA de verdad —service worker, instalación, offline— hace falta HTTPS, y ahí no hay sustituto cómodo: **cuando llegue la T-207 y haya que probar el directo en el campo, toca reactivar.**
+
+**Cómo se publica mientras tanto**, que es el paso único que sustituye al despliegue automático:
+
+```powershell
+cd D:\Documentos\Proyectos\ProyectoSASI\App
+Remove-Item Env:\NODE_ENV
+npm ci
+npm run build
+npx netlify-cli deploy --prod --dir=dist
+```
+
+La primera vez pide `netlify login` y `netlify link` contra el sitio `gavetastats`. **Lo que sube es el `dist/` de tu máquina, no un build limpio del CI**, así que se despliega solo desde `main` recién actualizado y tras `npm ci`, nunca desde una rama a medias. Sin comprobar todavía: si los créditos operativos rechazan también un despliegue manual de producción.
+
+**Reactivar los builds no lanza ninguna compilación por sí solo**: hay que hacer un push después.
+
+---
+
+**Si algún día el sitio deja de actualizarse tras una fusión** y los builds están activos, mira esto lo primero: el registro del despliegue en Netlify dice «Build cancelled» y el motivo. Lo más probable es que alguien haya metido en una carpeta excluida un archivo que sí acaba en `dist/`.
 
 **Lo que no se tocó, y por qué.** Desactivar las previsualizaciones por rama ahorraría más, pero el DOC 14 §5 las señala como lo que «te deja probar en el móvil sin tocar producción», y en un proyecto cuyo núcleo se usa a pie de campo eso vale más que unos minutos. Juntar las dos pull requests en una también ahorraría, y se descartó para no ensuciar el diff de código con documentación.
 

@@ -132,11 +132,11 @@ Ventaja añadida: los directorios de `modules/` coinciden uno a uno con los ámb
 
 Tres ámbitos del DOC 15 no tienen directorio propio en `modules/`, y conviene dejar escrito dónde caen:
 
-| Ámbito     | Dónde vive                                                      |
-| :--------- | :-------------------------------------------------------------- |
-| `platform` | `src/app/`, `shared/lib/pwa.ts`, `vite.config.ts`, `index.html` |
-| `design`   | `src/styles/` y `src/shared/ui/`                                |
-| `db`       | `supabase/migrations/` y `src/types/database.types.ts`          |
+| Ámbito     | Dónde vive                                                                       |
+| :--------- | :------------------------------------------------------------------------------- |
+| `platform` | `src/app/`, `shared/lib/pwa.ts`, `shared/hooks/`, `vite.config.ts`, `index.html` |
+| `design`   | `src/styles/` y `src/shared/ui/`                                                 |
+| `db`       | `supabase/migrations/` y `src/types/database.types.ts`                           |
 
 ### 3.4 Reparto de las pantallas del MVP
 
