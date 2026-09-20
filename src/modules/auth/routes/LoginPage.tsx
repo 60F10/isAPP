@@ -1,15 +1,66 @@
 // Pantalla A01 — Acceso
 
+import { useState } from 'react';
+import { useLocation } from 'react-router';
+
+import { Button } from '@shared/ui/Button';
 import { Pantalla } from '@shared/ui/Pantalla';
 
+import { signInWithGoogle } from '../api/session';
+
+/** Ruta a la que volver si nadie dijo a dónde iba. */
+const DESTINO_POR_DEFECTO = '/';
+
+function destinoDe(estado: unknown): string {
+  if (typeof estado === 'object' && estado !== null && 'desde' in estado) {
+    const { desde } = estado as { desde: unknown };
+
+    // Solo rutas de esta aplicación. Una dirección completa aquí sería un
+    // redirector abierto: cualquiera podría mandar un enlace que, tras
+    // entrar, deja al usuario en una página de fuera con pinta de ser esta.
+    if (typeof desde === 'string' && desde.startsWith('/') && !desde.startsWith('//')) {
+      return desde;
+    }
+  }
+
+  return DESTINO_POR_DEFECTO;
+}
+
 export function LoginPage() {
+  const location = useLocation();
+  const [entrando, setEntrando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  async function entrar() {
+    setEntrando(true);
+    setFallo(null);
+
+    try {
+      await signInWithGoogle(destinoDe(location.state));
+      // Si todo va bien, el navegador ya se ha ido a Google y nada de lo que
+      // se escriba a partir de aquí llega a pintarse.
+    } catch {
+      setEntrando(false);
+      setFallo('No se ha podido conectar con Google. Comprueba la conexión e inténtalo otra vez.');
+    }
+  }
+
   return (
     <Pantalla id="A01" titulo="Entrar">
       <p>
-        El acceso con la cuenta de Google llega en la T-105. Hasta entonces esta pantalla no hace
-        nada: no hay formulario porque no hay nada detrás que lo atienda, y un botón que no funciona
-        solo sirve para que alguien piense que la aplicación está rota.
+        Entra con la misma cuenta de Google con la que te invitaron al equipo. La aplicación pide tu
+        nombre, tu correo y tu foto de perfil, y nada más.
       </p>
+
+      <Button fullWidth disabled={entrando} onClick={() => void entrar()}>
+        {entrando ? 'Conectando con Google…' : 'Entrar con Google'}
+      </Button>
+
+      {/* `role="alert"` y no la región viva de la aplicación, que es la buena
+          (DOC 06 §6.3): `useAnnounce()` vive en `app/` y de `app/` no importa
+          ningún módulo (§4.1, regla 1). Es una región viva de más, montada
+          solo cuando hay fallo; queda anotado en el DOC 13 como lo que es. */}
+      {fallo === null ? null : <p role="alert">{fallo}</p>}
     </Pantalla>
   );
 }

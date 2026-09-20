@@ -53,6 +53,15 @@ export const router = createBrowserRouter([
             lazy: async () => ({ Component: (await import('@modules/auth')).LoginPage }),
           },
           {
+            // Vuelta del acceso con Google (T-105). Es una parada técnica, no
+            // una pantalla del inventario del DOC 02: canjea el código, mira
+            // si hay sesión y se aparta. La dirección tiene que coincidir con
+            // `RUTA_VUELTA` de `@modules/auth` y con la lista de direcciones
+            // de redirección de Supabase (DOC 10 §4.5).
+            path: '/auth/callback',
+            lazy: async () => ({ Component: (await import('@modules/auth')).AuthCallbackPage }),
+          },
+          {
             path: '/403',
             lazy: async () => ({ Component: (await import('@modules/auth')).ForbiddenPage }),
           },
