@@ -1,8 +1,9 @@
 // Pantalla A01 — Acceso
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
 
+import { useAnnounce } from '@shared/hooks/announceContext';
 import { Button } from '@shared/ui/Button';
 import { Pantalla } from '@shared/ui/Pantalla';
 
@@ -28,8 +29,17 @@ function destinoDe(estado: unknown): string {
 
 export function LoginPage() {
   const location = useLocation();
+  const anunciar = useAnnounce();
   const [entrando, setEntrando] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
+
+  // El texto se pinta como párrafo normal; quien lo anuncia es la región viva
+  // única de la aplicación (DOC 06 §6.3), no un `role="alert"` propio.
+  useEffect(() => {
+    if (fallo !== null) {
+      anunciar(fallo);
+    }
+  }, [fallo, anunciar]);
 
   async function entrar() {
     setEntrando(true);
@@ -56,11 +66,7 @@ export function LoginPage() {
         {entrando ? 'Conectando con Google…' : 'Entrar con Google'}
       </Button>
 
-      {/* `role="alert"` y no la región viva de la aplicación, que es la buena
-          (DOC 06 §6.3): `useAnnounce()` vive en `app/` y de `app/` no importa
-          ningún módulo (§4.1, regla 1). Es una región viva de más, montada
-          solo cuando hay fallo; queda anotado en el DOC 13 como lo que es. */}
-      {fallo === null ? null : <p role="alert">{fallo}</p>}
+      {fallo === null ? null : <p>{fallo}</p>}
     </Pantalla>
   );
 }

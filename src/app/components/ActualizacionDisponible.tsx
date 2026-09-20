@@ -12,9 +12,8 @@
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
+import { useAnnounce } from '@shared/hooks/announceContext';
 import { Button } from '@shared/ui/Button';
-
-import { useAnnounce } from '../providers/announceContext';
 
 import styles from './ActualizacionDisponible.module.css';
 

@@ -14,6 +14,7 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 
+import { useAnnounce } from '@shared/hooks/announceContext';
 import { Pantalla } from '@shared/ui/Pantalla';
 
 import { recogerDestino } from '../api/session';
@@ -39,6 +40,7 @@ function codigoDeError(): string | null {
 
 export function AuthCallbackPage() {
   const navigate = useNavigate();
+  const anunciar = useAnnounce();
   const { session, cargando } = useAuth();
 
   // Derivado del contexto, no un `useState`: mientras `cargando` sea `true`
@@ -59,6 +61,14 @@ export function AuthCallbackPage() {
     navigate(destino === null ? '/' : destino, { replace: true });
   }, [cargando, session, navigate]);
 
+  // El texto se pinta como párrafo normal; quien lo anuncia es la región viva
+  // única de la aplicación (DOC 06 §6.3), no un `role="alert"` propio.
+  useEffect(() => {
+    if (fallo !== null) {
+      anunciar(fallo);
+    }
+  }, [fallo, anunciar]);
+
   if (fallo === null) {
     return (
       <Pantalla id="A01b" titulo="Entrando">
@@ -71,9 +81,7 @@ export function AuthCallbackPage() {
 
   return (
     <Pantalla id="A01b" titulo="No se pudo entrar">
-      {/* Misma salvedad que en A01: la región viva buena vive en `app/` y un
-          módulo no puede importar de ahí (DOC 06 §4.1, regla 1). */}
-      <p role="alert">{fallo}</p>
+      <p>{fallo}</p>
       {codigo === null ? null : <p>Google contestó «{codigo}».</p>}
       <p>
         <Link to="/login">Volver a la pantalla de acceso</Link>
