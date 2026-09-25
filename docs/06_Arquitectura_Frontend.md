@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.7 — 25/09/2026 (§11: D06-22, TypeScript estricto explícito y tres reglas de `oxlint` contra `any`, `!` y comentarios `@ts-`) · 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -683,6 +683,21 @@ La tabla de arriba sigue mandando: el `model/` se prueba siempre y sin excepció
 Diecisiete casos cubren las tres variables correctas, cada una faltando o con solo espacios, una URL sin `https`, una que ni siquiera es una URL, un entorno fuera de la lista y varios fallos a la vez. Tres de ellos vigilan que la clave anónima **nunca** aparezca en el mensaje de error: `env.ts` la omite a propósito (§12) y es lo primero que rompe una refactorización que busque «mensajes más útiles».
 
 **`env.ts` no se toca para hacerlo más cómodo de probar.** Lanza desde el cuerpo del módulo por la D06-21: el fallo tiene que ocurrir al arrancar. La prueba se adapta a eso —`vi.resetModules()`, `vi.stubEnv()` y un `await import()` por caso, con las tres variables fijadas siempre para que un `.env.local` de la máquina no cambie el resultado—, y esa forma vale de plantilla para cualquier otro módulo que valide al importarse.
+
+**D06-22 · TypeScript estricto, escrito a mano y vigilado por el linter.** 25/09/2026.
+TypeScript 6 trae `strict` encendido por defecto, así que el proyecto compila en estricto desde la T-101 aunque ningún `tsconfig` lo dijera. Se escribe `"strict": true` en `tsconfig.app.json` y en `tsconfig.node.json` para que no dependa de la versión del compilador: una vuelta atrás a TypeScript 5 lo apagaría en silencio.
+
+Lo que `strict` no impide lo prohíbe `oxlint`, en error y no en aviso:
+
+| Regla                              | Qué prohíbe                                             |
+| :--------------------------------- | :------------------------------------------------------ |
+| `typescript/no-explicit-any`       | `any` escrito a mano. Para lo desconocido, `unknown`    |
+| `typescript/no-non-null-assertion` | El `!` de aserción para callar al compilador            |
+| `typescript/ban-ts-comment`        | `@ts-ignore`, `@ts-expect-error` y `@ts-nocheck`, todos |
+
+`@ts-expect-error` se prohíbe también con descripción, que es lo que la regla deja pasar por defecto: el error se arregla, no se comenta.
+
+`noUncheckedIndexedAccess` sigue **apagado**. Encenderlo hoy saca siete errores, seis en `permissions.test.ts` y uno en `permissions.ts`. La decisión y sus salidas están en el DOC 13.
 
 ---
 

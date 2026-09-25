@@ -29,6 +29,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Comprobación estricta, escrita a mano. TypeScript 6 ya la trae
+       encendida por defecto, pero se deja explícita para que no dependa de
+       la versión del compilador. `noUncheckedIndexedAccess` sigue apagado a
+       propósito: ver el DOC 13. */
+    "strict": true,
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

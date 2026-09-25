@@ -50,6 +50,8 @@ Comandos:
 
 Alias de importación: `@app/*`, `@modules/*`, `@shared/*` y `@app-types/*`. El último **no** es `@types/*`: TypeScript reserva ese prefijo para los paquetes de declaraciones y rechaza la importación con TS6137. Los alias viven a la vez en `tsconfig.app.json` y en `vite.config.ts`, y se tocan los dos o ninguno.
 
+TypeScript va en `strict`, escrito a mano en los dos `tsconfig` (D06-22). `oxlint` rechaza en error `any`, el `!` de aserción y los comentarios `@ts-ignore`, `@ts-expect-error` y `@ts-nocheck`: el error de tipos se arregla, no se calla. `noUncheckedIndexedAccess` sigue apagado, pendiente de decisión en el DOC 13.
+
 ## Comandos de sesión (slash commands del proyecto)
 
 Definidos en `.claude/commands/`. Fijan modelo, esfuerzo y encuadre según el tipo de tarea:
