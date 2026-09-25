@@ -69,9 +69,11 @@ Veintiuna tareas. **T-301 y T-302 no son opcionales**: con cuatro anotadores en 
 | **T-103**  | `tokens.css`, `Icon` con los 21 SVG ya dibujados, `Button`, `Field`, `Card`, `Toast`, `StatusChip`           | —         | T-101      | 1        | `feat/platform-sistema-diseno`    | ✅     |
 | **T-104**  | Enrutado, guardias de sesión y permiso, esqueleto de navegación, foco al navegar, división del paquete       | A02       | T-103      | 1        | `feat/platform-enrutado`          | ✅     |
 | **T-105**  | Acceso con Google en la aplicación, sesión, equipo activo y permisos en memoria                              | A01, A01b | T-104      | 1        | `feat/auth-login-google`          | ✅     |
-| **T-105b** | Prueba de aislamiento entre clubes: segundo club, otro usuario, y que no vea nada del primero                | —         | T-105      | 0,5      | —                                 | ⬜     |
+| **T-105b** | Prueba de aislamiento entre clubes: segundo club, otro usuario, y que no vea nada del primero                | —         | T-105      | 0,5      | `fix/db-aislamiento-clubes`       | ✅     |
 | **T-106**  | Error boundary, escritura en `error_logs` y aviso de sesión a punto de expirar                               | C03       | T-104      | 1        | `feat/logging-captura-errores`    | ⬜     |
 | **T-107**  | Ajustes de usuario: alto contraste, movimiento reducido, cierre de sesión                                    | C01       | T-103      | 0,5      | `feat/platform-ajustes`           | ⬜     |
+
+**La T-105b, cerrada el 25/09.** El script `supabase/pruebas/aislamiento_clubes.sql` confirma que ningún club lee ni escribe en otro. De paso destapó que `rebuild_match_stints` y `flag_duplicate_candidates` se ejecutaban sobre partidos ajenos, y lo cierra la migración `20260925182524_guarda_permiso_funciones_partido.sql`. Queda como deuda que un club puede enlazar objetos de otro en sus propias filas. Detalle en el DOC 13.
 
 La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya estaban dibujados desde el 12/09. **Cerrada el 13/09** con el componente `Icon` y cinco de los siete componentes base: `EventButton` se va a la T-208 y `ReliabilityMeter` al bloque de cobertura, porque ninguno de los dos se puede escribir bien sin la pantalla que los usa.
 
