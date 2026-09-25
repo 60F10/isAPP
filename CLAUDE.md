@@ -23,11 +23,13 @@ Desde la **T-102** es una PWA instalable: `vite-plugin-pwa` con `registerType: '
 
 Desde la **T-105** se entra con Google de verdad. `AuthProvider` trae sesión, perfil, equipos, equipo activo, temporada activa y permisos; `src/modules/auth/` tiene ya sus carpetas `api/` y `model/`, y la vuelta de Google aterriza en `/auth/callback`. **Dos reglas que no se pueden romper al tocar esto:** `permisos` vale `null` mientras la consulta no conteste y un conjunto —vacío incluido— a partir de ahí, porque rellenarlo antes manda a `/403` a quien sí tiene el permiso; y los permisos salen solo de `team_member_permissions` del equipo activo, sin regalarle ninguno al administrador de plataforma, que en la base tampoco los tiene.
 
-**Ojo con dos cosas al escribir pantallas ahora mismo:** el paquete inicial mide **175,19 kB comprimidos** de los 200 kB del presupuesto, así que quedan unos 25 kB para A12 de verdad y Dexie. Y `app/providers/AuthProvider.tsx` importa de `@modules/auth` **por ruta directa y no por el barril**: hacerlo por el barril arrastra las pantallas de `auth` al paquete inicial y el build avisa con `INEFFECTIVE_DYNAMIC_IMPORT`.
+**Ojo con dos cosas al escribir pantallas ahora mismo:** el paquete inicial mide **179,50 kB comprimidos** de los 200 kB del presupuesto, así que quedan unos 20 kB para A12 de verdad y Dexie. Y `app/providers/AuthProvider.tsx` importa de `@modules/auth` **por ruta directa y no por el barril**: hacerlo por el barril arrastra las pantallas de `auth` al paquete inicial y el build avisa con `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 **Los datos hay que sembrarlos.** El esquema no deja arrancar solo: crear un club lo permite la RLS, crear el equipo dentro exige `team.manage`, y ese permiso no existe hasta que hay `team_members`. `supabase/seed.sql` rompe ese ciclo y se lanza a mano desde el panel de Supabase. Sin él, se entra y las veinte rutas mandan a `/403`.
 
-Siguiente tarea de código: **T-106**, error boundary y escritura en `error_logs`. Cierra dos deudas que la T-105 deja escritas: el `errorContexto` que nadie pinta y el error de entorno sin interfaz. Antes conviene hacer la **T-105b**, la prueba de aislamiento entre clubes, que ahora por fin tiene un primer club que no ver.
+Desde la **T-106** los errores se ven y se registran: Error Boundary global y `errorElement` del enrutador con la C03 (`modules/logging`), captura global de `window`, registro silencioso en `error_logs` —solo con sesión, limpio de testigos y correos— y la banda de sesión a punto de caducar. **`main.tsx` carga `App` con `import()` a propósito** (D06-23): es lo que deja pintar el error de entorno en vez de una pantalla en blanco. No lo vuelvas estático. Y `app/` importa de `@modules/logging` por ruta directa, por el mismo motivo que de `auth`.
+
+Siguiente tarea de código: **T-107**, ajustes: alto contraste, movimiento reducido y cierre de sesión.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 

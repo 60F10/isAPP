@@ -1,37 +1,42 @@
-// Pantalla C03 — Error de aplicación (versión provisional del enrutador)
+// Pantalla C03 dentro del enrutador (T-106).
 //
-// Esto NO es el Error Boundary de la aplicación: ese llega en la T-106, con
-// registro en `error_logs` y opción de recargar. Lo único que hace aquí es
-// evitar la pantalla en blanco que deja react-router cuando revienta un trozo
-// perezoso o un `loader`: una pantalla en blanco no dice qué ha pasado y, sobre
-// todo, no deja salir.
+// react-router captura lo que revienta dentro de una ruta —un componente, un
+// `lazy` que no baja— antes de que llegue al Error Boundary de la aplicación,
+// así que este `errorElement` tiene que hacer lo mismo que él: registrar en
+// `error_logs` y enseñar la C03. La vista es la misma, `PantallaError`.
 //
-// Pasa por `Pantalla` como el resto: es la que sale cuando un trozo perezoso no
-// baja por falta de cobertura, o sea el escenario más probable del proyecto, y
-// justo ahí hace falta que el foco caiga en el encabezado y que el título del
-// documento diga qué ha pasado.
+// Lo que no se registra: las respuestas de ruta con código 4xx, como un 404,
+// que son navegación y no fallos de código.
 
-import { isRouteErrorResponse, Link, useRouteError } from 'react-router';
+import { useEffect } from 'react';
+import { isRouteErrorResponse, useRouteError } from 'react-router';
 
-import { Pantalla } from '@shared/ui/Pantalla';
-
-import styles from './RouteErrorPage.module.css';
+// Rutas directas y no el barril: ver `modules/logging/index.ts`.
+import { registrarError } from '@modules/logging/api/registro';
+import { PantallaError } from '@modules/logging/components/PantallaError';
 
 export function RouteErrorPage() {
   const error = useRouteError();
+  const esDeNavegacion = isRouteErrorResponse(error) && error.status < 500;
 
-  const detalle = isRouteErrorResponse(error)
-    ? `${error.status} · ${error.statusText}`
-    : 'No se pudo cargar la pantalla. Si estabas sin cobertura, vuelve a intentarlo.';
+  useEffect(() => {
+    if (!esDeNavegacion) {
+      void registrarError(error, 'ruta');
+    }
+  }, [error, esDeNavegacion]);
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <PantallaError detalle={`${error.status} · ${error.statusText}`}>
+        <p>No se pudo abrir esta pantalla.</p>
+      </PantallaError>
+    );
+  }
 
   return (
-    <main id="contenido" className={styles.marco}>
-      <Pantalla id="C03" titulo="Algo ha fallado">
-        <p>{detalle}</p>
-        <p>
-          <Link to="/">Volver al inicio</Link>
-        </p>
-      </Pantalla>
-    </main>
+    <PantallaError>
+      <p>No se pudo cargar la pantalla. Si estabas sin cobertura, busca señal y recarga.</p>
+      <p>Si no era eso, avisa a quien lleve la aplicación.</p>
+    </PantallaError>
   );
 }

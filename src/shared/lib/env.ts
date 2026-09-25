@@ -10,6 +10,8 @@
 //
 // El resto de la aplicación importa `env`, nunca `import.meta.env`.
 
+import { ErrorDeEntorno } from './errorDeEntorno';
+
 const ENTORNOS = ['development', 'production'] as const;
 
 export type AppEnv = (typeof ENTORNOS)[number];
@@ -69,7 +71,9 @@ function validar(): Env {
   }
 
   if (fallos.length > 0) {
-    throw new Error(
+    // Clase propia para que el arranque (`main.tsx`) lo reconozca y pinte la
+    // pantalla de configuración en vez de dejarla en blanco (T-106).
+    throw new ErrorDeEntorno(
       [
         'Configuración de entorno incompleta o incorrecta:',
         ...fallos.map((fallo) => `  · ${fallo}`),

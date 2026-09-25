@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.7 — 25/09/2026 (§11: D06-22, TypeScript estricto explícito y tres reglas de `oxlint` contra `any`, `!` y comentarios `@ts-`) · 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.8 — 25/09/2026 (T-106: §10.1 con las tres capas montadas, D06-23 y §10.3 al día) · 1.7 — 25/09/2026 (§11: D06-22, TypeScript estricto explícito y tres reglas de `oxlint` contra `any`, `!` y comentarios `@ts-`) · 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -594,6 +594,31 @@ Tres capas de captura:
 2. **Error por pantalla**: el estado de error de cada consulta se muestra dentro de la pantalla, sin tumbarla entera.
 3. **Registro**: todo error no previsto va a `error_logs` con ruta, mensaje, traza, dispositivo y versión. **Nunca el contenido del formulario** (DOC 05 §9.5).
 
+**Montado en la T-106**, y así queda:
+
+| Capa                   | Pieza                                                                                       | Qué hace                                                                                                                    |
+| :--------------------- | :------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------- |
+| 1 · Boundary global    | `modules/logging/components/ErrorBoundary.tsx`, por fuera de todos los proveedores en `App` | Pinta la C03 y registra con origen `boundary`                                                                               |
+| 1 · Boundary de ruta   | `app/components/RouteErrorPage.tsx`, `errorElement` raíz del enrutador                      | Lo que revienta dentro de una ruta lo captura react-router antes; misma C03, origen `ruta`. Los 4xx no se registran         |
+| 1 · Arranque           | `app/main.tsx`                                                                              | Carga `App` con `import()` y pinta la C03 si falla: error de entorno (D06-21) o trozo que no baja. D06-23                   |
+| 2 · Contexto de acceso | `app/components/ErrorDeAcceso.tsx`, desde `RequirePermission`                               | «No se pudo cargar tu acceso» con reintento, en vez de «Cargando…» para siempre. Origen `contexto`                          |
+| 3 · Global             | `instalarCapturaGlobal()` desde `App`                                                       | Manejadores de eventos, temporizadores y promesas sin `catch`. Orígenes `global` y `promesa`                                |
+| Registro               | `modules/logging/api/registro.ts` y `model/errorLog.ts`                                     | Una sola puerta, `registrarError`. Solo con sesión, nunca lanza, diez filas por carga y el mismo mensaje una vez por minuto |
+
+La vista de la C03 es una sola, `PantallaError`, pura: sin red, sin contexto y sin enrutador, porque tiene que pintarse justo cuando eso es lo que ha fallado. Sus dos salidas recargan la página entera.
+
+**Qué entra en `error_logs` y qué no.** Mensaje con el origen delante (`[boundary] …`), traza, pila de componentes cuando la hay, solo el camino de la ruta —sin consulta ni fragmento, que es donde viajan el `code` y el `access_token` de la vuelta de Google—, club del equipo activo, commit desplegado (`__APP_VERSION__`, de `COMMIT_REF` de Netlify) y dispositivo: agente, idioma, tamaño de ventana, si hay red y si se abrió como PWA instalada. Antes de salir, `limpiarTexto` tapa JWT, cabeceras `Bearer`, los parámetros `code`, `*_token`, `apikey` y `password`, y cualquier correo. El contenido de un formulario no llega nunca a estas funciones.
+
+**Sin sesión no se registra.** La política `error_logs_insert` es para `authenticated`. Lo que falla antes de entrar —el acceso, la vuelta de Google, un error de entorno— se queda en la consola. Es una limitación de la RLS actual y se deja así: abrir la inserción a `anon` abre también la puerta a llenar la tabla desde fuera.
+
+**El ayudante común de `api/` no entra aquí.** Este apartado lo pide, pero no lo asigna a ninguna tarea, y la T-106 no lo necesita: el registro trata igual un `Error` que un error de Supabase (`normalizarError`). Sigue abierto en el DOC 13.
+
+**D06-23 · `App` se carga con `import()` desde `main.tsx`.** `env.ts` lanza al importarse (D06-21), y con una importación estática ese error aborta la carga del módulo antes de que `main.tsx` ejecute una línea: pantalla en blanco. Con `import()`, el error llega como promesa rechazada y se pinta la C03 «Falta configuración» con el detalle plegado. Para reconocerlo sin importar `env.ts`, el error es de una clase propia, `ErrorDeEntorno`, en `shared/lib/errorDeEntorno.ts`, un archivo sin efectos al cargarse.
+
+Coste medido: **1,87 kB comprimidos** más en el arranque por partir el paquete en dos, y un viaje de red más en la primera visita, porque Vite no precarga el trozo de `App` desde `index.html`. A partir de la segunda visita lo sirve la precaché del service worker. Se descartaron escuchar el error desde un `<script>` en línea de `index.html`, que pinta fuera de React y del sistema de diseño, y hacer que `env.ts` no lance, que rompe la D06-21.
+
+**Aviso de sesión a punto de caducar (criterio 2.2.1).** `app/components/AvisoSesion.tsx`, con el cálculo en `modules/auth/model/caducidad.ts`. Supabase renueva el testigo solo cuando le quedan unos noventa segundos, así que el aviso salta con **sesenta** (`AVISO_CADUCIDAD_MS`): solo aparece si la renovación automática ya ha fallado, que en la práctica es falta de cobertura. Con red no se ve nunca. «Seguir conectado» llama a `refreshSession()`; si tampoco puede, lo dice y avisa de que se renovará sola al volver la señal. Caducar no cierra la sesión ni borra nada.
+
 ### 10.2 Accesibilidad que condiciona el código
 
 **D06-19 · `jsx-a11y` activado en `oxlint`.** Cierra la deuda que el DOC 13 dejó abierta: `oxlint` sí trae las reglas de `eslint-plugin-jsx-a11y` como plugin integrado, aunque desactivado por defecto. Se añade a `.oxlintrc.json`:
@@ -621,7 +646,7 @@ La pantalla que importa es A12 y su enemigo es el render en cascada. Tres reglas
 2. La lista de eventos se renderiza por clave estable (`clientEventId`), nunca por índice.
 3. Presupuesto del paquete inicial: **por debajo de 200 kB comprimidos**. Se mide con `vite build` en cada entrega. Sin herramienta automática todavía (§13).
 
-**El presupuesto se resolvió en la T-104, y no hizo falta ninguna de las tres salidas.** Medido con el enrutado montado de verdad, el paquete inicial fue de **167,83 kB comprimidos**, con la PWA de la T-102 encima pasó a **171,58 kB** y con el acceso de la T-105 está en **175,19 kB**: quedan unos 25 kB de margen. La proyección que sigue abajo se quedaba corta por un motivo concreto: aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie hasta la T-206**.
+**El presupuesto se resolvió en la T-104, y no hizo falta ninguna de las tres salidas.** Medido con el enrutado montado de verdad, el paquete inicial fue de **167,83 kB comprimidos**, con la PWA de la T-102 encima pasó a **171,58 kB** y con el acceso de la T-105 está en **175,19 kB** y con la captura de errores de la T-106 en **179,50 kB**: quedan unos 20 kB de margen. La T-106 parte el arranque en dos trozos (D06-23), así que desde ahí el paquete inicial es la suma de `index-*.js`, `preload-helper-*.js`, `App-*.js`, `workbox-window` y sus tres hojas de estilo. La proyección que sigue abajo se quedaba corta por un motivo concreto: aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie hasta la T-206**.
 
 **Y una trampa que la T-105 encontró midiendo, porque el aviso es fácil de pasar por alto.** Si un archivo del paquete inicial importa de forma estática el mismo `index.ts` que el enrutador carga en perezoso, el empaquetador renuncia a separarlo y avisa con `INEFFECTIVE_DYNAMIC_IMPORT`: las pantallas del módulo se caen al arranque sin que nadie toque una línea de `router.tsx`. Por eso `app/providers/AuthProvider.tsx` importa `@modules/auth/api/...` y `@modules/auth/model/...` por ruta directa, y no el barril. La regla 3 del §4.1 rige entre módulos; `app/` es la composición.
 

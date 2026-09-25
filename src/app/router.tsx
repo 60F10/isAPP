@@ -33,9 +33,9 @@ const TRAS_MVP = 'una tarea posterior al MVP';
 
 export const router = createBrowserRouter([
   {
-    // Red de seguridad del enrutador, NO el Error Boundary de la aplicación:
-    // ese llega en la T-106, con registro en `error_logs`. Esto solo evita la
-    // pantalla en blanco que deja react-router cuando revienta un `lazy`.
+    // C03 del enrutador. Lo que revienta dentro de una ruta lo captura esto
+    // antes que el Error Boundary de `App`, así que también registra en
+    // `error_logs` (T-106).
     errorElement: <RouteErrorPage />,
     // Qué se pinta mientras se descarga el trozo perezoso de la primera
     // pantalla. Sin esto react-router avisa por consola y no pinta nada: la

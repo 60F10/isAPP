@@ -1,0 +1,53 @@
+/* El reparto vertical lo pone `Pantalla`. Aquí el marco, las acciones y el
+   detalle plegado. */
+.marco {
+  max-inline-size: 40rem;
+  padding: var(--space-6) var(--space-4);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-inline-size: 40ch;
+}
+
+.acciones {
+  display: flex;
+  /* A 320 px con el texto al 200 %, cada botón baja a su línea antes que
+     provocar desplazamiento horizontal (criterio 1.4.10). */
+  flex-wrap: wrap;
+  /* Separación mínima entre objetivos táctiles (DOC 02 §5.1). Los 48 px de
+     alto los trae `Button`. */
+  gap: var(--tap-gap);
+}
+
+.detalle {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-100);
+}
+
+/* El resumen es el control que despliega: 48 px de alto como cualquier otro
+   objetivo táctil, y foco visible propio. Se queda en `list-item`, su valor
+   de siempre: con `flex` el navegador quita el triángulo, y sin él nada dice
+   que ahí se despliega algo. */
+.resumen {
+  display: list-item;
+  min-block-size: var(--tap-min);
+  padding-block: var(--space-3);
+  cursor: pointer;
+}
+
+.resumen:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+/* Texto preformateado que parte en vez de desbordar: una traza larga no puede
+   obligar a desplazar en horizontal la pantalla entera (criterio 1.4.10). */
+.pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-100);
+}

@@ -10,10 +10,11 @@
 
 import { Navigate, Outlet } from 'react-router';
 
+import { ErrorDeAcceso } from '@app/components/ErrorDeAcceso';
 import { LoadingState } from '@app/components/LoadingState';
 // Ruta directa y NO el barril `@modules/auth`: misma razón que en
 // `RequireAuth` (DOC 06 §4.1, regla 1 y DOC 13, hallazgo 3).
-import { useHasPermission } from '@modules/auth/hooks/authContext';
+import { useAuth, useHasPermission } from '@modules/auth/hooks/authContext';
 
 interface RequirePermissionProps {
   /** Permiso del DOC 05 §4, por ejemplo `roster.manage`. */
@@ -22,11 +23,14 @@ interface RequirePermissionProps {
 
 export function RequirePermission({ permission }: RequirePermissionProps) {
   const permitido = useHasPermission(permission);
+  const { errorContexto } = useAuth();
 
   // `undefined` es «todavía no se sabe». Tratarlo como un «no» mandaría al
   // 403 a quien sí tiene el permiso, cada vez que recarga la página.
   if (permitido === undefined) {
-    return <LoadingState />;
+    // Pero si no se sabe porque la consulta falló, esperar es esperar para
+    // siempre (T-106). Tampoco es un «no»: es un «no se pudo preguntar».
+    return errorContexto === null ? <LoadingState /> : <ErrorDeAcceso />;
   }
 
   if (!permitido) {

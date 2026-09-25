@@ -123,6 +123,21 @@ export async function signInWithGoogle(destino: string): Promise<void> {
   }
 }
 
+/**
+ * Renueva la sesión a mano. Lo pide el aviso de sesión a punto de caducar
+ * (T-106) cuando la renovación automática no ha podido.
+ *
+ * No hace falta devolver la sesión nueva: llega sola por `onAuthStateChange`
+ * con el evento `TOKEN_REFRESHED`, y `AuthProvider` la recoge ahí.
+ */
+export async function renovarSesion(): Promise<void> {
+  const { error } = await supabase.auth.refreshSession();
+
+  if (error) {
+    throw error;
+  }
+}
+
 function guardarDestino(destino: string): void {
   try {
     window.sessionStorage.setItem(CLAVE_DESTINO, destino);

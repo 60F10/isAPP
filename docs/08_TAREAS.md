@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
+> **Versión:** 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -70,8 +70,10 @@ Veintiuna tareas. **T-301 y T-302 no son opcionales**: con cuatro anotadores en 
 | **T-104**  | Enrutado, guardias de sesión y permiso, esqueleto de navegación, foco al navegar, división del paquete       | A02       | T-103      | 1        | `feat/platform-enrutado`          | ✅     |
 | **T-105**  | Acceso con Google en la aplicación, sesión, equipo activo y permisos en memoria                              | A01, A01b | T-104      | 1        | `feat/auth-login-google`          | ✅     |
 | **T-105b** | Prueba de aislamiento entre clubes: segundo club, otro usuario, y que no vea nada del primero                | —         | T-105      | 0,5      | `fix/db-aislamiento-clubes`       | ✅     |
-| **T-106**  | Error boundary, escritura en `error_logs` y aviso de sesión a punto de expirar                               | C03       | T-104      | 1        | `feat/logging-captura-errores`    | ⬜     |
+| **T-106**  | Error boundary, escritura en `error_logs` y aviso de sesión a punto de expirar                               | C03       | T-104      | 1        | `feat/logging-captura-errores`    | ✅     |
 | **T-107**  | Ajustes de usuario: alto contraste, movimiento reducido, cierre de sesión                                    | C01       | T-103      | 0,5      | `feat/platform-ajustes`           | ⬜     |
+
+**La T-106, cerrada el 25/09.** Error Boundary global con la C03, la misma C03 en el `errorElement` del enrutador, captura global de `window` y registro silencioso en `error_logs`, limpio de testigos y correos y con freno contra bucles. El error de entorno ya tiene pantalla: `main.tsx` carga `App` con `import()` para poder pintarlo. Las rutas guardadas enseñan un «No se pudo cargar tu acceso» con reintento cuando falla el contexto de acceso, y una banda avisa de que la sesión caduca cuando la renovación automática no ha podido. Detalle en el DOC 13.
 
 **La T-105b, cerrada el 25/09.** El script `supabase/pruebas/aislamiento_clubes.sql` confirma que ningún club lee ni escribe en otro. De paso destapó que `rebuild_match_stints` y `flag_duplicate_candidates` se ejecutaban sobre partidos ajenos, y lo cierra la migración `20260925182524_guarda_permiso_funciones_partido.sql`. Queda como deuda que un club puede enlazar objetos de otro en sus propias filas. Detalle en el DOC 13.
 
