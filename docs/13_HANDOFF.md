@@ -5,130 +5,98 @@
 
 ---
 
-## Sesión 25/09/2026 — T-105b, prueba de aislamiento entre clubes: ✅ cerrada
+## Sesión 25/09/2026 — Deuda arrastrada (punto 17): `strict` en los `tsconfig`
 
-Sesión de Cowork contra el proyecto de Supabase `GavetaStats` y **sin tocar el código de la aplicación**. La sesión del 20/09 que va debajo (rama `refactor/auth-contexto-al-modulo`) sigue sin subir y su traspaso sigue valiendo: por eso esta vez **no se sobrescribe**, se añade encima.
+Sesión en la nube, sin Raúl delante y sin acceso a Supabase. No es tarea del DOC 08: es el punto 17
+del traspaso anterior, «`strict` apagado en los `tsconfig`». Por eso el DOC 08 no cambia.
 
-### HECHO
-
-**Script `supabase/pruebas/aislamiento_clubes.sql`**, nuevo y sin commitear. Un único bloque `do` que:
-
-1. Siembra dos clubes sintéticos completos, cada uno con su usuario miembro (los doce permisos) y su seguidor: club, temporada, competición, equipo, rival, invitación, jugador, inscripción, partido en juego, periodo, convocatoria, evento, tramo, cobertura, sanción, entrenamiento y asistencia.
-2. Se hace pasar por cada usuario a través de la RLS (`set local role authenticated` y su `sub` en `request.jwt.claims`) y prueba lecturas, escrituras y funciones RPC contra el otro club y contra Unión Tejina.
-3. Termina **siempre** con un error `P0T5B` que lleva el informe. Ese error deshace la transacción entera. Comprobado después: un usuario, un club y un perfil, lo mismo que antes.
-
-Carpeta `pruebas/` y no `tests/` a propósito: `supabase test db` busca pgTAP en `supabase/tests` y este script no lo es.
-
-Los usuarios sintéticos **no son administradores de plataforma**. Raúl sí lo es (`profiles.is_platform_admin = true`), y un administrador lee todos los clubes por diseño (`can_read_team`, `is_club_member`), así que la prueba no se puede hacer con su cuenta.
-
-### RESULTADO: 166 COMPROBACIONES, 4 FALLOS, 14 AVISOS
-
-| Bloque                                                                                   | Comprobaciones | Resultado                                                            |
-| :--------------------------------------------------------------------------------------- | -------------: | :------------------------------------------------------------------- |
-| Lecturas del otro club, 21 tablas y 23 consultas por sentido                             |             46 | ✅ Cero filas. Control positivo en verde: cada usuario sí ve lo suyo |
-| Lecturas del club real                                                                   |              8 | ✅ Cero filas                                                        |
-| Escrituras sobre el otro club (`insert`, `update`, `delete`)                             |             78 | ✅ Ninguna fila tocada                                               |
-| Funciones auxiliares (`has_team_permission`, `can_read_*`, `is_*`, `metric_reliability`) |             16 | ✅ Todas en `false` o `0`                                            |
-| **`rebuild_match_stints` y `flag_duplicate_candidates` sobre un partido ajeno**          |              4 | ❌ **Se ejecutan**                                                   |
-| `team_of_match` sobre un partido ajeno                                                   |              2 | ⚠️ Devuelve el `team_id`                                             |
-| Filas propias que apuntan a objetos ajenos                                               |             12 | ⚠️ Se aceptan las seis, en los dos sentidos                          |
-
-**Los cuatro fallos son el mismo agujero dos veces.** Las dos funciones son `SECURITY DEFINER`, `authenticated` las puede llamar por RPC (el DOC 05 §11 las pone como puerta de lectura, así que es a propósito) y **ninguna comprueba permiso dentro**. Cualquier usuario con sesión puede borrar y reconstruir los tramos de un partido de otro club, o reescribir el `duplicate_group_id` de sus eventos. La T-100b les quitó `anon`; el hueco que queda es `authenticated`. Para explotarlo hay que conocer el `uuid` del partido, lo que baja la probabilidad pero no cierra nada.
-
-**Los avisos no rompen la lectura, pero sí la integridad:**
-
-- `team_of_match` devuelve el equipo de cualquier partido. Filtra un `uuid` y nada más: ese equipo sigue sin poderse leer.
-- Un club puede meter en sus propias filas objetos de otro club: un jugador ajeno en su plantilla, su convocatoria, una sanción o una asistencia, un rival ajeno en un partido, o la temporada y la competición de otro club. Las políticas solo miran el permiso sobre el equipo o el club propio, y ninguna clave ajena exige que los dos lados sean del mismo club. **Es deuda técnica nueva, y se anota ahora:** con un solo club no hace daño; con dos, cualquier error de la interfaz que mezcle identificadores ensucia datos de otro inquilino sin que salte nada.
-
-### CÓMO SE CERRÓ
-
-**Migración `20260925182524_guarda_permiso_funciones_partido.sql`**, aplicada a producción desde Cowork con el visto bueno de Raúl. `create or replace` con la misma firma, así que conservan sus `EXECUTE` y los tipos generados no cambian: no hace falta `npm run db:types`.
-
-| Función                     | Exige                                                                | Por qué                                                                                         |
-| :-------------------------- | :------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------- |
-| `rebuild_match_stints`      | `match.live.write`, `event.approve`, `lineup.manage` o `match.close` | Los tramos se recalculan cuando cambia un cambio, una expulsión o la convocatoria (DOC 04 §6.1) |
-| `flag_duplicate_candidates` | `event.approve`                                                      | Quien usa el resultado es quien revisa discordancias (T-210)                                    |
-
-El administrador de plataforma no suma. Sin sesión (`auth.uid()` nulo) la guarda no actúa, igual que en `enforce_match_changes`: `anon` sigue sin `EXECUTE` y lo que llega sin uid es el servidor.
-
-**El script, relanzado: `T-105b SUPERADA · 166 comprobaciones · 0 fallos · 14 avisos`.** Los catorce avisos son los de arriba, que siguen siendo deuda. Control positivo aparte: Raúl, sobre un partido de prueba del Cadete A, ejecuta las dos funciones sin error. Todo se deshizo al terminar.
-
-**Comprobado en la app por Raúl** con una segunda cuenta de Google, no administradora, en incógnito sobre `npm run dev`: entra y cae en la C05, «Sin permiso… todavía no pertenezcas a ningún equipo». A través de la RLS, esa cuenta ve 0 clubes, 0 equipos, 0 temporadas, 0 miembros, 0 permisos, 0 jugadores, 0 partidos y un solo perfil, el suyo. Se queda en `auth.users` y no molesta.
-
----
-
-## Sesión 20/09/2026 — Deuda arrastrada (punto 19 / hallazgo 3): el contexto de sesión y la región viva salen de `app/`
-
-Sesión sin Raúl delante y sin un solo clic de Google: no era falta que hiciera —el andamiaje de
-sesión no se toca, solo se muda de sitio—. **Los commits y la pull request quedan para Raúl** (regla
-del CLAUDE.md), así que al cerrar esta sesión el trabajo está en el árbol y sin subir.
-
-Rama `refactor/auth-contexto-al-modulo`. No es tarea del DOC 08: es la deuda que el traspaso
-anterior dejó como punto 19, «los módulos no pueden llegar a `useAuth` ni a `useAnnounce`», y que a
-partir de la T-201 dejaba de poderse esquivar, porque toda pantalla que lea datos necesita el equipo
-activo.
-
-Venía además una edición sin commitear de la sesión anterior en `docs/10_Entornos_y_Despliegue.md`
-§2.2 (los builds de Netlify parados desde el 20/09): se ha dejado intacta y sube en la misma pull
-request.
+El entorno obliga a trabajar en la rama `claude/build-repo-typescript-strict-nv74p1`; la que tocaba
+por convención es `build/repo-typescript-strict`. La pull request lo dice.
 
 ---
 
 ## HECHO
 
-**El contexto de sesión se muda a `modules/auth` y la región viva a `shared/`; `app/providers/` se
-queda solo con los dos componentes proveedores.**
+**El punto de partida era falso, y es lo primero que hay que saber.** TypeScript 6 trae `strict`
+encendido por defecto. Comprobado con un archivo suelto y un `tsconfig` vacío: `tsc` 6.0.3 rechaza un
+parámetro sin tipo (TS7006) y un `null` en un `string` (TS2322). El proyecto compila en estricto
+desde la T-101 aunque ningún `tsconfig` lo dijera, y por eso encenderlo sacó **cero errores**. El
+bucle de arreglos que iba a llevar un subagente no ha hecho falta.
 
-| Pieza                                               | Antes                                     | Ahora                                                                                      |
-| :-------------------------------------------------- | :---------------------------------------- | :----------------------------------------------------------------------------------------- |
-| Contexto de sesión + `useAuth` + `useHasPermission` | `src/app/providers/authContext.ts`        | `src/modules/auth/hooks/authContext.ts`, exportado por el `index.ts` del módulo            |
-| Contexto de la región viva + `useAnnounce`          | `src/app/providers/announceContext.ts`    | `src/shared/hooks/announceContext.ts`                                                      |
-| `AuthProvider.tsx` / `AnnounceProvider.tsx`         | `src/app/providers/`                      | Sin mover: son la composición                                                              |
-| `RequireAuth` / `RequirePermission`                 | Leían `@app/providers/authContext`        | Leen `@modules/auth/hooks/authContext`, por ruta directa y no por el barril                |
-| Pantalla de vuelta (A01b)                           | Preguntaba a `api/sesionActual.ts` propio | Pregunta a `useAuth()` del propio módulo; `sesionActual.ts` se borra, sin usuarios         |
-| Errores de A01 y A01b                               | `<p role="alert">`, región viva de más    | `useAnnounce()` de la región única (DOC 06 §6.3); el párrafo se queda como interfaz normal |
+| Archivo              | Cambio                                                                                         |
+| :------------------- | :--------------------------------------------------------------------------------------------- |
+| `tsconfig.app.json`  | `"strict": true` explícito, con un comentario que explica por qué se escribe si ya es el valor |
+| `tsconfig.node.json` | `"strict": true` explícito                                                                     |
+| `.oxlintrc.json`     | Tres reglas en error: `no-explicit-any`, `no-non-null-assertion` y `ban-ts-comment`            |
+| DOC 06 §11           | Decisión **D06-22** y versión 1.7                                                              |
 
-**La decisión que tocaba tomar** —dónde exactamente dentro de `modules/auth`, porque el §3.2 tiene
-`hooks/` pero el objeto de contexto no es un hook— se resuelve en `hooks/`: no es lógica pura de
-`model/` (usa `createContext`/`useContext`, y `model/` es «sin React ni red»), y es donde ya vivía
-junto al hook antes de moverse, por el mismo motivo de refresco en caliente que separa contexto de
-proveedor. `AuthContext`, `useAuth` y `useHasPermission` viajan juntos en
-`modules/auth/hooks/authContext.ts`.
+**Por qué escribir lo que ya es el valor por defecto.** Si alguien baja a TypeScript 5 —por una
+dependencia que no admita el 6, por ejemplo—, `strict` se apagaría en silencio y el código dejaría de
+distinguir `null` de un conjunto vacío sin que nada avisara. Escrito, no depende de la versión.
 
-**La trampa medida no ha mordido.** `RequireAuth` y `RequirePermission` se cargan de forma estática
-desde `router.tsx`, que también carga `@modules/auth` en perezoso para las tres pantallas del
-módulo; importar el contexto por el barril desde las guardias habría avisado
-`INEFFECTIVE_DYNAMIC_IMPORT` y tirado esas pantallas al paquete inicial. Las dos guardias importan
-`@modules/auth/hooks/authContext` por ruta directa, mismo patrón que ya usaba `AuthProvider.tsx`
-para `api/` y `model/`.
+**Por qué las reglas de `oxlint`.** `strict` no impide ni `any` escrito a mano, ni el `!` de
+aserción, ni los comentarios `@ts-`. Son justo los tres atajos prohibidos, y una prohibición que
+vigila una persona se salta el día que hay prisa. Las tres reglas se vieron fallar sobre un archivo
+de prueba con los cuatro casos (`any`, `!`, `@ts-ignore` y `@ts-expect-error` con descripción) antes
+de darlas por buenas, y el repositorio no tiene hoy ninguno de ellos. `ban-ts-comment` deja pasar
+por defecto un `@ts-expect-error` con descripción: se configura para prohibirlo también.
 
-`npm run lint` sin avisos · `npx prettier --check .` limpio · `npm run test -- --run` con
-**33 pruebas en verde**, sin tocar ninguna · `npm run build` en verde, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+**El paquete no cambia ni un byte.** Se compiló antes y después y se comparó la suma SHA-256 de cada
+archivo de `dist/`: idénticos, `sw.js` incluido.
 
 ---
 
-## LO QUE SE CIERRA
+## PENDIENTE DE LA TAREA
 
-- **Hallazgo 3 del traspaso anterior**, cerrado: un módulo ya puede llegar a la sesión y a la región
-  viva sin tocar `app/`.
-- **Los dos `role="alert"` de A01 y A01b**, cerrados: pasan por `useAnnounce()`.
-- **`api/sesionActual.ts`**, borrado: se quedó sin un solo usuario en cuanto A01b pudo preguntar al
-  contexto.
-- **Punto 19** de «lo que sigue abierto», cerrado.
+**`noUncheckedIndexedAccess`, medido y sin encender, como pedía la tarea.** Saca **siete errores**:
+
+| Archivo                                      | Errores | Qué es                                                                                    |
+| :------------------------------------------- | ------: | :---------------------------------------------------------------------------------------- |
+| `src/modules/auth/model/permissions.ts:120`  |       1 | `membresias[0].team.id`, ya protegido por el `length === 0` de tres líneas antes          |
+| `src/modules/auth/model/permissions.test.ts` |       6 | `const [membresia] = …` en tres pruebas: la desestructuración da `Membresia \| undefined` |
+
+`tsconfig.node.json` no saca ninguno.
+
+Salidas:
+
+| Salida                                  | Consecuencia                                                                                                                                                                                                                                                                                         |
+| :-------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A. Encenderlo ya, antes de la T-201** | Siete arreglos en dos archivos, media hora. El de producción se reescribe con `const [primera] = membresias; return primera?.team.id ?? null;` y el `if` de arriba sobra. Cada pantalla nueva nace con la comprobación puesta. **Recomendada**: el coste crece con cada lista que pinte una pantalla |
+| B. Encenderlo después del MVP           | Cero coste hoy. Cada tabla, convocatoria y lista de eventos que se escriba hasta octubre suma errores, y el `model/` de `match` —tramos, minutos, duplicados— es justo donde un índice fuera de rango pierde un dato                                                                                 |
+| C. No encenderlo                        | Los accesos por índice se revisan a mano en cada pull request. Es la clase de error que el directo no perdona                                                                                                                                                                                        |
+
+No se ha encendido porque la tarea pedía medir, no decidir.
+
+---
+
+## DECISIONES TOMADAS
+
+- **D06-22** en el DOC 06 §11: `strict` explícito en los dos `tsconfig` y tres reglas de `oxlint` en
+  error. Ninguna toca el DOC 04 ni el DOC 05.
+- **El DOC 08 no se toca**: el punto 17 es deuda, no una fila de tareas.
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-Ninguna nueva. Esta sesión mueve código, no añade comportamiento.
+Ninguna. La sesión cierra deuda y no abre ninguna. La de `noUncheckedIndexedAccess` ya existía; ahora
+tiene número y salidas.
 
 ---
 
-## LO QUE SIGUE ABIERTO DE SESIONES ANTERIORES
+## LO QUE SIGUE ABIERTO
 
-**El punto 19 de la lista anterior se cierra esta sesión.** El resto se renumera sin huecos y se le
-suman tres, del 21 al 23, que venían sueltos en la tabla de deuda técnica de la sesión de la T-105 y
-todavía no estaban en esta lista.
+**El punto 17 del traspaso anterior se cierra esta sesión.** Los de detrás suben un puesto y se suman
+dos al final. Para quien lleve la cola con los números viejos:
+
+| Antes | Ahora | Qué                                                 |
+| ----: | ----: | :-------------------------------------------------- |
+|     9 |     9 | Error de entorno sin interfaz (T-106)               |
+|    18 |    17 | `esErrorDeCliente` y el ayudante común              |
+|    21 |    20 | `errorContexto` sin pintar (T-106)                  |
+|    22 |    21 | Cerrar sesión (T-107)                               |
+|     — |    23 | Referencias cruzadas entre clubes, que venía suelta |
+|     — |    24 | `noUncheckedIndexedAccess`                          |
 
 Pendiente de decidir, que no lo decide el código:
 
@@ -156,8 +124,7 @@ Pendiente de hacer:
     Lo resuelve la T-303.
 11. Faltan tokens de anchura de maqueta en el DOC 07: el rail y la caja de `BareLayout` salen de
     `--tap-min`.
-12. **Diecinueve rutas comparten la misma `PantallaPendiente`** —eran veinte y A04 sigue siéndolo,
-    pero ahora se llega a todas de verdad, que es lo que cambia—. Cada una la sustituye su tarea.
+12. **Diecinueve rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
 13. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
     índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
     comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones repetidas
@@ -168,28 +135,34 @@ Pendiente de hacer:
     solo toque `docs/`**: `CACHED_COMMIT_REF` apunta al commit de la caché restaurada, no al padre
     inmediato. Salidas: comparar contra `$COMMIT_REF^` o contra la base de la rama, o mover la
     decisión al CI de GitHub. Sin tocar.
-16. **Netlify tiene los despliegues PARADOS desde el 20/09** (DOC 10 §2.2, esta sesión). El sitio
-    publicado sigue en pie, pero fusionar a `main` no publica nada hasta reactivarlos a mano.
-17. **`strict` apagado en los `tsconfig`.** No aparece `strict`, ni `strictNullChecks`, ni
-    `noUncheckedIndexedAccess`. Encenderlo es tarea propia: probablemente saque errores por todo el
-    repositorio, empezando por el código que distingue `null` de un conjunto vacío.
-18. **`esErrorDeCliente` no reconoce un error de Supabase**, así que los 4xx se reintentan dos veces
+16. **Netlify tiene los despliegues PARADOS desde el 20/09** (DOC 10 §2.2). El sitio publicado sigue
+    en pie, pero fusionar a `main` no publica nada hasta reactivarlos a mano.
+17. **`esErrorDeCliente` no reconoce un error de Supabase**, así que los 4xx se reintentan dos veces
     en vez de rendirse a la primera. Se arregla con el «ayudante común» del DOC 06 §10.1, que
     todavía no existe en `shared/lib/`.
-19. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
+18. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
     tabla `invitations` existe y no la usa ninguna pantalla. Hoy solo entra quien esté sembrado a
     mano. Es la T-301, y **la idea de Raúl de elegir equipo como seguidor al entrar se apunta
     aquí**: hace falta decidirla en el DOC 03, porque pide tocar la RLS de `team_followers` y
     enseñar una lista de equipos que hoy nadie puede leer.
-20. **A01b no está en el inventario del DOC 02.** La pantalla de vuelta existe en el código y no en
+19. **A01b no está en el inventario del DOC 02.** La pantalla de vuelta existe en el código y no en
     la documentación de pantallas. O entra al inventario como parada técnica, o se le da otro sitio.
-21. **`errorContexto` no lo pinta nadie.** Si la consulta del contexto de acceso falla, las rutas
+20. **`errorContexto` no lo pinta nadie.** Si la consulta del contexto de acceso falla, las rutas
     guardadas se quedan en «Cargando…» para siempre. Lo cierra la T-106, que es quien trae las
     pantallas de error.
-22. **No hay cerrar sesión en ninguna parte.** Quien entre con una cuenta sin equipo se queda ahí.
+21. **No hay cerrar sesión en ninguna parte.** Quien entre con una cuenta sin equipo se queda ahí.
     Es la T-107. Mientras tanto se sale borrando el almacenamiento del sitio.
-23. **El contrato de `AuthState` mezcla idiomas**: `cargando` y `permisos` junto a `profile` y
+22. **El contrato de `AuthState` mezcla idiomas**: `cargando` y `permisos` junto a `profile` y
     `activeTeamId`. Los nombres nuevos son los que fija el DOC 06 §5.5; decidir y unificar.
+23. **Un club puede enlazar objetos de otro club en sus propias filas** (los catorce avisos de la
+    T-105b): un jugador ajeno en su plantilla o su convocatoria, una sanción o asistencia ajena, un
+    rival ajeno, la temporada o la competición de otro club. Las políticas solo miran el permiso
+    sobre lo propio y ninguna clave ajena exige que los dos lados sean del mismo club. `team_of_match`
+    devuelve además el equipo de cualquier partido. Con un solo club no hace daño; **decidir antes de
+    la T-201 cuándo se paga**, porque la T-201 a la T-205 son las primeras pantallas que escriben
+    esas filas. Pide migración: sesión de Cowork.
+24. **`noUncheckedIndexedAccess` apagado.** Siete errores hoy; salidas arriba, en «Pendiente de la
+    tarea». Recomendado encenderlo antes de la T-201.
 
 Asumidas y sin fecha: `vite build` avisa de que el trozo inicial pasa de 500 kB en crudo; el marco
 de la ventana vive en `App` como una pieza más entre el enrutador y las maquetas; la siembra se
@@ -202,26 +175,29 @@ el rol y los permisos de cada uno—.
 
 ## EL PAQUETE, MEDIDO
 
-| Momento          | Inicial comprimido | Margen sobre 200 kB |
-| :--------------- | -----------------: | ------------------: |
-| T-105 como quedó |          175,19 kB |            24,81 kB |
-| **Esta sesión**  |      **175,21 kB** |        **24,79 kB** |
+| Momento                            | Inicial comprimido | Margen sobre 200 kB |
+| :--------------------------------- | -----------------: | ------------------: |
+| Refactor del 20/09, en Windows     |          175,21 kB |            24,79 kB |
+| `main` antes de esta sesión, Linux |          174,97 kB |            25,03 kB |
+| **Esta sesión, Linux**             |      **174,97 kB** |        **25,03 kB** |
 
-**El paquete inicial sube un pelín, y es un cambio real, no de redondeo:** `vite build` es
-determinista. El trozo principal pasa de 169,87 a **169,89 kB** comprimidos porque el contexto de
-sesión ahora lo alcanzan a la vez la ruta estática de las guardias y `AuthProvider` **y** la ruta
-perezosa de `AuthCallbackPage`, que antes no tocaba ese archivo para nada —tiraba de su propio
-`sesionActual.ts`—. El trozo perezoso de `auth` adelgaza en cambio de 1,27 a **1,24 kB**, porque
-`sesionActual.ts` ya no existe. Con el CSS (3,12 kB) y `workbox-window` (2,20 kB) sin tocar, el total
-del arranque pasa de 175,19 a **175,21 kB**, unos treinta bytes de más sobre los 200 kB del
-presupuesto. En crudo, 583,85 kB de JavaScript y `precache 17 entries (654.65 KiB)`.
+Esta sesión no mueve el paquete: `dist/` sale idéntico byte a byte. **La diferencia de 0,24 kB con
+la cifra anterior es del entorno, no del código.** El mismo commit de la fusión del refactor
+(`bd1c6fd`) da aquí 169,65 kB de JavaScript comprimido, y en la máquina de Raúl dio 169,89. Suma:
+169,65 del trozo principal, 3,12 de CSS y 2,20 de `workbox-window`. En crudo, 583,60 kB de JavaScript
+y `precache 17 entries (654.41 KiB)`. Si en Windows vuelve a salir 175,21, está bien: compara siempre
+contra una medida de la misma máquina.
 
 ---
 
 ## SIGUIENTE TAREA SUGERIDA
 
-**La T-105b está cerrada.** Sigue la **T-106** (error boundary, `error_logs`, el punto 21 y el punto 9 de arriba).
-Antes de la T-201, decidir cuándo se paga la deuda de las referencias cruzadas entre clubes que destapó la T-105b.
+**T-106**: error boundary, `error_logs` y aviso de sesión a punto de expirar. Cierra los puntos 9
+y 20 de arriba —el 9 y el 21 con la numeración vieja—.
+
+Antes de la T-201, dos decisiones de Raúl: el punto 23 (referencias cruzadas entre clubes) y el 24
+(`noUncheckedIndexedAccess`).
+
 ---
 
 ## COMANDOS PARA VERIFICAR
@@ -229,7 +205,8 @@ Antes de la T-201, decidir cuándo se paga la deuda de las referencias cruzadas 
 ```powershell
 cd D:\Documentos\Proyectos\ProyectoSASI\App
 Remove-Item Env:\NODE_ENV          # imprescindible, ver el hallazgo de la T-101
-git switch refactor/auth-contexto-al-modulo
+git switch main
+git pull
 
 npm ci
 npm run lint
@@ -238,27 +215,21 @@ npm run test -- --run
 npm run build
 ```
 
-`npm run test -- --run` tiene que decir `Test Files 2 passed (2)` y `Tests 33 passed (33)`, sin que
-esta sesión haya tocado ni una prueba.
+`npm run lint` sin avisos ni errores. `npm run test -- --run` tiene que decir `Test Files 2 passed (2)`
+y `Tests 33 passed (33)`. El build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
-El build tiene que terminar en verde y decir **`583.85 kB` en crudo y `169.89 kB` comprimidos** de
-JavaScript, más `11.61 kB` y `3.12 kB` de CSS, y un trozo `auth-*.js` de `1.24 kB` comprimidos. Al
-final, `precache 17 entries (654.65 KiB)`. Si sale bastante más, `NODE_ENV` volvió a colarse; y
-**ojo con `set NODE_ENV=` en `cmd`**, que la deja a cadena vacía y empaqueta React en modo
-desarrollo.
+Para ver las reglas nuevas en acción, crea `src/prueba.ts` con `const a: any = 1;` y lanza
+`npm run lint`: tiene que fallar con `typescript(no-explicit-any)`. Bórralo después.
 
-**Si sale `INEFFECTIVE_DYNAMIC_IMPORT`**, alguien ha vuelto a importar el barril `@modules/auth` de
-forma estática desde `app/` —`AuthProvider.tsx` o las guardias—. Las tres pantallas de `auth` se
-habrán caído al paquete inicial.
+Para volver a medir `noUncheckedIndexedAccess` sin encenderlo:
 
-No hace falta pasar por el navegador para esta sesión: no se ha tocado ningún flujo, solo la ruta de
-los archivos. **Sí conviene comprobar una vez** que el viaje del acceso sigue igual —entrar sin
-sesión, pasar por Google, volver por «Entrando» y aterrizar con la sesión puesta, sin pasar por la
-pantalla de cuenta—, porque `AuthCallbackPage` ya no lee su propia sesión: lee el contexto.
+```powershell
+npx tsc -p tsconfig.app.json --noEmit --noUncheckedIndexedAccess
+```
 
-**`npm run db:types` NO se lanza a la ligera.** Sin `SUPABASE_ACCESS_TOKEN` o sin `supabase login`,
-el `>` del script deja `src/types/database.types.ts` en cero bytes. Esta sesión **no tocó el
-esquema**, así que los tipos siguen valiendo tal cual.
+Tiene que sacar siete errores, los de la tabla de arriba.
+
+**`npm run db:types` NO se lanza a la ligera.** Esta sesión no tocó el esquema.
 
 ---
 
