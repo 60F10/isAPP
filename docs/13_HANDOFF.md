@@ -5,148 +5,129 @@
 
 ---
 
-## Sesión 25/09/2026 — T-106, captura de errores y aviso de sesión: ✅ cerrada
+## Sesión 25/09/2026 — T-107, Ajustes: ✅ cerrada. La fase 1 está completa
 
-Sesión en la nube, sin Raúl delante y sin acceso a Supabase. Cierra los puntos 9 y 20 de la lista
-anterior —el error de entorno sin interfaz y el `errorContexto` sin pintar, que eran el 9 y el 21
-antes de la sesión del `strict`—.
+Sesión en la nube, sin Raúl delante y sin acceso a Supabase. Cierra el punto 19 de la lista anterior
+—no había forma de cerrar sesión— y revisa el `prompt: 'select_account'` de la T-105. El punto 1
+(destinos de la barra) se queda para Raúl, con las salidas escritas.
 
 El entorno obliga a subir a una rama `claude/…`; la que toca por convención es
-`feat/logging-captura-errores`, y con ese nombre se hizo el commit para que pasara el hook de
-`pre-commit`. La pull request lo dice.
+`feat/platform-ajustes`, y con ese nombre se hizo el commit para que pasara el hook de `pre-commit`.
+La pull request lo dice.
 
 ---
 
 ## HECHO
 
-**El módulo `logging` nace**, con las dos pantallas que el DOC 06 §3.4 le asigna a medias: la C03
-entera y el registro que leerá la C02 de la T-303.
+**La pantalla C01, Ajustes, sustituye a su `PantallaPendiente`.** Dos tarjetas: «Pantalla», con alto
+contraste y movimiento reducido, y «Cuenta», con el nombre con el que se ha entrado y «Cerrar
+sesión».
 
-| Pieza                                       | Qué hace                                                                                                                              |
-| :------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------ |
-| `modules/logging/model/errorLog.ts`         | Lógica pura: normaliza lo que se lance, limpia testigos y correos, recorta, arma la fila y frena los bucles                           |
-| `modules/logging/api/errorLogs.ts`          | La inserción en `error_logs`, sin `.select()` detrás                                                                                  |
-| `modules/logging/api/registro.ts`           | `registrarError`, la única puerta. Más `instalarCapturaGlobal` y `fijarClubDeRegistro`                                                |
-| `modules/logging/components/PantallaError`  | La C03, vista pura: sin red, sin contexto, sin enrutador. «Recargar» e «Ir al inicio», y el detalle técnico plegado                   |
-| `modules/logging/components/ErrorBoundary`  | El Error Boundary global, por fuera de todos los proveedores                                                                          |
-| `app/main.tsx`                              | Carga `App` con `import()` y pinta la C03 si el arranque falla: error de entorno o trozo que no baja (**D06-23**)                     |
-| `app/components/RouteErrorPage.tsx`         | La C03 dentro del enrutador. Registra con origen `ruta`, salvo las respuestas 4xx, que son navegación                                 |
-| `app/components/ErrorDeAcceso.tsx`          | «No se pudo cargar tu acceso» con «Reintentar», desde `RequirePermission`. **Cierra el punto 20**                                     |
-| `app/components/AvisoSesion.tsx`            | Banda de sesión a punto de caducar (criterio 2.2.1), con el cálculo en `modules/auth/model/caducidad.ts`                              |
-| `shared/lib/errorDeEntorno.ts`              | Clase `ErrorDeEntorno`, que ahora lanza `env.ts`. Archivo sin efectos, para reconocer el error sin importar `env.ts`. **Cierra el 9** |
-| `AuthState`                                 | Suma `reintentarContexto`. `errorContexto` ya tiene quien lo pinte                                                                    |
-| `auth/api/session.ts`                       | Suma `renovarSesion`, que llama a `refreshSession()`                                                                                  |
-| `vite.config.ts` y `src/types/globals.d.ts` | `__APP_VERSION__`: los siete primeros caracteres de `COMMIT_REF` de Netlify, o `local`                                                |
+| Pieza                            | Qué hace                                                                                                                          |
+| :------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
+| `app/routes/AjustesPage.tsx`     | La C01. Perezosa desde el enrutador, en su propio trozo. Casillas nativas con su ayuda enlazada por `aria-describedby`            |
+| `shared/lib/preferencias.ts`     | Lee, interpreta, guarda y aplica las dos preferencias. Nunca lanza: un `localStorage` bloqueado no puede impedir que arranque     |
+| `app/main.tsx`                   | Aplica las preferencias antes de cargar `App`, para que no haya destello de la paleta normal al abrir con el móvil ya al sol      |
+| `styles/tokens.css` y `base.css` | `data-motion="reduced"` pone a cero las mismas duraciones que `prefers-reduced-motion`. `data-contrast="high"` ya existía (T-103) |
+| `auth/api/session.ts`            | `cerrarSesion()`, con `scope: 'local'`. Y el comentario de `select_account`, revisado                                             |
 
-**Comprobado en el navegador** con el build servido por `vite preview` y sin `.env.local`, o sea con
-el entorno roto de verdad: sale «Falta configuración» en vez de la pantalla en blanco, con el foco en
-el `h1`, el título del documento puesto, sin desplazamiento horizontal a 320 px y el resumen del
-detalle a 48 px de alto. El detalle plegado lista las tres variables que faltan y ninguna clave.
-
-**Sin comprobar en el navegador**, porque aquí no se puede entrar con Google: el Error Boundary con
-sesión, la fila real en `error_logs`, `ErrorDeAcceso` y la banda de sesión. Las pruebas cubren su
-lógica; el viaje de verdad queda en «Comandos para verificar».
+**Comprobado en Chromium** con el build servido: con las preferencias guardadas, la aplicación
+arranca ya con `data-contrast="high"` y `data-motion="reduced"`, la tinta sale negra, las duraciones
+a cero y no hay desplazamiento horizontal a 320 px. **Sin comprobar**: la C01 con sesión y el cierre
+de sesión de verdad, porque aquí no se puede entrar con Google. Los pasos, en «Comandos para
+verificar».
 
 ### Pruebas
 
-**62 en verde**, 28 nuevas y una más en `env.test.ts`. Cada una se vio fallar antes de darla por
-buena: 17 contra un esbozo vacío, dos contra el primer código de verdad —`matchMedia` no existe en
-jsdom y el fallo se tragaba la fila entera, que es un fallo real y está arreglado— y las demás con
-un mutante a mano sobre la línea que vigilan.
+**74 en verde**, 12 nuevas. Cada una se vio fallar antes de darla por buena: seis contra un esbozo
+vacío y las demás con un mutante a mano sobre la línea que vigilan.
 
-| Archivo                                     | Casos | Qué vigila                                                                                   |
-| :------------------------------------------ | ----: | :------------------------------------------------------------------------------------------- |
-| `logging/model/errorLog.test.ts`            |    16 | Que no salga un JWT, un `code`, un `Bearer` ni un correo; ruta sin consulta; recortes; freno |
-| `logging/api/registro.test.ts`              |     4 | Sin sesión no inserta, con sesión sí, nunca lanza, no repite                                 |
-| `logging/components/ErrorBoundary.test.tsx` |     2 | Pinta la C03 con sus dos botones y registra como `boundary`                                  |
-| `auth/model/caducidad.test.ts`              |     6 | Las tres fases, sus bordes y que el margen deja al menos 20 s para reaccionar                |
-| `shared/lib/env.test.ts`                    |    +1 | Que lance un `ErrorDeEntorno`, que es lo que el arranque sabe pintar                         |
+| Archivo                           | Casos | Qué vigila                                                                                       |
+| :-------------------------------- | ----: | :----------------------------------------------------------------------------------------------- |
+| `shared/lib/preferencias.test.ts` |     7 | Valores por defecto, texto roto, campos que faltan, ida y vuelta, almacén que lanza, atributos   |
+| `app/routes/AjustesPage.test.tsx` |     5 | Las dos casillas cambian `<html>` y se guardan; la cuenta; salir lleva al acceso; el fallo avisa |
 
 ---
 
 ## DECISIONES TOMADAS
 
-**D06-23 · `App` se carga con `import()`.** `env.ts` lanza al importarse (D06-21), y con una
-importación estática ese error aborta el módulo antes de que `main.tsx` ejecute una línea. Con
-`import()` llega como promesa rechazada y se pinta. Cuesta **1,87 kB comprimidos**, medidos contra
-la misma aplicación con `App` estático, y un viaje de red más en la primera visita, porque Vite no
-precarga el trozo de `App` desde `index.html`. A partir de la segunda lo sirve la precaché. Se
-descartaron un `<script>` en línea en `index.html`, que pinta fuera de React y del sistema de
-diseño, y que `env.ts` deje de lanzar, que rompe la D06-21. Escrita en el DOC 06 §10.1.
+**D06-25 · Las preferencias se guardan en el dispositivo, no en el perfil.** El DOC 07 §4 pide el
+perfil, pero `profiles` no tiene columna y esta sesión no puede migrar. Viven en `localStorage` bajo
+`sasi.preferencias`. Ventaja real: se aplican al arrancar sin esperar a la red. Coste: no viajan del
+móvil al portátil. Salidas en el punto 24.
 
-**El aviso de sesión salta a 60 segundos, no antes.** Supabase renueva solo cuando le quedan unos
-noventa. Con un margen mayor, la banda saldría una vez por hora y se iría sola a los pocos segundos
-sin que nadie hiciera nada. Con sesenta solo aparece cuando la renovación automática ya falló, que es
-falta de cobertura, y deja más de veinte segundos para pulsar (criterio 2.2.1). El reloj se mira cada
-15 s y al desbloquear el móvil. Caducar no cierra la sesión ni borra nada.
+**El movimiento reducido de Ajustes se suma al del sistema, no lo sustituye.** Con
+`prefers-reduced-motion` puesto, apagar la casilla no devuelve las animaciones: la preferencia del
+sistema la eligió la persona por una razón, y una aplicación no tiene por qué pasar por encima. La
+ayuda de la casilla lo dice.
 
-**Qué se guarda en `error_logs`.** Mensaje con el origen delante (`[boundary]`, `[ruta]`,
-`[global]`, `[promesa]`, `[contexto]`), traza, pila de componentes cuando la hay, solo el camino de
-la ruta, club del equipo activo, commit desplegado y dispositivo: agente, idioma, tamaño de ventana,
-si hay red y si se abrió como PWA. `limpiarTexto` tapa JWT, `Bearer`, los parámetros `code`,
-`*_token`, `apikey` y `password` y cualquier correo antes de que la fila salga del móvil. **El
-origen va en el mensaje y no en una columna** porque no hay columna y esta sesión no toca el esquema.
+**Casillas nativas y no un interruptor dibujado.** La casilla ya trae nombre, estado, teclado y
+cambio al soltar (2.5.2). Toda la fila mide 48 px y responde al toque.
 
-**El freno: diez filas por carga y el mismo mensaje una vez por minuto.** Un componente que revienta
-en cada render se comería los datos del móvil a pie de campo.
+**`cerrarSesion` con `scope: 'local'`.** Supabase cierra por defecto la sesión en **todos** los
+dispositivos del usuario: salir en el móvil cerraría también el portátil de Isaac. Sin red, Supabase
+no revoca el testigo en el servidor pero borra la sesión local igual; se da por cerrada si la sesión
+ya no está en el dispositivo. Después se vacía la caché de react-query, para que quien entre luego
+en el mismo móvil no vea lo que se descargó con la sesión anterior. `sasi.equipo-activo` se queda:
+solo es un identificador y se valida siempre contra las membresías de quien entre.
 
-**El club lo apunta `AuthProvider` en `logging`, y no al revés.** El DOC 06 §4.2 no deja que
-`logging` importe de `auth`. `fijarClubDeRegistro` guarda el club en una variable del módulo.
+**`prompt: 'select_account'` se queda.** «Cerrar sesión» cierra esta aplicación, no Google. Sin el
+selector, volver a entrar reutilizaría en silencio la cuenta de Google abierta en el navegador y
+cambiar de cuenta seguiría siendo imposible, que es justo lo que el cierre de sesión tiene que
+permitir.
 
-**La RLS de `error_logs` deja hacer lo que hace falta, con una limitación.** `error_logs_insert`
-es para `authenticated` con `user_id` propio o nulo. Basta para todo lo que pasa con sesión. **Lo
-que falla sin sesión** —el acceso, la vuelta de Google, el error de entorno— **no se registra**, y
-se queda en la consola. No se toca: abrir la inserción a `anon` abre la puerta a llenar la tabla
-desde fuera. Queda como punto 22.
+**Sin confirmación al cerrar sesión.** Hoy no hay nada en el dispositivo que se pierda al salir: la
+cola de salida llega con la T-206. Queda anotado para esa tarea (punto 25).
 
-**El punto 17 (el ayudante común de `api/`) no entra.** El DOC 06 §10.1 lo pide pero no lo asigna a
-ninguna tarea, y el registro no lo necesita: `normalizarError` trata igual un `Error` que un error de
-Supabase.
-
-**`app/` importa de `@modules/logging` por ruta directa**, igual que de `auth`. Hoy no haría daño
-usar el barril, pero el día que la C02 (T-303) entre en perezoso por él, lo tiraría al paquete
-inicial con `INEFFECTIVE_DYNAMIC_IMPORT`. Está escrito en el `index.ts` del módulo.
+**D06-22 estaba repetida.** La sesión del `strict` publicó su decisión como D06-22, número que ya
+usaba el §5.5 para `permisos`. Se renumera a **D06-24** en el DOC 06 y en el `CLAUDE.md`.
 
 ---
 
 ## PENDIENTE DE LA TAREA
 
-Nada de lo que la fila del DOC 08 pide. Queda sin probar en el navegador lo que exige sesión: ver
-«Comandos para verificar».
+**El punto 1, los destinos de la barra.** Lo decide Raúl. «Más» sigue abriendo la C01, como desde la
+T-104, y el DOC 02 §3.1 remite aquí. Salidas en el punto 1.
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-| Deuda                                                                                          | Cuándo se paga                                                                             |
-| :--------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------- |
-| Los fallos sin sesión no llegan a `error_logs`                                                 | Si hace falta verlos. Pide decidir en el DOC 03 cómo abrir la inserción sin abrir la tabla |
-| El trozo de `App` no se precarga: un viaje de red más en la primera visita                     | Un plugin de Vite de diez líneas que añada su `modulepreload` a `index.html`               |
-| El origen del error viaja dentro del mensaje, no en su columna                                 | En la próxima migración que toque `error_logs`, si la C02 necesita filtrar por él          |
-| «Reintentar» en `ErrorDeAcceso` no se desactiva mientras pregunta: solo anuncia «Reintentando» | Cuando `AuthState` exponga si el contexto está cargando                                    |
+| Deuda                                                          | Cuándo se paga                                                                                     |
+| :------------------------------------------------------------- | :------------------------------------------------------------------------------------------------- |
+| Las preferencias no viajan entre dispositivos                  | Con una columna en `profiles`, en una sesión de Cowork (punto 24)                                  |
+| Cerrar sesión no avisa de datos sin sincronizar                | En la T-206, cuando exista la cola de salida: sin ese aviso, salir tiraría eventos sin enviar (25) |
+| Un marco en blanco de la paleta normal antes del primer módulo | Solo el fondo, antes de que haya contenido. Un `<script>` en línea en `index.html` lo quitaría     |
 
 ---
 
 ## LO QUE SIGUE ABIERTO
 
-**Se cierran los puntos 9 y 20 de la lista anterior.** Los de detrás suben y se suman dos al final.
-Para quien lleve la cola con los números viejos:
+**Se cierra el punto 19 de la lista anterior** (cerrar sesión). Los de detrás suben uno y se suman
+dos al final. Para quien lleve la cola con los números viejos:
 
-| Antes | Ahora | Qué                                     |
-| ----: | ----: | :-------------------------------------- |
-|     1 |     1 | Destinos de la barra (T-107)            |
-|    17 |    16 | `esErrorDeCliente` y el ayudante común  |
-|    21 |    19 | Cerrar sesión (T-107)                   |
-|    23 |    21 | Referencias cruzadas entre clubes       |
-|    24 |    22 | `noUncheckedIndexedAccess`              |
-|     — |    23 | Fallos sin sesión fuera de `error_logs` |
-|     — |    24 | El trozo de `App` sin precarga          |
+| Antes | Ahora | Qué                                         |
+| ----: | ----: | :------------------------------------------ |
+|     1 |     1 | Destinos de la barra, con salidas           |
+|    20 |    19 | `AuthState` mezcla idiomas                  |
+|    21 |    20 | Referencias cruzadas entre clubes           |
+|    22 |    21 | `noUncheckedIndexedAccess`                  |
+|    23 |    22 | Fallos sin sesión fuera de `error_logs`     |
+|    24 |    23 | El trozo de `App` sin precarga              |
+|     — |    24 | Preferencias en el dispositivo              |
+|     — |    25 | Cerrar sesión sin aviso de datos pendientes |
 
 Pendiente de decidir, que no lo decide el código:
 
-1. **Los cinco destinos de la barra apuntan a pantallas sueltas.** EQUIPO, DATOS y MÁS son grupos
-   sin pantalla de aterrizaje en el DOC 02 §3, y «Más» abriendo Ajustes se lee raro. Se decide en
-   la T-107.
+1. **Los cinco destinos de la barra.** Hoy: Inicio `/`, Equipo `/equipos`, Agenda `/calendario`,
+   Datos `/estadisticas`, Más `/ajustes`. **Lo decide Raúl.** Salidas:
+
+   | Salida                                                                                  | Consecuencia                                                                                                                                                                                                                               |
+   | :-------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | **A. Dejarlo como está**                                                                | Cero trabajo. Pero `/mis-aportaciones` solo se alcanza desde Inicio, `/admin/logs` (T-303) no tiene entrada, y «Más» abriendo Ajustes se lee raro                                                                                          |
+   | **B. Pantalla índice «Más»** en `/mas`: Mis aportaciones, Ajustes y Registro de errores | Una pantalla más, pequeña y sin datos, y un toque más hasta Ajustes (sigue dentro de los tres). La barra se corresponde con el árbol del DOC 02 §3 y la C02 tiene sitio. **Recomendada**                                                   |
+   | C. Pantallas índice para Equipo, Datos y Más                                            | Tres pantallas. Arregla también que **Equipo abra `/equipos`, que pide `team.manage`**: un seguidor o un anotador sin ese permiso pulsa Equipo y cae en `/403`. Sale caro antes de la liga; se puede partir: B ahora y Equipo con la T-201 |
+
 2. **`clock` y `plus` haciendo de casa y calendario.** El inventario de 21 iconos del DOC 07 §8.2
    no tiene ninguno de los dos. Decidir si entran dos iconos nuevos.
 
@@ -160,13 +141,14 @@ Pendiente de hacer:
 5. **`npm run db:types` deja el archivo de tipos a cero bytes si el CLI falla.** Se restaura con
    `git checkout -- src/types/database.types.ts`. **Antes de tocar ese script, haz copia.**
 6. Marcar `event.approve` a quien lleve el registro, cuando exista la T-301.
-7. Los cubos de Storage `crests` y `docs`, sin crear.
+7. Los cubos de Storage `crests` y `docs`, sin crear. **La T-201 lo nota**: el escudo del club queda
+   fuera hasta que exista `crests`.
 8. Los alias viven duplicados en `tsconfig.app.json` y en `vite.config.ts`, a mano.
 9. `/admin/logs` sigue sin guardia de permiso: el DOC 05 §4 no define ninguno de administración.
    Lo resuelve la T-303.
 10. Faltan tokens de anchura de maqueta en el DOC 07: el rail y la caja de `BareLayout` salen de
     `--tap-min`.
-11. **Diecinueve rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
+11. **Dieciocho rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
 12. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
     índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
     comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones repetidas
@@ -177,73 +159,77 @@ Pendiente de hacer:
     solo toque `docs/`**: `CACHED_COMMIT_REF` apunta al commit de la caché restaurada, no al padre
     inmediato. Salidas: comparar contra `$COMMIT_REF^` o contra la base de la rama, o mover la
     decisión al CI de GitHub. Sin tocar.
-15. **Netlify tiene los despliegues PARADOS desde el 20/09** (DOC 10 §2.2). El sitio publicado sigue
-    en pie, pero fusionar a `main` no publica nada hasta reactivarlos a mano. **Ojo:** mientras
-    tanto nadie verá la T-106 en el sitio publicado.
+15. **Netlify tiene los despliegues PARADOS desde el 20/09** (DOC 10 §2.2). Fusionar a `main` no
+    publica nada hasta reactivarlos a mano: ni la T-106 ni la T-107 están en el sitio publicado.
 16. **`esErrorDeCliente` no reconoce un error de Supabase**, así que los 4xx se reintentan dos veces
     en vez de rendirse a la primera. Se arregla con el «ayudante común» del DOC 06 §10.1, que
-    todavía no existe en `shared/lib/` ni tiene tarea asignada.
+    todavía no existe en `shared/lib/` ni tiene tarea asignada. **La T-201 es la primera que
+    escribe datos**: buen momento para hacerlo.
 17. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
     tabla `invitations` existe y no la usa ninguna pantalla. Es la T-301, y **la idea de Raúl de
     elegir equipo como seguidor al entrar se apunta aquí**: hace falta decidirla en el DOC 03,
     porque pide tocar la RLS de `team_followers`.
 18. **A01b no está en el inventario del DOC 02.** O entra como parada técnica, o se le da otro sitio.
-19. **No hay cerrar sesión en ninguna parte.** Quien entre con una cuenta sin equipo se queda ahí.
-    Es la T-107. Mientras tanto se sale borrando el almacenamiento del sitio.
-20. **El contrato de `AuthState` mezcla idiomas**: `cargando`, `permisos` y ahora
-    `reintentarContexto` junto a `profile` y `activeTeamId`. Decidir y unificar con el DOC 06 §5.5.
-21. **Un club puede enlazar objetos de otro club en sus propias filas** (los catorce avisos de la
+19. **El contrato de `AuthState` mezcla idiomas**: `cargando`, `permisos` y `reintentarContexto`
+    junto a `profile` y `activeTeamId`. Decidir y unificar con el DOC 06 §5.5.
+20. **Un club puede enlazar objetos de otro club en sus propias filas** (los catorce avisos de la
     T-105b). Ninguna clave ajena exige que los dos lados sean del mismo club, y `team_of_match`
     devuelve el equipo de cualquier partido. **Decidir antes de la T-201 cuándo se paga**: la T-201
     a la T-205 son las primeras pantallas que escriben esas filas. Pide migración: sesión de Cowork.
-22. **`noUncheckedIndexedAccess` apagado.** Saca siete errores, seis en `permissions.test.ts` y uno
+21. **`noUncheckedIndexedAccess` apagado.** Saca siete errores, seis en `permissions.test.ts` y uno
     en `permissions.ts:120`. Salidas: encenderlo ya (media hora, recomendada: el coste crece con cada
     lista que pinte una pantalla), después del MVP, o nunca y revisar a mano.
-23. **Los fallos sin sesión no llegan a `error_logs`.** Ver «Decisiones».
-24. **El trozo de `App` no se precarga.** Ver «Deuda técnica generada».
+22. **Los fallos sin sesión no llegan a `error_logs`.** La RLS solo deja insertar a
+    `authenticated`. Abrirla a `anon` abre la puerta a llenar la tabla desde fuera. Decidir en el
+    DOC 03 si hace falta verlos.
+23. **El trozo de `App` no se precarga desde `index.html`** (D06-23): un viaje de red más en la
+    primera visita. Un plugin de Vite de diez líneas que añada su `modulepreload` lo arregla.
+24. **Las preferencias de pantalla viven en el dispositivo** (D06-25). Salidas: una columna
+    `preferences jsonb` en `profiles` con `localStorage` como caché para arrancar sin red
+    —recomendada: cumple el DOC 07 y no pierde el arranque rápido—; o dejarlo así y corregir el
+    DOC 07. Pide migración: sesión de Cowork.
+25. **Cerrar sesión no avisa de datos sin sincronizar.** Hoy no hay ninguno. La T-206 tiene que
+    añadir el aviso y no dejar salir con la cola llena sin que la persona lo confirme.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
-`teams` del contexto devuelve membresías y no equipos pelados, a propósito; y el club activo del
-registro vive en una variable de módulo de `logging`.
+`teams` del contexto devuelve membresías y no equipos pelados, a propósito; el club activo del
+registro vive en una variable de módulo de `logging`; y `sasi.equipo-activo` sobrevive al cierre de
+sesión, a propósito.
 
 ---
 
 ## EL PAQUETE, MEDIDO
 
-| Momento                        | Inicial comprimido | Margen sobre 200 kB |
-| :----------------------------- | -----------------: | ------------------: |
-| Antes de esta sesión, en Linux |          174,97 kB |            25,03 kB |
-| **Esta sesión, en Linux**      |      **179,50 kB** |        **20,50 kB** |
+| Momento                   | Inicial comprimido | Margen sobre 200 kB |
+| :------------------------ | -----------------: | ------------------: |
+| Tras la T-106, en Linux   |          179,50 kB |            20,50 kB |
+| **Esta sesión, en Linux** |      **179,92 kB** |        **20,08 kB** |
 
-**+4,53 kB, y se sabe de dónde sale cada uno.** Compilando la misma aplicación con `App` estático
-salen 177,63 kB: el código nuevo pesa **2,66 kB** y la división del arranque (D06-23), **1,87 kB**.
+**+0,42 kB**, que son las preferencias en el arranque, las reglas de `data-motion` y la guardia
+tocada. La C01 no pesa en el arranque: sale en su propio trozo perezoso (`AjustesPage-*.js`,
+1,16 kB, más 0,33 kB de estilos), y `Card`, que ahora comparten Inicio y Ajustes, también se separa
+(0,26 kB más 0,22 kB).
 
-Desde esta sesión el paquete inicial son varios trozos y se suman todos:
-
-| Trozo                 |    Comprimido |
+| Trozo del arranque    |    Comprimido |
 | :-------------------- | ------------: |
-| `index-*.js`          |      68,44 kB |
+| `index-*.js`          |      68,72 kB |
 | `preload-helper-*.js` |       4,07 kB |
-| `App-*.js`            |     101,02 kB |
+| `App-*.js`            |     101,13 kB |
 | `workbox-window`      |       2,20 kB |
-| Tres hojas de estilo  |       3,77 kB |
-| **Total**             | **179,50 kB** |
+| Tres hojas de estilo  |       3,80 kB |
+| **Total**             | **179,92 kB** |
 
-En crudo, 596,25 kB de JavaScript y `precache 21 entries (662.69 KiB)`. Efecto de rebote: ningún
-trozo pasa ya de 500 kB, así que `vite build` deja de avisar de eso. **La cifra de Windows saldrá
-unos 0,24 kB más alta** (ver la sesión del `strict`): compara siempre con una medida de la misma
-máquina.
+En crudo, 597,39 kB de JavaScript en el arranque y `precache 25 entries (667.25 KiB)`. En Windows
+saldrá unos 0,24 kB más: compara siempre con una medida de la misma máquina.
 
 ---
 
 ## SIGUIENTE TAREA SUGERIDA
 
-**T-107**: ajustes, con alto contraste, movimiento reducido y cierre de sesión. Cierra el punto 19,
-revisa el `prompt: 'select_account'` de la T-105 y deja el punto 1 escrito para que lo decida Raúl.
-
-Antes de la T-201, dos decisiones de Raúl: el punto 21 (referencias cruzadas entre clubes) y el 22
-(`noUncheckedIndexedAccess`).
+**T-201**: club y equipo. **La fase 1 está completa y la T-105b está en ✅**, así que se puede
+empezar. Antes, dos decisiones de Raúl que la afectan de lleno: el punto 20 (referencias cruzadas
+entre clubes) y el 21 (`noUncheckedIndexedAccess`). Y el punto 1, que decide adónde lleva «Equipo».
 
 ---
 
@@ -262,22 +248,18 @@ npm run test -- --run
 npm run build
 ```
 
-`npm run test -- --run` tiene que decir `Test Files 6 passed (6)` y `Tests 62 passed (62)`. El
-build, en verde, sin `INEFFECTIVE_DYNAMIC_IMPORT` y con un trozo `App-*.js` aparte.
+`npm run test -- --run` tiene que decir `Test Files 8 passed (8)` y `Tests 74 passed (74)`. El
+build, en verde, sin `INEFFECTIVE_DYNAMIC_IMPORT` y con un trozo `AjustesPage-*.js` aparte.
 
-**En el navegador, con `npm run dev`, lo que esta sesión no pudo probar:**
+**En el navegador, con `npm run dev` y sesión, lo que esta sesión no pudo probar:**
 
-1. **Error de entorno.** Renombra `.env.local` y recarga: tiene que salir «Falta configuración»,
-   con el detalle plegado. Devuélvele el nombre.
-2. **Error Boundary y registro.** Con sesión, en la consola del navegador:
-   `setTimeout(() => { throw new Error('prueba T-106') })`. En Supabase, `error_logs` tiene que
-   tener una fila con `[global] prueba T-106`, tu `user_id`, el club y `app_version` en `local`.
-   Bórrala después.
-3. **Error de acceso.** Con sesión, en las herramientas del navegador, pestaña Red, «Sin conexión»,
-   y abre `/club` recargando: tras los reintentos sale «No se pudo cargar tu acceso». Vuelve a
-   poner la red y pulsa «Reintentar».
-4. **Aviso de sesión.** Se fuerza en la consola, con la red cortada para que la renovación falle.
-   Si cuesta, basta con las pruebas de `caducidad.test.ts`.
+1. Pulsa «Más»: sale Ajustes con tu nombre de Google.
+2. Marca «Alto contraste»: todo pasa a negro sobre blanco al momento. Recarga: sigue así, sin
+   destello. Desmárcalo.
+3. Marca «Reducir el movimiento» y pulsa un botón: el cambio de color es instantáneo.
+4. «Cerrar sesión»: vuelves a la pantalla de acceso. Entra otra vez: Google te pregunta con qué
+   cuenta, y si tenías otra pestaña o el portátil con sesión, **siguen dentro**.
+5. Con la red cortada en las herramientas del navegador, entra y «Cerrar sesión»: también sale.
 
 **`npm run db:types` NO se lanza a la ligera.** Esta sesión no tocó el esquema.
 
@@ -285,7 +267,6 @@ build, en verde, sin `INEFFECTIVE_DYNAMIC_IMPORT` y con un trozo `App-*.js` apar
 
 ## AVISO DE SEGURIDAD
 
-Sin cambios de configuración esta sesión: ni variables de entorno, ni Netlify, ni migraciones.
-`COMMIT_REF` lo pone Netlify en cada compilación y no hay que darlo de alta. El aviso de Chrome
-autorrellenando el panel de Google en Supabase sigue vigente para el día que haga falta abrirlo:
-**vacía «Client IDs» y «Client Secret» antes de tocar nada.**
+Sin cambios de configuración esta sesión: ni variables de entorno, ni Netlify, ni migraciones. El
+aviso de Chrome autorrellenando el panel de Google en Supabase sigue vigente para el día que haga
+falta abrirlo: **vacía «Client IDs» y «Client Secret» antes de tocar nada.**

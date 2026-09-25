@@ -14,6 +14,12 @@ import { createRoot } from 'react-dom/client';
 // justo lo que puede reventar al arrancar. Esta vista no importa nada de eso.
 import { PantallaError } from '@modules/logging/components/PantallaError';
 import { ErrorDeEntorno } from '@shared/lib/errorDeEntorno';
+import { aplicarPreferencias, leerPreferencias } from '@shared/lib/preferencias';
+
+// Alto contraste y movimiento reducido (T-107), antes de pintar nada: quien
+// abre con el móvil ya al sol no puede ver un destello de la paleta normal.
+// Van en `localStorage`, así que se leen sin esperar a la red.
+aplicarPreferencias(leerPreferencias());
 
 // POR QUÉ `App` SE CARGA CON `import()` Y NO ARRIBA CON LOS DEMÁS (T-106).
 //

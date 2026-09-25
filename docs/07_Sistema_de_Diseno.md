@@ -1,6 +1,6 @@
 # DOC 07 — Sistema de diseño y tokens
 
-> **Versión:** 1.1 — 13/09/2026 (T-103: iconos sin SVGR, tokens de control, hoja global) · 1.0 — 12/09/2026
+> **Versión:** 1.2 — 25/09/2026 (T-107: §4, dónde se guarda hoy el alto contraste) · 1.1 — 13/09/2026 (T-103: iconos sin SVGR, tokens de control, hoja global) · 1.0 — 12/09/2026
 > **Para qué sirve:** fija el color, la tipografía, el espaciado, el movimiento y los componentes base de GavetaStats. Es la única fuente de verdad de la capa visual.
 > **Se apoya en:** DOC 02 (accesibilidad y pantallas), DOC 03 bloque F (identidad), DOC 04 §7 (catálogo de eventos), DOC 06 §6 (dónde viven los tokens)
 > **Alimenta a:** DOC 08 (tareas) y todo el código de interfaz
@@ -105,6 +105,8 @@ Conmutable desde Ajustes. Escribe `data-contrast="high"` en `<html>` y redefine 
 - El color del equipo desaparece.
 
 La preferencia se guarda en el perfil del usuario y se aplica antes del primer pintado, para que no haya parpadeo al abrir con el móvil ya al sol.
+
+**Hoy se guarda en el dispositivo, no en el perfil (T-107, D06-25 del DOC 06).** `profiles` no tiene columna para ella y hace falta una migración. Se aplica igual antes de cargar la aplicación, desde `localStorage`. El movimiento reducido de Ajustes sigue el mismo camino con `data-motion="reduced"`, que pone a cero las mismas duraciones que `prefers-reduced-motion`.
 
 ---
 

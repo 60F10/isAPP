@@ -1,6 +1,6 @@
 # DOC 02 — Pantallas, navegación y accesibilidad
 
-> **Versión:** 1.1 — 19/09/2026 (columna «Fase» al día con el recorte del DOC 08 §7) · 1.0 — 08/09/2026
+> **Versión:** 1.2 — 25/09/2026 (§3.1: la decisión de los destinos, tras la T-107) · 1.1 — 19/09/2026 (columna «Fase» al día con el recorte del DOC 08 §7) · 1.0 — 08/09/2026
 > **Depende de:** DOC 01 (backlog)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 07 (sistema de diseño), DOC 08 (tareas)
 
@@ -117,6 +117,8 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
 **Pendiente de decidir: EQUIPO, DATOS y MÁS son grupos sin pantalla de aterrizaje.** El árbol de arriba los dibuja como agrupaciones, pero un destino de la barra tiene que llevar a algún sitio. Desde la T-104 cada uno apunta a la primera pantalla de su rama —Equipo a `/equipos`, Agenda a `/calendario`, Datos a `/estadisticas`, Más a `/ajustes`—, que es reversible y no añade pantallas al inventario. La alternativa son pantallas índice de sección para EQUIPO y MÁS: la navegación se correspondería con este árbol, a cambio de dos pantallas más y un toque más en cada rama.
 
 **Se decide en la T-107**, con Ajustes delante, que es cuando se ve de verdad si «Más» abriendo Ajustes molesta o no (Raúl, 19/09/2026).
+
+**La T-107 ya está hecha y la decisión sigue siendo de Raúl.** La C01 existe y «Más» sigue abriéndola, como desde la T-104. Las salidas, con lo que cuesta cada una, están en el DOC 13 (punto 1).
 
 ### 3.2 Flujo del día de partido
 

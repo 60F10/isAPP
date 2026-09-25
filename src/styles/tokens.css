@@ -271,3 +271,11 @@
     --duration-base: 0ms;
   }
 }
+
+/* Lo mismo cuando se pide desde Ajustes (T-107), aunque el sistema no lo
+   pida. Hay móviles que no dejan tocarlo, y hay quien solo lo quiere en esta
+   aplicación. */
+:root[data-motion='reduced'] {
+  --duration-fast: 0ms;
+  --duration-base: 0ms;
+}

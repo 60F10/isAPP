@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 1.8 — 25/09/2026 (T-106: §10.1 con las tres capas montadas, D06-23 y §10.3 al día) · 1.7 — 25/09/2026 (§11: D06-22, TypeScript estricto explícito y tres reglas de `oxlint` contra `any`, `!` y comentarios `@ts-`) · 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.9 — 25/09/2026 (T-107: §5.5 con `reintentarContexto` y el cierre de sesión, §9.3 con D06-25, preferencias en el dispositivo) · 1.8 — 25/09/2026 (T-106: §10.1 con las tres capas montadas, D06-23 y §10.3 al día) · 1.7 — 25/09/2026 (§11: D06-24 —publicada como D06-22 por error—, TypeScript estricto explícito y tres reglas de `oxlint` contra `any`, `!` y comentarios `@ts-`) · 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -301,7 +301,7 @@ Se descartó **Zustand**: aporta poco sobre `useReducer` cuando el estado vive e
 
 ### 5.5 Sesión, equipo activo y permisos
 
-`AuthProvider` expone `{ session, cargando, permisos, profile, teams, activeTeamId, activeSeasonId, setActiveTeam, errorContexto }`. Un usuario puede tener función en varios equipos (decisión H3), así que el equipo activo es estado de sesión, se elige en la interfaz y se recuerda en `localStorage` bajo la clave `sasi.equipo-activo`.
+`AuthProvider` expone `{ session, cargando, permisos, profile, teams, activeTeamId, activeSeasonId, setActiveTeam, errorContexto, reintentarContexto }`. Los dos últimos llegan con la T-106. El cierre de sesión (T-107) es `cerrarSesion()` de `modules/auth/api/session.ts`, con `scope: 'local'`: sale en este dispositivo y deja abiertos los demás; la C01 vacía después la caché de react-query. Un usuario puede tener función en varios equipos (decisión H3), así que el equipo activo es estado de sesión, se elige en la interfaz y se recuerda en `localStorage` bajo la clave `sasi.equipo-activo`.
 
 **D06-22 · `permisos` vale `null` hasta que la consulta conteste, y un conjunto —vacío incluido— a partir de ahí.** Son dos cosas distintas: `null` es «todavía no se sabe» y el conjunto vacío es «se preguntó y no tiene ninguno». Rellenarlo antes de tiempo manda a `/403` a quien sí tiene el permiso, y el fallo parece de permisos cuando es de carga. `cargando`, en cambio, habla **solo** de la sesión: encadenarlo también al contexto de acceso dejaría esperando al inicio, que no pide ningún permiso.
 
@@ -571,6 +571,8 @@ Los textos de interfaz, los comentarios y los mensajes de error para el usuario 
 **D06-17 · CSS Modules más variables CSS.**
 Los tokens del DOC 07 viven en `src/styles/tokens.css` como variables de `:root`. El color del equipo se inyecta en caliente sobre `--color-team` desde `teams.primary_color`, y el modo de alto contraste del DOC 02 §5.2 conmuta un atributo en `<html>` que redefine el bloque de variables. Cada componente lleva su `.module.css` al lado.
 
+**D06-25 · Las preferencias de pantalla se guardan en el dispositivo, no en el perfil (T-107).** Alto contraste (`data-contrast="high"`) y movimiento reducido (`data-motion="reduced"`) viven en `localStorage` bajo `sasi.preferencias`, las lee `shared/lib/preferencias.ts` y `main.tsx` las aplica antes de cargar `App`. El DOC 07 §4 pide guardarlas en el perfil, pero `profiles` no tiene columna y esta tarea no podía migrar. Ventaja: se aplican sin esperar a la red. Coste: no viajan de un dispositivo a otro. Las salidas están en el DOC 13. `movimientoReducido` se suma a `prefers-reduced-motion` y nunca lo anula: con el sistema pidiéndolo, apagar la casilla no devuelve las animaciones.
+
 Se descartó **Tailwind**: el color de equipo inyectable y el modo de alto contraste hay que resolverlos igual con variables CSS, así que la ventaja se reduce a escribir más rápido a cambio de un marcado lleno de clases y de una capa de compilación más. Se descartó el **CSS global con `@layer`**: el aislamiento dependería de la disciplina en vez de la herramienta, y con veintiuna pantallas eso se rompe.
 
 ### 9.4 Formularios
@@ -709,7 +711,7 @@ Diecisiete casos cubren las tres variables correctas, cada una faltando o con so
 
 **`env.ts` no se toca para hacerlo más cómodo de probar.** Lanza desde el cuerpo del módulo por la D06-21: el fallo tiene que ocurrir al arrancar. La prueba se adapta a eso —`vi.resetModules()`, `vi.stubEnv()` y un `await import()` por caso, con las tres variables fijadas siempre para que un `.env.local` de la máquina no cambie el resultado—, y esa forma vale de plantilla para cualquier otro módulo que valide al importarse.
 
-**D06-22 · TypeScript estricto, escrito a mano y vigilado por el linter.** 25/09/2026.
+**D06-24 · TypeScript estricto, escrito a mano y vigilado por el linter.** 25/09/2026. Nació como «D06-22» por error, con ese número ya ocupado en el §5.5; se renumera en la T-107.
 TypeScript 6 trae `strict` encendido por defecto, así que el proyecto compila en estricto desde la T-101 aunque ningún `tsconfig` lo dijera. Se escribe `"strict": true` en `tsconfig.app.json` y en `tsconfig.node.json` para que no dependa de la versión del compilador: una vuelta atrás a TypeScript 5 lo apagaría en silencio.
 
 Lo que `strict` no impide lo prohíbe `oxlint`, en error y no en aviso:

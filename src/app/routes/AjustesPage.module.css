@@ -1,0 +1,57 @@
+.opciones {
+  display: flex;
+  flex-direction: column;
+  /* Separación mínima entre objetivos táctiles (DOC 02 §5.1). */
+  gap: var(--tap-gap);
+}
+
+.opcion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Toda la fila responde al toque, no solo la casilla: 48 px de alto como
+   cualquier otro control del proyecto (DOC 07, `--tap-min`). */
+.fila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  min-block-size: var(--tap-min);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Casilla nativa, más grande y con el acento del sistema. El foco visible lo
+   pone `base.css` con `:focus-visible`, igual que en el resto. */
+.casilla {
+  flex: 0 0 auto;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.etiqueta {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+}
+
+.ayuda,
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+/* Un correo largo parte en vez de desbordar a 320 px (criterio 1.4.10). */
+.cuenta {
+  overflow-wrap: anywhere;
+}
+
+.fallo {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
