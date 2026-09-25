@@ -5,6 +5,58 @@
 
 ---
 
+## Sesión 25/09/2026 — T-105b, prueba de aislamiento entre clubes: ✅ cerrada
+
+Sesión de Cowork contra el proyecto de Supabase `GavetaStats` y **sin tocar el código de la aplicación**. La sesión del 20/09 que va debajo (rama `refactor/auth-contexto-al-modulo`) sigue sin subir y su traspaso sigue valiendo: por eso esta vez **no se sobrescribe**, se añade encima.
+
+### HECHO
+
+**Script `supabase/pruebas/aislamiento_clubes.sql`**, nuevo y sin commitear. Un único bloque `do` que:
+
+1. Siembra dos clubes sintéticos completos, cada uno con su usuario miembro (los doce permisos) y su seguidor: club, temporada, competición, equipo, rival, invitación, jugador, inscripción, partido en juego, periodo, convocatoria, evento, tramo, cobertura, sanción, entrenamiento y asistencia.
+2. Se hace pasar por cada usuario a través de la RLS (`set local role authenticated` y su `sub` en `request.jwt.claims`) y prueba lecturas, escrituras y funciones RPC contra el otro club y contra Unión Tejina.
+3. Termina **siempre** con un error `P0T5B` que lleva el informe. Ese error deshace la transacción entera. Comprobado después: un usuario, un club y un perfil, lo mismo que antes.
+
+Carpeta `pruebas/` y no `tests/` a propósito: `supabase test db` busca pgTAP en `supabase/tests` y este script no lo es.
+
+Los usuarios sintéticos **no son administradores de plataforma**. Raúl sí lo es (`profiles.is_platform_admin = true`), y un administrador lee todos los clubes por diseño (`can_read_team`, `is_club_member`), así que la prueba no se puede hacer con su cuenta.
+
+### RESULTADO: 166 COMPROBACIONES, 4 FALLOS, 14 AVISOS
+
+| Bloque                                                                                   | Comprobaciones | Resultado                                                            |
+| :--------------------------------------------------------------------------------------- | -------------: | :------------------------------------------------------------------- |
+| Lecturas del otro club, 21 tablas y 23 consultas por sentido                             |             46 | ✅ Cero filas. Control positivo en verde: cada usuario sí ve lo suyo |
+| Lecturas del club real                                                                   |              8 | ✅ Cero filas                                                        |
+| Escrituras sobre el otro club (`insert`, `update`, `delete`)                             |             78 | ✅ Ninguna fila tocada                                               |
+| Funciones auxiliares (`has_team_permission`, `can_read_*`, `is_*`, `metric_reliability`) |             16 | ✅ Todas en `false` o `0`                                            |
+| **`rebuild_match_stints` y `flag_duplicate_candidates` sobre un partido ajeno**          |              4 | ❌ **Se ejecutan**                                                   |
+| `team_of_match` sobre un partido ajeno                                                   |              2 | ⚠️ Devuelve el `team_id`                                             |
+| Filas propias que apuntan a objetos ajenos                                               |             12 | ⚠️ Se aceptan las seis, en los dos sentidos                          |
+
+**Los cuatro fallos son el mismo agujero dos veces.** Las dos funciones son `SECURITY DEFINER`, `authenticated` las puede llamar por RPC (el DOC 05 §11 las pone como puerta de lectura, así que es a propósito) y **ninguna comprueba permiso dentro**. Cualquier usuario con sesión puede borrar y reconstruir los tramos de un partido de otro club, o reescribir el `duplicate_group_id` de sus eventos. La T-100b les quitó `anon`; el hueco que queda es `authenticated`. Para explotarlo hay que conocer el `uuid` del partido, lo que baja la probabilidad pero no cierra nada.
+
+**Los avisos no rompen la lectura, pero sí la integridad:**
+
+- `team_of_match` devuelve el equipo de cualquier partido. Filtra un `uuid` y nada más: ese equipo sigue sin poderse leer.
+- Un club puede meter en sus propias filas objetos de otro club: un jugador ajeno en su plantilla, su convocatoria, una sanción o una asistencia, un rival ajeno en un partido, o la temporada y la competición de otro club. Las políticas solo miran el permiso sobre el equipo o el club propio, y ninguna clave ajena exige que los dos lados sean del mismo club. **Es deuda técnica nueva, y se anota ahora:** con un solo club no hace daño; con dos, cualquier error de la interfaz que mezcle identificadores ensucia datos de otro inquilino sin que salte nada.
+
+### CÓMO SE CERRÓ
+
+**Migración `20260925182524_guarda_permiso_funciones_partido.sql`**, aplicada a producción desde Cowork con el visto bueno de Raúl. `create or replace` con la misma firma, así que conservan sus `EXECUTE` y los tipos generados no cambian: no hace falta `npm run db:types`.
+
+| Función                     | Exige                                                                | Por qué                                                                                         |
+| :-------------------------- | :------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------- |
+| `rebuild_match_stints`      | `match.live.write`, `event.approve`, `lineup.manage` o `match.close` | Los tramos se recalculan cuando cambia un cambio, una expulsión o la convocatoria (DOC 04 §6.1) |
+| `flag_duplicate_candidates` | `event.approve`                                                      | Quien usa el resultado es quien revisa discordancias (T-210)                                    |
+
+El administrador de plataforma no suma. Sin sesión (`auth.uid()` nulo) la guarda no actúa, igual que en `enforce_match_changes`: `anon` sigue sin `EXECUTE` y lo que llega sin uid es el servidor.
+
+**El script, relanzado: `T-105b SUPERADA · 166 comprobaciones · 0 fallos · 14 avisos`.** Los catorce avisos son los de arriba, que siguen siendo deuda. Control positivo aparte: Raúl, sobre un partido de prueba del Cadete A, ejecuta las dos funciones sin error. Todo se deshizo al terminar.
+
+**Comprobado en la app por Raúl** con una segunda cuenta de Google, no administradora, en incógnito sobre `npm run dev`: entra y cae en la C05, «Sin permiso… todavía no pertenezcas a ningún equipo». A través de la RLS, esa cuenta ve 0 clubes, 0 equipos, 0 temporadas, 0 miembros, 0 permisos, 0 jugadores, 0 partidos y un solo perfil, el suyo. Se queda en `auth.users` y no molesta.
+
+---
+
 ## Sesión 20/09/2026 — Deuda arrastrada (punto 19 / hallazgo 3): el contexto de sesión y la región viva salen de `app/`
 
 Sesión sin Raúl delante y sin un solo clic de Google: no era falta que hiciera —el andamiaje de
@@ -168,10 +220,8 @@ presupuesto. En crudo, 583,85 kB de JavaScript y `precache 17 entries (654.65 Ki
 
 ## SIGUIENTE TAREA SUGERIDA
 
-Sin cambios respecto al traspaso anterior: **la T-105b** primero —segundo club, otro usuario y
-comprobar que no ve nada del primero, que ahora por fin tiene un primer club que no ver (DOC 05
-§12.5)— y después la **T-106** (error boundary, `error_logs`, el punto 21 y el punto 9 de arriba).
-
+**La T-105b está cerrada.** Sigue la **T-106** (error boundary, `error_logs`, el punto 21 y el punto 9 de arriba).
+Antes de la T-201, decidir cuándo se paga la deuda de las referencias cruzadas entre clubes que destapó la T-105b.
 ---
 
 ## COMANDOS PARA VERIFICAR

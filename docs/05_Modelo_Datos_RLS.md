@@ -570,6 +570,8 @@ La regla general que deja: **cuando un permiso depende de qué cambia y no de qu
 
 **Prueba obligatoria antes de la Fase 2:** crear un segundo club con otro usuario y comprobar que no ve absolutamente nada del primero. Sin esa prueba, la multitenencia es una intención.
 
+**Hecha el 25/09/2026 (T-105b)** con `supabase/pruebas/aislamiento_clubes.sql`: 166 comprobaciones de lectura, escritura y RPC entre dos clubes sintéticos, sin fallos. **Se repite después de cada migración que toque políticas o funciones.** Queda un hueco de integridad, no de lectura: ninguna política exige que los objetos enlazados en una fila (jugador, rival, temporada, competición) sean del mismo club que la fila.
+
 ---
 
 ## 13. Almacenamiento
@@ -593,15 +595,16 @@ Todo cambio de esquema entra como archivo de migración numerado en `supabase/mi
 
 **Nombres de archivo: marca de tiempo, no número correlativo.** El CLI de Supabase deriva la versión de la migración del prefijo del nombre, y el historial remoto guarda esa misma versión. Si los dos no coinciden, `supabase db push` da por aplicar migraciones que ya están dentro e intenta repetirlas.
 
-| Archivo                                                | Versión registrada | Qué hace                                              |
-| :----------------------------------------------------- | :----------------- | :---------------------------------------------------- |
-| `20260911213846_initial_schema.sql`                    | `20260911213846`   | Esquema inicial: el anexo de este documento           |
-| `20260911214032_hardening_rls_y_permisos.sql`          | `20260911214032`   | Endurecimiento tras el primer auditor (ver más abajo) |
-| `20260912142001_permiso_event_approve.sql`             | `20260912142001`   | Valor `event.approve` en `app_permission`             |
-| `20260912142131_correcciones_auditoria.sql`            | `20260912142131`   | Correcciones de la auditoría del 12/09 (§14.2)        |
-| `20260919040657_endurecimiento_permisos_funciones.sql` | `20260919040657`   | Endurecimiento de permisos sobre funciones (§14.3)    |
+| Archivo                                                | Versión registrada | Qué hace                                                                           |
+| :----------------------------------------------------- | :----------------- | :--------------------------------------------------------------------------------- |
+| `20260911213846_initial_schema.sql`                    | `20260911213846`   | Esquema inicial: el anexo de este documento                                        |
+| `20260911214032_hardening_rls_y_permisos.sql`          | `20260911214032`   | Endurecimiento tras el primer auditor (ver más abajo)                              |
+| `20260912142001_permiso_event_approve.sql`             | `20260912142001`   | Valor `event.approve` en `app_permission`                                          |
+| `20260912142131_correcciones_auditoria.sql`            | `20260912142131`   | Correcciones de la auditoría del 12/09 (§14.2)                                     |
+| `20260919040657_endurecimiento_permisos_funciones.sql` | `20260919040657`   | Endurecimiento de permisos sobre funciones (§14.3)                                 |
+| `20260925182524_guarda_permiso_funciones_partido.sql`  | `20260925182524`   | Guarda de permiso en `rebuild_match_stints` y `flag_duplicate_candidates` (T-105b) |
 
-Las cinco están aplicadas al proyecto GavetaStats: las dos primeras desde el 11/09/2026, las dos del 12/09 en la T-100b y la del 19/09 fuera de tarea, como deuda arrastrada. Las versiones registradas en el historial remoto coinciden con los prefijos de los archivos.
+Las seis están aplicadas al proyecto GavetaStats: las dos primeras desde el 11/09/2026, las dos del 12/09 en la T-100b, la del 19/09 fuera de tarea, como deuda arrastrada, y la del 25/09 en la T-105b. Las versiones registradas en el historial remoto coinciden con los prefijos de los archivos.
 
 Las migraciones siguientes las crea el propio CLI con `supabase migration new <nombre>`, que pone la marca de tiempo sola. **Nunca renombres una migración ya aplicada**: el historial remoto dejaría de encontrarla.
 
