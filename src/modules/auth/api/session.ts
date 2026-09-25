@@ -105,7 +105,13 @@ async function fetchTemporadasEnCurso(
  *
  * `prompt: 'select_account'` fuerza el selector de cuenta de Google. Cuesta un
  * toque más y evita el caso de quien tiene dos cuentas y entra siempre con la
- * que no quería, sin manera de cambiarla desde aquí.
+ * que no quería.
+ *
+ * REVISADO EN LA T-107, Y SE QUEDA. Ahora hay «Cerrar sesión» en Ajustes, pero
+ * eso cierra la sesión de esta aplicación, no la de Google. Sin el selector,
+ * volver a entrar reutilizaría en silencio la misma cuenta de Google que sigue
+ * abierta en el navegador, y cambiar de cuenta seguiría siendo imposible desde
+ * aquí: justo lo que el cierre de sesión tiene que permitir.
  */
 export async function signInWithGoogle(destino: string): Promise<void> {
   guardarDestino(destino);
@@ -135,6 +141,30 @@ export async function renovarSesion(): Promise<void> {
 
   if (error) {
     throw error;
+  }
+}
+
+/**
+ * Cierra la sesión en ESTE dispositivo (T-107).
+ *
+ * `scope: 'local'` y no el `global` que Supabase trae por defecto: el global
+ * cierra también la sesión del portátil cuando Isaac sale en el móvil, y
+ * nadie espera eso de un botón en los ajustes del teléfono.
+ *
+ * Sin red, Supabase no puede revocar el testigo en el servidor, pero borra la
+ * sesión local igual y devuelve el error. Lo que importa aquí es lo segundo:
+ * si la sesión ya no está en el dispositivo, el cierre ha funcionado. Solo se
+ * lanza si la sesión sigue ahí.
+ */
+export async function cerrarSesion(): Promise<void> {
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
+
+  if (error) {
+    const { data } = await supabase.auth.getSession();
+
+    if (data.session !== null) {
+      throw error;
+    }
   }
 }
 

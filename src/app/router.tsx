@@ -262,9 +262,13 @@ export const router = createBrowserRouter([
               },
 
               // --- Ajustes. Sin permiso: son los del propio usuario. --------
+              // Perezosa por ruta directa: `platform` no tiene barril (DOC 06
+              // §3.3) y nada más la importa, así que sale en su propio trozo.
               {
                 path: 'ajustes',
-                element: <PantallaPendiente id="C01" titulo="Ajustes" tarea="T-107" />,
+                lazy: async () => ({
+                  Component: (await import('@app/routes/AjustesPage')).AjustesPage,
+                }),
               },
 
               // --- Registro de errores -------------------------------------
