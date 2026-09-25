@@ -10,8 +10,18 @@ import { defineConfig } from 'vitest/config';
 // compila pero no arranca.
 const rutaDe = (ruta: string): string => fileURLToPath(new URL(ruta, import.meta.url));
 
+// Versión que se apunta en cada fila de `error_logs` (T-106). Netlify pone en
+// `COMMIT_REF` el commit que compila; con los siete primeros caracteres basta
+// para saber qué despliegue falló. En local no existe y sale `local`. No es
+// una variable de entorno de la aplicación —no empieza por VITE_ ni pasa por
+// `env.ts`—: se resuelve al compilar y entra en el paquete como texto.
+const VERSION_APP = process.env.COMMIT_REF?.slice(0, 7) ?? 'local';
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(VERSION_APP),
+  },
   plugins: [
     react(),
     VitePWA({

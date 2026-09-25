@@ -94,6 +94,14 @@ describe('env, cuando falta una variable', () => {
     expect(error.message).toContain(`${nombre}: falta o está vacía.`);
   });
 
+  it('lanza un ErrorDeEntorno, que es lo que el arranque sabe pintar (T-106)', async () => {
+    const error = await capturarError({ VITE_SUPABASE_URL: undefined });
+
+    // Por el nombre y no con `instanceof`: `vi.resetModules()` recarga también
+    // la clase, y la de este archivo sería otra distinta.
+    expect(error.name).toBe('ErrorDeEntorno');
+  });
+
   it('dice dónde se ponen las variables en vez de soltar el fallo a secas', async () => {
     const error = await capturarError({ VITE_APP_ENV: undefined });
 

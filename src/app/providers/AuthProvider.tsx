@@ -32,6 +32,8 @@ import {
   permisosDe,
   recordarEquipo,
 } from '@modules/auth/model/permissions';
+// Ruta directa, mismo motivo: ver `modules/logging/index.ts`.
+import { fijarClubDeRegistro, registrarError } from '@modules/logging/api/registro';
 import { supabase } from '@shared/lib/supabase';
 
 import type { AuthState } from '@modules/auth/hooks/authContext';
@@ -130,6 +132,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [membresias],
   );
 
+  const clubActivo = useMemo(() => {
+    if (membresias === null || activeTeamId === null) {
+      return null;
+    }
+
+    const activa = membresias.find((membresia) => membresia.team.id === activeTeamId);
+
+    return activa === undefined ? null : activa.team.clubId;
+  }, [membresias, activeTeamId]);
+
+  // El registro de errores apunta el club en cada fila, y `logging` no puede
+  // preguntárselo a `auth` (DOC 06 §4.2): se lo cuenta este efecto.
+  useEffect(() => {
+    fijarClubDeRegistro(clubActivo);
+  }, [clubActivo]);
+
+  // Que el contexto de acceso no conteste es un fallo que hay que ver en
+  // `error_logs`: deja al usuario sin ninguna ruta guardada. Una vez por
+  // fallo, no en cada render; el limitador del registro frena el resto.
+  const errorDeContexto = session === null ? null : contexto.error;
+
+  useEffect(() => {
+    if (errorDeContexto !== null) {
+      void registrarError(errorDeContexto, 'contexto');
+    }
+  }, [errorDeContexto]);
+
+  const { refetch } = contexto;
+  const reintentarContexto = useCallback(() => {
+    void refetch();
+  }, [refetch]);
+
   const activeSeasonId = useMemo(() => {
     if (datos === undefined || activeTeamId === null) {
       return null;
@@ -159,7 +193,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       activeTeamId,
       activeSeasonId,
       setActiveTeam,
-      errorContexto: session === null ? null : contexto.error,
+      errorContexto: errorDeContexto,
+      reintentarContexto,
     }),
     [
       session,
@@ -169,7 +204,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       activeTeamId,
       activeSeasonId,
       setActiveTeam,
-      contexto.error,
+      errorDeContexto,
+      reintentarContexto,
     ],
   );
 

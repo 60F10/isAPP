@@ -49,12 +49,13 @@ export interface AuthState {
   /** Cambia el equipo activo. Ignora un equipo que no sea suyo. */
   setActiveTeam: (teamId: string) => void;
   /**
-   * Fallo al leer el contexto de acceso.
-   *
-   * Nadie lo pinta todavía: las pantallas de error son la T-106. Mientras
-   * tanto vale para depurar por qué una ruta guardada no se abre.
+   * Fallo al leer el contexto de acceso, cuando ya se han gastado los
+   * reintentos. Lo pinta `RequirePermission` (T-106): sin él, una ruta
+   * guardada se quedaba en «Cargando…» para siempre.
    */
   errorContexto: Error | null;
+  /** Vuelve a pedir el contexto de acceso después de un fallo. */
+  reintentarContexto: () => void;
 }
 
 export const AuthContext = createContext<AuthState | null>(null);
