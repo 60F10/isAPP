@@ -3,6 +3,9 @@
 //
 // Radios nativos: nombre, estado y teclado de serie, y el cambio se dispara al
 // soltar el dedo (2.5.2). Toda la fila responde al toque.
+//
+// `enLinea` pone las opciones una al lado de otra y las baja de línea si no
+// caben: lo pide la convocatoria (T-205), con tres opciones por jugador.
 
 import { useId } from 'react';
 
@@ -18,6 +21,7 @@ interface GrupoDeOpcionesProps<T extends string> {
   opciones: readonly Opcion<T>[];
   valor: T;
   alCambiar: (valor: T) => void;
+  enLinea?: boolean;
 }
 
 export function GrupoDeOpciones<T extends string>({
@@ -25,11 +29,12 @@ export function GrupoDeOpciones<T extends string>({
   opciones,
   valor,
   alCambiar,
+  enLinea = false,
 }: GrupoDeOpcionesProps<T>) {
   const nombre = useId();
 
   return (
-    <fieldset className={styles.grupo}>
+    <fieldset className={enLinea ? `${styles.grupo} ${styles.enLinea}` : styles.grupo}>
       <legend className={styles.leyenda}>{leyenda}</legend>
       {opciones.map((opcion) => (
         <label key={opcion.valor} className={styles.opcion} htmlFor={`${nombre}-${opcion.valor}`}>

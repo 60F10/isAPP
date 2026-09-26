@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — cinco archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
@@ -732,6 +732,86 @@ update public.clubs
 ```
 
 **Después de aplicarla:** `npm run db:types` para regenerar `src/types/database.types.ts` (con copia antes, punto 5 del DOC 13), relanzar el script de la T-105b y mirar el auditor. **El código que la aprovecha es la T-203b** del DOC 08: los cuatro campos de categoría en la A08 y el campo de casa propuesto desde `clubs` en la A10. Sin la migración, esa tarea no se puede empezar.
+
+### 14.5 Lo que deja pendiente la T-205, para la misma sesión de Cowork
+
+Hallazgos al escribir la A11 (26/09/2026). **Ninguno está aplicado** y ninguno bloquea la pantalla: la A11 funciona sin ellos y dice lo que no puede hacer. Pueden ir en la misma migración del §14.4 o en una aparte.
+
+| Pieza                                               | Qué pasa hoy                                                                                                                                                                              | Propuesta                                                                                                                                     |
+| :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
+| **5a. Pasar a `called` con `lineup.manage`** (L-07) | `matches_update` pide `schedule.manage`, `match.live.write` o `match.close`. Quien solo tiene `lineup.manage` guarda la convocatoria, pero el partido sigue «Programado». La A11 lo avisa | Función `marcar_convocado(match_id)` `SECURITY DEFINER`. **Recomendada**                                                                      |
+| **5b. R-01 en la base**                             | El DOC 04 §4.3 dice que el máximo de convocados se comprueba «en la pantalla A11 y en la base de datos». En la base no hay nada: solo la A11 lo impide                                    | Disparador de sentencia `after insert or update` sobre `match_squad`, que cuente los convocados del partido al terminar                       |
+| **5c. Dorsal repetido entre convocados** (opcional) | `match_squad` no impide que dos convocados del mismo partido lleven el mismo dorsal. Lo impide la A11                                                                                     | Restricción de exclusión diferible, no índice único: un índice parcial no se puede diferir y un cambio de dorsales entre dos chocaría a mitad |
+
+**5a, por qué una función y no abrir la política.** Añadir `lineup.manage` a `matches_update` dejaría a quien solo convoca cambiar `notes`, `is_retroactive` o `suspended_*`, que `enforce_match_changes` no vigila. La función hace una sola cosa: con `lineup.manage` en el equipo del partido, pasa de `scheduled` a `called` y de nada más.
+
+```sql
+create or replace function public.marcar_convocado(p_match_id uuid)
+returns void language plpgsql security definer set search_path = public
+as $$
+begin
+  if not public.has_team_permission(public.team_of_match(p_match_id), 'lineup.manage') then
+    raise exception insufficient_privilege
+      using message = 'Convocar exige el permiso lineup.manage';
+  end if;
+
+  update public.matches set status = 'called'
+   where id = p_match_id and status in ('scheduled', 'called');
+
+  if not found then
+    raise exception 'El partido ya ha empezado o no existe';
+  end if;
+end;
+$$;
+
+revoke execute on function public.marcar_convocado(uuid) from public, anon;
+grant execute on function public.marcar_convocado(uuid) to authenticated;
+```
+
+Con la función aplicada, `marcarComoConvocado` de `agenda/api/partidos.ts` pasa a llamar a `supabase.rpc('marcar_convocado', …)`. Es un cambio de una función y su prueba.
+
+**5b, por qué de sentencia y no de fila.** La A11 guarda la convocatoria entera de una vez. Un disparador de fila cuenta a mitad de la escritura, y cambiar un convocado por otro con la convocatoria llena pasaría un instante por un convocado de más. Contando al final de la sentencia, solo ve el resultado. La A11 ya crea las líneas nuevas sin convocar en una primera petición y les pone su llamada en la segunda, así que entre las dos la base nunca ve más convocados que antes ni que después.
+
+```sql
+create or replace function public.check_squad_max()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+declare
+  v_fuera record;
+begin
+  select s.match_id, c.squad_max, count(*) as convocados
+    into v_fuera
+    from public.match_squad s
+    join public.matches m      on m.id = s.match_id
+    join public.competitions c on c.id = m.competition_id
+   where s.match_id in (select match_id from nuevas)
+     and s.call_status <> 'not_called'
+   group by s.match_id, c.squad_max
+  having count(*) > c.squad_max
+   limit 1;
+
+  if found then
+    raise exception 'La convocatoria supera los % convocados permitidos', v_fuera.squad_max;
+  end if;
+
+  return null;
+end;
+$$;
+
+create trigger match_squad_max_insert
+  after insert on public.match_squad
+  referencing new table as nuevas
+  for each statement execute function public.check_squad_max();
+
+create trigger match_squad_max_update
+  after update on public.match_squad
+  referencing new table as nuevas
+  for each statement execute function public.check_squad_max();
+
+revoke execute on function public.check_squad_max() from public, anon, authenticated;
+```
+
+Un `upsert` de PostgREST es un `insert … on conflict do update`: dispara el de `insert`, y también el de `update` si actualiza alguna fila. Hay que comprobar en la sesión que los dos ven sus filas en `nuevas`. **Después**, igual que el §14.4: `npm run db:types` con copia antes, el script de la T-105b y el auditor.
 
 ---
 

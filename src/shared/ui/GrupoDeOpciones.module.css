@@ -10,6 +10,13 @@
   border: 0;
 }
 
+/* Una al lado de otra, y abajo si no caben: a 320 px no hay scroll lateral.
+   Entre filas, `--tap-gap`; entre opciones, algo más para que no se lean juntas. */
+.enLinea {
+  flex-flow: row wrap;
+  column-gap: var(--space-5);
+}
+
 .leyenda {
   margin-block-end: var(--space-1);
   padding: 0;

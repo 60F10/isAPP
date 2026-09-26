@@ -9,5 +9,9 @@ export { PlantillaPage } from './routes/PlantillaPage';
 // Para `agenda`, que elige rival entre los equipos de referencia del club.
 export { useClubActivo, useEquipos } from './hooks/useClubYEquipos';
 
+// Para `lineup`, que convoca sobre la plantilla del equipo (T-205).
+export { usePlantilla } from './hooks/usePlantilla';
+export { DISPONIBILIDADES, POSICIONES } from './model/plantilla';
+
 export type { Club, Equipo, TipoDeEquipo } from './model/clubYEquipos';
 export type { Disponibilidad, Inscripcion, Posicion } from './model/plantilla';

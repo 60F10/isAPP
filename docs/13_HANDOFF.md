@@ -5,118 +5,116 @@
 
 ---
 
-## Sesión 26/09/2026 — T-204, calendario y alta de partido: ✅ cerrada. Y la migración para Cowork, escrita
+## Sesión 26/09/2026 — T-205, convocatoria y alineación inicial: ✅ cerrada
 
-Sesión en la nube, sin acceso a Supabase, con Raúl respondiendo. Antes de la tarea, Raúl decidió los
-dos puntos abiertos de la T-203 y dio dos datos:
+Sesión en la nube, sin acceso a Supabase y sin nadie respondiendo a mitad: las decisiones que la
+tarea pedía están abajo, en «Decisiones tomadas», con su porqué. Ninguna toca el esquema. Lo que
+necesita la base va al **DOC 05 §14.5**, para la misma sesión de Cowork que la migración del §14.4.
 
-| Qué                                       | Decisión o dato                                                        | Dónde queda                                     |
-| :---------------------------------------- | :--------------------------------------------------------------------- | :---------------------------------------------- |
-| Categoría de la competición (punto 33)    | **Columnas propias**                                                   | Migración del DOC 05 §14.4 y T-203b del DOC 08  |
-| Nombre de competición repetido (punto 34) | **Se arregla** con un índice único                                     | Migración del DOC 05 §14.4                      |
-| Campo de casa del C.D. Unión Tejina       | Campo de Fútbol Izquierdo Rodríguez, Av. Milán, 27-29, 38260 La Laguna | Migración del DOC 05 §14.4, como dato; punto 37 |
-| Calendario de la federación               | `https://futboltenerife.com/1panel-cadete/?ruta=cadete`                | Bloqueado desde aquí; punto 38                  |
-
-**La migración no se ha aplicado**: esta sesión no tiene acceso a la base. Está escrita, con su
-borrador de SQL y lo que hay que comprobar antes y después, en el **DOC 05 §14.4**, para una sesión de
-Cowork. Suma de paso los puntos 4 y 27, dos líneas de permisos que ya esperaban una migración. El
-código que la aprovecha es una tarea nueva, la **T-203b**, que no se puede empezar sin ella.
-
-El entorno obliga a subir a una rama `claude/…`; la que toca por convención es
-`feat/agenda-calendario`, y con ese nombre se hizo el commit para que pasara el hook de
+El entorno obliga a subir a una rama de sesión; la que toca por convención es
+`feat/lineup-convocatoria`, y con ese nombre se hizo el commit para que pasara el hook de
 `pre-commit`. La pull request lo dice.
 
 ---
 
 ## HECHO
 
-**El módulo `agenda` nace con A09 y A10**, en su propio trozo perezoso. Sustituye a las tres
-`PantallaPendiente` de `/calendario`, `/partidos/nuevo` y `/partidos/:id/editar`.
+**El módulo `lineup` nace con la A11**, en su propio trozo perezoso. Sustituye a la
+`PantallaPendiente` de `/partidos/:id/convocatoria`, a la que ya enlazaba «Convocatoria» del
+calendario.
 
-| Pantalla                         | Qué hace                                                                                                                                                                                                                                                                                                         |
-| :------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A09 · Calendario**             | Los partidos del equipo activo en la temporada, en «Por jugar» y «Jugados». Cada uno: día y hora, «Cadete A – UD Orotava» con el local delante, competición y campo, y el estado en palabras. «Editar» con `schedule.manage` y «Convocatoria» con `lineup.manage`, solo antes de jugarse. «Nuevo partido» arriba |
-| **A10 · Nuevo y editar partido** | Competición (ya elegida si solo hay una), rival de los de referencia del club, en casa o fuera, fecha, hora, campo propuesto desde el último partido en casa y la casilla «Ya se jugó: lo meto en diferido». Si faltan competición o rivales, lo dice y enlaza a dónde darlos de alta                            |
-| **A10 · Borrar**                 | Solo si el partido sigue programado, en dos pasos en el mismo sitio                                                                                                                                                                                                                                              |
+| Qué hace la A11                  | Cómo                                                                                                                                                              |
+| :------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Reparte la plantilla** (L-01)  | Cada jugador del equipo, con tres opciones: Titular, Suplente, No convocado. Radios nativos en línea, 48 px por opción, y bajan de línea a 320 px                 |
+| **Dorsal y posición** (L-05, 06) | Al convocarlo salen, propuestos desde la inscripción, y se cambian solo para ese partido                                                                          |
+| **No convocables** (L-04, R-03)  | «No disponible» o «Sancionado: no se puede convocar», sin opciones. Si estaba convocado, «se quita al guardar»                                                    |
+| **La cuenta**                    | «Titulares: 5 de 11 · Suplentes: 3 · Convocados: 8 de 18 como mucho», arriba y abajo de la lista                                                                  |
+| **Guardar** (L-03, R-01)         | Exige los titulares exactos, no pasar del máximo y dorsales del 1 al 99 sin repetir entre convocados. Pasa el partido a «Convocado» (L-07) y vuelve al calendario |
+| **Partido empezado** (L-08)      | Titulares y suplentes en solo lectura, sin formulario                                                                                                             |
+| **Faltas**                       | Sin plantilla, enlaza a darla de alta. Sin competición legible, lo dice. Sin cobertura, «Reintentar»                                                              |
 
-| Pieza                                 | Qué hace                                                                                                                                       |
-| :------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| `modules/agenda/model/partido.ts`     | Fecha y hora locales a instante UTC y vuelta, validación, separar el calendario por estado, último campo de casa, «local – visitante», estados |
-| `modules/agenda/api/partidos.ts`      | Calendario, partido, alta, edición y borrado, con `SIN_FILAS`. Trae el nombre del rival y de la competición en la misma consulta               |
-| `modules/agenda/hooks/usePartidos.ts` | Equipo activo, consultas y mutaciones                                                                                                          |
-| `@modules/core` y `@modules/rules`    | Exportan ya `useEquipos`, `useClubActivo`, `useCompeticiones` y `useClubYTemporada`, para que `agenda` no entre en sus carpetas                |
-| `shared/ui/GrupoDeOpciones`           | Sube desde `rules`, con su hoja de estilos: lo usan ya dos módulos                                                                             |
-| **DOC 05 §14.4**                      | La próxima migración, para Cowork: categoría en cuatro columnas, nombre único, campo de casa y dos permisos                                    |
-| **DOC 08**                            | T-204 en ✅ y la T-203b nueva                                                                                                                  |
+| Pieza                                     | Qué hace                                                                                                                                                                                         |
+| :---------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `modules/lineup/model/convocatoria.ts`    | Juntar plantilla y convocatoria guardada, quién se puede convocar, la cuenta y la validación contra el reglamento                                                                                |
+| `modules/lineup/api/convocatoria.ts`      | Leer `match_squad` con el apodo y guardarla en dos `upsert` repetibles, con `SIN_FILAS` si vuelven menos líneas de las mandadas                                                                  |
+| `modules/lineup/hooks/useConvocatoria.ts` | Consulta y mutación. Si el partido no puede pasar a «Convocado» por permiso, la convocatoria queda guardada y lo devuelve en `marcado`                                                           |
+| `agenda/api/partidos.ts`                  | `marcarComoConvocado`: de programado o convocado a convocado, con `SIN_FILAS`                                                                                                                    |
+| Barriles                                  | `agenda` exporta `usePartido`, `agendaKeys`, `enfrentamiento`, `NOMBRES_DE_ESTADO` y `marcarComoConvocado`; `core`, `usePlantilla`, `POSICIONES` y `DISPONIBILIDADES`; `rules`, `useCompeticion` |
+| `rules/hooks/useCompeticiones.ts`         | `useCompeticion` espera con el identificador vacío: la A11 no lo sabe hasta leer el partido                                                                                                      |
+| `shared/ui/GrupoDeOpciones`               | Prop `enLinea`: opciones una al lado de otra y abajo si no caben                                                                                                                                 |
+| **DOC 05 §14.5**                          | Tres piezas para Cowork: `marcar_convocado()`, el máximo de convocados en la base y, opcional, el dorsal repetido                                                                                |
+| **DOC 08** y `CLAUDE.md`                  | T-205 en ✅ y el estado al día                                                                                                                                                                   |
 
-**Sin comprobar en el navegador**, porque aquí no se puede entrar con Google. Las pruebas montan las
-tres pantallas enteras con la red simulada; el viaje real está en «Comandos para verificar».
+**Sin comprobar en el navegador**, porque aquí no se puede entrar con Google. Las pruebas montan la
+pantalla entera con la red simulada; el viaje real está en «Comandos para verificar».
 
 ### Pruebas
 
-**165 en verde**, 23 nuevas. Cada una se vio fallar antes de darla por buena: once contra un esbozo
-vacío y las demás con un mutante a mano sobre la línea que vigilan. Una de las mutaciones no falló, y
-eso destapó un hueco en la prueba: la comprobación de la hora la cubría ya la del día para las 25:00,
-pero no para los minutos. `10:60` se convertiría en `11:00` del mismo día sin quejarse. Hay caso nuevo
-para eso.
+**194 en verde**, 29 nuevas. Cada una se vio fallar antes de darla por buena: quince del modelo
+contra un esbozo vacío, las diez de pantalla contra una pantalla vacía, y la del modelo que el
+esbozo no tumbaba, las de `api/` y cinco de pantalla, otra vez, con un mutante a mano sobre la
+línea que vigilan.
 
-| Archivo                         | Casos | Qué vigila                                                                                                                                                       |
-| :------------------------------ | ----: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agenda/model/partido.test.ts`  |    14 | Ida y vuelta de la hora, fechas imposibles, minutos de más, columnas del alta, obligatorios, diferido en el pasado, orden, campo de casa                         |
-| `agenda/routes/Agenda.test.tsx` |     9 | Las dos listas y los enlaces según permisos; alta con competición y campo propuestos; rival sin elegir; diferido futuro; sin rivales; edición; empezado; borrado |
+| Archivo                               | Casos | Qué vigila                                                                                                                                                                    |
+| :------------------------------------ | ----: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lineup/model/convocatoria.test.ts`   |    16 | Propuesta desde la inscripción, lo guardado manda, no convocables y retirados, bajas al final, la cuenta, titulares exactos, máximo, dorsal fuera de rango y repetido         |
+| `lineup/api/convocatoria.test.ts`     |     3 | Primera escritura sin convocar y con `created_by`, segunda sin él, `SIN_FILAS` con líneas de menos y parada si falla la primera                                               |
+| `lineup/routes/Convocatoria.test.tsx` |    10 | Plantilla y motivos, convocar y guardar, titulares de menos, máximo, dorsal repetido junto a su campo, lo guardado, sin permiso para marcar, sin red, empezado, sin plantilla |
 
 ---
 
 ## DECISIONES TOMADAS
 
-**El calendario se parte por estado, no por fecha.** Por jugar: programado, convocado o en juego.
-Jugados: el resto. Un partido de ayer que nadie ha empezado sigue pendiente; uno suspendido ya no se
-va a jugar como estaba.
+**Guardar exige la convocatoria válida.** Titulares exactos (L-03) y máximo (R-01), aunque el
+DOC 04 pone R-02 como «aviso bloqueante antes de iniciar». `called` significa «convocatoria
+guardada y validada» (§8.1): guardar una a medias y marcar el partido como convocado sería mentir.
+Sin borradores a medias; si Isaac los echa en falta, se añade un «Guardar sin validar» que no
+cambie el estado.
 
-**La hora es la del móvil** (punto 39). `<input type="date">` y `<input type="time">` dan la hora
-local, se guarda en UTC y se enseña en la hora de cada dispositivo. Para un club canario con
-anotadores canarios, es lo que se espera.
+**Las líneas nuevas nacen sin convocar.** Guardar son dos peticiones: la primera crea con
+`created_by` las líneas que faltan, como «no convocado», sin pisar las que hay; la segunda escribe
+todas sin tocar `created_by`. Quien convocó primero sigue constando, un reintento no choca con lo
+que ya llegó, y la base nunca ve de más a medio guardar: es lo que deja escribir el disparador de
+R-01 del §14.5 sin que rechace un cambio de uno por otro con la convocatoria llena.
 
-**Un partido en diferido tiene que ser del pasado.** Es el que ya se jugó y se mete después (D5). Uno
-normal puede tener cualquier fecha: el de ayer que se programó tarde también vale.
+**Todo inscrito tiene línea**, también los no convocados (L-01). La primera vez se escriben todas.
+El no convocado se guarda sin dorsal ni posición, y la próxima vez se le vuelve a proponer lo de
+su inscripción.
 
-**Se edita antes de jugarse y se borra solo si sigue programado.** DOC 04 §8.1: fecha, rival y campo
-se cambian en `scheduled`. Se deja también en `called`, porque el partido aún no ha empezado. Borrar
-uno convocado se llevaría la convocatoria en cascada, así que solo se ofrece en `scheduled`.
+**Si no puede pasar a «Convocado», la convocatoria se guarda igual y la pantalla lo dice.** El
+permiso que falta es de `matches`, no de `match_squad`, y perder la convocatoria por eso no ayuda
+a nadie (punto 40).
 
-**El campo de casa se propone del último partido en casa**, hasta que la migración lo guarde en
-`clubs` (punto 37). Sin escribirlo en el código: la aplicación es multiclub.
+**La disponibilidad manda, y se lee de la inscripción.** Nada de `sanctions`: su cómputo no
+existe todavía (punto 43).
 
-**Rivales y competiciones salen de `core` y `rules` por sus barriles** (DOC 06 §4.2). `agenda` no
-consulta sus tablas por su cuenta.
+**El dorsal repetido se mira solo entre convocados.** Dos jugadores de la plantilla no pueden
+compartirlo (`squad_shirt_unique`), pero un dorsal cambiado para un partido puede coincidir con el
+de uno que no va. Eso no molesta en el acta.
 
-**Sin entrenamientos en el calendario.** La E4-01 es del MVP en el backlog, pero su pantalla y la de
-asistencia son de después del MVP (DOC 08 §7).
+**La cuenta no es una región viva.** Cambia con cada toque y repetirla cansa; el radio ya anuncia
+lo que se ha elegido. Los errores al guardar sí se anuncian, por la región única del `AppLayout`.
 
-**La categoría en cuatro columnas y no en una**, siguiendo a Raúl («columnas propias»): categoría,
-nivel, ámbito y grupo, que es como nombra la federación. `name` se queda como nombre visible. Texto
-libre y sin lista cerrada en la base. El detalle, en el DOC 05 §14.4.
+**Sin alineación gráfica ni sistema táctico.** E7-03 y E7-04 son de la V1.1 en el backlog.
 
 ---
 
 ## PENDIENTE DE LA TAREA
 
-Nada de lo que pide la fila del DOC 08. Lo que Raúl decidió hoy necesita la migración del DOC 05
-§14.4 y la T-203b.
+Nada de lo que pide la fila del DOC 08. Lo que falta es de la base y está en el DOC 05 §14.5.
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-Los puntos 37 a 39 de abajo.
+Los puntos 40 a 46 de abajo.
 
 ---
 
 ## LO QUE SIGUE ABIERTO
 
-**No se cierra ningún punto de la lista anterior.** Los puntos 33 y 34 pasan de «decidir» a
-«decidido, pendiente de migración», y el 4 y el 27 entran en esa misma migración. Se actualizan
-también el 11 (nueve pantallas pendientes) y el 20. Se suman tres al final, del 37 al 39. La
+**No se cierra ningún punto de la lista anterior.** Se actualizan el 11 (ocho pantallas
+pendientes) y el 32, que alcanza también a la A11. Se suman siete al final, del 40 al 46. La
 numeración no cambia.
 
 Pendiente de decidir, que no lo decide el código:
@@ -153,7 +151,7 @@ Pendiente de hacer:
    Lo resuelve la T-303.
 10. Faltan tokens de anchura de maqueta en el DOC 07: el rail y la caja de `BareLayout` salen de
     `--tap-min`.
-11. **Nueve rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
+11. **Ocho rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
 12. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
     índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
     comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones repetidas
@@ -226,8 +224,8 @@ Pendiente de hacer:
     compensatorio. Si falla la segunda, la primera ya está guardada; si falla también el borrado,
     queda un jugador sin inscribir en el club, invisible en toda plantilla. Salida: una función
     `SECURITY DEFINER` por operación, que es trabajo de migración.
-32. **El permiso de la A05 y la A06 lo mira la guardia en el equipo activo, no en el de la
-    dirección.** Quien abra la plantilla de otro equipo del club ve lo que la RLS le deje leer, y al
+32. **El permiso de la A05, la A06 y, desde la T-205, la A11 lo mira la guardia en el equipo
+    activo, no en el de la dirección.** Quien abra la plantilla de otro equipo del club ve lo que la RLS le deje leer, y al
     guardar recibe «No tienes permiso» si no tiene `roster.manage` en ese equipo. No hay fuga, pero
     sí una pantalla que ofrece lo que no puede hacer. Salida: comprobar el permiso del equipo de la
     ruta con las membresías de `useAuth()`.
@@ -260,14 +258,39 @@ Pendiente de hacer:
     dispositivo y se guardan en UTC. En Canarias es la hora canaria; un partido en la península se
     escribe con la hora canaria en la que empieza. Si algún día anotan dispositivos en zonas
     distintas, hace falta fijar la zona del club.
+40. **Quien solo tiene `lineup.manage` no pasa el partido a «Convocado».** `matches_update` pide
+    `schedule.manage`, `match.live.write` o `match.close`. La convocatoria se guarda igual y la A11
+    lo dice. Isaac tiene los doce permisos y no lo nota; el día que convoque un delegado, sí.
+    **Propuesta en el DOC 05 §14.5, pieza 5a**: una función `marcar_convocado()`. Pide migración:
+    sesión de Cowork. Después, `marcarComoConvocado` pasa a llamar a la función.
+41. **El máximo de convocados solo lo impide la pantalla.** El DOC 04 §4.3 dice que R-01 se
+    comprueba también en la base, y no hay nada. **Propuesta en el DOC 05 §14.5, pieza 5b**: un
+    disparador de sentencia. La A11 ya guarda de forma que ese disparador no la rechace a medias.
+42. **El dorsal repetido entre convocados solo lo impide la pantalla.** Opcional, DOC 05 §14.5,
+    pieza 5c.
+43. **Nadie marca hoy a un jugador como «Sancionado».** La A11 bloquea por la disponibilidad de la
+    inscripción (R-03, E7-05), y «Sancionado» lo pondrá el cómputo de sanciones, que no existe: la
+    A16 es de después del MVP. Mientras, a un sancionado se le pone «No disponible» en la A06, y la
+    A11 lo deja fuera igual. La tabla `sanctions` no se lee.
+44. **Empezado el partido, la convocatoria no se corrige.** L-08 pide que corregirla obligue a
+    «volver atrás de forma explícita». La A11 la enseña en solo lectura y ya está. Decidir en la
+    T-207 o en la T-210 si hace falta ese paso atrás y quién lo da.
+45. **Los titulares son exactamente `players_on_pitch`, también en un partido en diferido.** Si un
+    día se juega con diez desde el principio, la A11 no deja guardar. Salida si pasa: bajar
+    `players_on_pitch` de la competición para ese partido no vale, porque es de la competición;
+    habría que permitir menos titulares con un aviso. Sin tocar hasta que ocurra.
+46. **Quien se da de baja con convocatoria guardada sigue en ella.** La A11 lo enseña al final,
+    «Ya no está en la plantilla: no se puede convocar», y al guardar lo pasa a no convocado. Su
+    línea no se borra: los eventos apuntan a `match_squad` con `on delete restrict`.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
 `teams` del contexto devuelve membresías y no equipos pelados, a propósito; el club activo del
 registro vive en una variable de módulo de `logging`; `sasi.equipo-activo` sobrevive al cierre de
 sesión, a propósito; los rivales se duplican por club, como ya decía el DOC 05 §5.4 (E17-03);
-«Sancionado» no se elige en la A06, lo pone el cómputo de sanciones; y el calendario no enseña
-entrenamientos, que llegan con su pantalla después del MVP.
+«Sancionado» no se elige en la A06, lo pone el cómputo de sanciones; el calendario no enseña
+entrenamientos, que llegan con su pantalla después del MVP; y la A11 lee la plantilla de la
+temporada activa, que es la de todos los partidos que ofrece el calendario.
 
 ---
 
@@ -275,34 +298,35 @@ entrenamientos, que llegan con su pantalla después del MVP.
 
 | Momento                   | Inicial comprimido | Margen sobre 200 kB |
 | :------------------------ | -----------------: | ------------------: |
-| Tras la T-203, en Linux   |          179,85 kB |            20,15 kB |
-| **Esta sesión, en Linux** |      **179,92 kB** |        **20,08 kB** |
+| Tras la T-204, en Linux   |          179,92 kB |            20,08 kB |
+| **Esta sesión, en Linux** |      **179,97 kB** |        **20,03 kB** |
 
-**+0,07 kB, en `App-*.js`**: las tres entradas perezosas nuevas. Las pantallas viven en el trozo de
-`agenda` (5,43 kB de JavaScript y 0,92 kB de estilos), que no se descarga al arrancar.
+**+0,05 kB, en `App-*.js`**: la entrada perezosa nueva. La pantalla vive en el trozo de `lineup`
+(4,03 kB de JavaScript y 0,69 kB de estilos), que no se descarga al arrancar.
 
 | Trozo del arranque         |    Comprimido |
 | :------------------------- | ------------: |
 | `index-*.js`               |      72,21 kB |
-| `App-*.js`                 |     101,56 kB |
-| `QueryClientProvider-*.js` |       0,27 kB |
+| `App-*.js`                 |     101,62 kB |
+| `QueryClientProvider-*.js` |       0,26 kB |
 | `workbox-window`           |       2,20 kB |
 | Dos hojas de estilo        |       3,68 kB |
-| **Total**                  | **179,92 kB** |
+| **Total**                  | **179,97 kB** |
 
 La lista buena de trozos sale de `dist/index.html` y de las importaciones de `App-*.js`. En crudo,
-`precache 30 entries (739.88 KiB)`.
+`precache 32 entries (753.24 KiB)`.
 
 ---
 
 ## SIGUIENTE
 
-**Para una sesión de Cowork, antes que nada: la migración del DOC 05 §14.4.** Categoría en columnas,
-nombre único, campo de casa con el dato de Unión Tejina y dos líneas de permisos. Con la consulta de
-duplicados antes, y `npm run db:types`, el script de la T-105b y el auditor después.
+**Para una sesión de Cowork: la migración del DOC 05 §14.4 y, en la misma o aparte, el §14.5.**
+Después, `npm run db:types`, el script de la T-105b y el auditor. Con el §14.5 aplicado,
+`marcarComoConvocado` pasa a llamar a `marcar_convocado()`.
 
-**Siguiente tarea de código: T-205**, convocatoria y alineación inicial. No necesita la migración. La
-**T-203b** va detrás de la migración, cuando esté.
+**Siguiente tarea de código: T-206**, capa offline: Dexie, precarga del partido y cola de salida.
+**El hito del 4 de octubre** (DOC 08) es para ella: si ese día no está cerrada, la capa offline se
+recorta. La **T-203b** va detrás de la migración, cuando esté.
 
 ---
 
@@ -321,19 +345,25 @@ npm run test -- --run
 npm run build
 ```
 
-`npm run test -- --run` tiene que decir `Test Files 18 passed (18)` y `Tests 165 passed (165)`. El
+`npm run test -- --run` tiene que decir `Test Files 21 passed (21)` y `Tests 194 passed (194)`. El
 build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 **En el navegador, con `npm run dev` y la cuenta de Isaac o la tuya:**
 
-1. Da de alta en Equipos un rival de la G2, si no hay ninguno, y la liga en Competiciones.
-2. «Agenda» → «Nuevo partido». La competición ya viene elegida. Rival, en casa, una fecha y una hora,
-   y escribe «Campo de Fútbol Izquierdo Rodríguez». Vuelves al calendario y sale en «Por jugar», con
-   el Cadete A delante.
-3. «Nuevo partido» otra vez, en casa: el campo ya viene escrito.
-4. «Editar» el primero, cámbialo a «Fuera» y guarda: el rival pasa delante.
-5. «Nuevo partido» con «Ya se jugó» marcado y una fecha futura: no deja.
-6. «Editar» → «Borrar partido» → «Sí, borrar el partido»: desaparece.
+1. Hace falta un partido «Programado» en la Agenda y jugadores en la plantilla. Si no hay, dalos
+   de alta en Equipos y Agenda.
+2. En la Agenda, «Convocatoria» del partido. Sale toda la plantilla como «No convocado», con la
+   cuenta arriba: «Titulares: 0 de 11».
+3. Marca un titular: aparecen su dorsal y su posición, ya rellenos desde la ficha.
+4. Marca diez titulares y pulsa «Guardar convocatoria»: no deja, «Tienen que ser 11 titulares y
+   hay 10».
+5. Marca el undécimo y un par de suplentes, y guarda: vuelves al calendario y el partido sale
+   como «Convocado».
+6. Abre otra vez la convocatoria: sale lo guardado.
+7. En la A06, pon a un convocado «No disponible» y vuelve a la convocatoria: sale sin opciones y
+   con «Estaba convocado: se quita al guardar».
+8. Con el móvil o con la ventana a 320 px: las tres opciones bajan de línea y no hay scroll
+   lateral.
 
 **`npm run db:types` NO se lanza a la ligera.** Esta sesión no tocó el esquema.
 
@@ -341,8 +371,8 @@ build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 ## AVISO DE SEGURIDAD
 
-Sin cambios de configuración esta sesión: ni variables de entorno, ni Netlify, ni migraciones. **La
-migración del §14.4 la aplica una sesión de Cowork contra la base de producción**: con la consulta de
-duplicados antes y el script de la T-105b después. El aviso de Chrome autorrellenando el panel de
-Google en Supabase sigue vigente para el día que haga falta abrirlo: **vacía «Client IDs» y «Client
-Secret» antes de tocar nada.**
+Sin cambios de configuración esta sesión: ni variables de entorno, ni Netlify, ni migraciones. **Las
+migraciones del §14.4 y el §14.5 las aplica una sesión de Cowork contra la base de producción**:
+con la consulta de duplicados antes y el script de la T-105b después. El aviso de Chrome
+autorrellenando el panel de Google en Supabase sigue vigente para el día que haga falta abrirlo:
+**vacía «Client IDs» y «Client Secret» antes de tocar nada.**

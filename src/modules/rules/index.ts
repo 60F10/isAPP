@@ -16,6 +16,9 @@ export {
 // Para `agenda`, que elige la competición de cada partido.
 export { useClubYTemporada, useCompeticiones } from './hooks/useCompeticiones';
 
+// Para `lineup`, que valida la convocatoria contra el reglamento del partido.
+export { useCompeticion } from './hooks/useCompeticiones';
+
 export type {
   Competicion,
   ModoDeReloj,

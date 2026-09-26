@@ -1,0 +1,135 @@
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+/* La cuenta que cambia con cada toque. Números de ancho fijo para que no baile. */
+.cuenta {
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada jugador, un bloque separado por una raya. Las opciones bajan de línea
+   si no caben: a 320 px o con el texto al 200 % nada desborda (1.4.10). */
+.jugador {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.jugador:last-child {
+  border-block-end: 0;
+}
+
+.nombre {
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Dorsal y posición del partido, juntos cuando caben. */
+.detalle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-4);
+}
+
+/* El selector copia el aspecto de `Field` (shared/ui), como en la A10. */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.etiqueta {
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.selector {
+  min-block-size: var(--tap-min);
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-100);
+}
+
+.selector:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+  border-color: var(--color-accent);
+}
+
+/* Avisos en palabras y en negrita, no solo en color (1.4.1). */
+.aviso,
+.fallo {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.errores {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.grupos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.subtitulo {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+}
+
+.volver {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.volver:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
