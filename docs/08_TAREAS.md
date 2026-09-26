@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 2.1 — 26/09/2026 (T-202 cerrada) · 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
+> **Versión:** 2.2 — 26/09/2026 (T-203 cerrada) · 2.1 — 26/09/2026 (T-202 cerrada) · 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -103,7 +103,7 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 | :-------- | :---------------------------------------------------------------------------------------- | :-------- | :--------- | :------- | :----------------------------- | :----- |
 | **T-201** | Club y equipos: alta, edición, escudo, equipo gestionado frente a equipo de referencia    | A03, A04  | T-105      | 1        | `feat/core-club-y-equipos`     | ✅     |
 | **T-202** | Plantilla y ficha de jugador: apodo, dorsal, posición, estado. Sin nombre real ni foto    | A05, A06  | T-201      | 1        | `feat/core-plantilla`          | ✅     |
-| **T-203** | Competiciones y reglamento: duración de partes, jugadores en campo, `enabled_event_types` | A08       | T-201      | 1        | `feat/rules-competiciones`     | ⬜     |
+| **T-203** | Competiciones y reglamento: duración de partes, jugadores en campo, `enabled_event_types` | A08       | T-201      | 1        | `feat/rules-competiciones`     | ✅     |
 | **T-204** | Calendario y alta de partido, incluido el partido a posteriori                            | A09, A10  | T-203      | 1        | `feat/agenda-calendario`       | ⬜     |
 | **T-205** | Convocatoria y alineación inicial                                                         | A11       | T-204      | 1        | `feat/lineup-convocatoria`     | ⬜     |
 | **T-206** | Capa offline: Dexie, precarga del partido y cola de salida con reintento e idempotencia   | C04       | T-205      | 2        | `feat/sync-cola-offline`       | ⬜     |
@@ -116,6 +116,8 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 **La T-201, cerrada el 26/09, con dos piezas fuera.** A03 enseña y edita el club del equipo activo; A04 lista los equipos del club separando los propios de los rivales, y los da de alta y los edita. **Fuera**: el alta de un club nuevo, porque con la RLS actual el club nacería invisible hasta para quien lo crea (ciclo del DOC 13, punto 26), y el escudo, porque el cubo `crests` no existe. El logo del C.D. Unión Tejina espera en `docs/recursos/` para subirlo cuando exista. Sin borrado: ni `clubs` ni `teams` tienen política para ello.
 
 **La T-202, cerrada el 26/09.** A05 lista la plantilla del equipo por dorsal y da de alta jugadores; A06 edita apodo, dorsal, posición habitual y disponibilidad, y da de baja. Del jugador solo viajan apodo, dorsal y posición: ninguna consulta toca las columnas del nombre real. «Sancionado» se enseña y no se elige. Detalle en el DOC 13.
+
+**La T-203, cerrada el 26/09.** A08 lista las competiciones del club en la temporada en curso, las da de alta con el reglamento del cadete que Isaac confirmó ese día y edita el reglamento entero: partes, minutos, descanso, reloj, tipo y número de cambios, convocados, titulares, amarillas, roja y los once botones del directo. La duración se calcula a la vista. La categoría va en el nombre, porque `competitions` no tiene columna para ella. Detalle en el DOC 13.
 
 **La T-206 va antes que el directo a propósito.** Enchufar la cola a una pantalla ya escrita obliga a reescribir cada manejador de evento; escribir la pantalla contra una cola que ya existe no cuesta nada. Es la dependencia que más caro sale saltarse.
 

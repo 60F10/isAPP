@@ -8,6 +8,12 @@
 // limitan el texto (DOC 05 §5.2 y §5.4). Se ponen para que un nombre quepa
 // en una cabecera de móvil y en la ficha de un partido.
 
+import { limpiarTexto, mensajeDeErrorAlGuardar as mensajeComun } from '@shared/lib/guardado';
+
+// Se reexportan para no cambiar los `import` de `core`: viven en `shared/lib`
+// desde la T-203, cuando `rules` los necesitó también.
+export { limpiarTexto, SIN_FILAS } from '@shared/lib/guardado';
+
 export type TipoDeEquipo = 'managed' | 'reference';
 
 export interface Club {
@@ -33,11 +39,6 @@ export const LARGO_NOMBRE_CLUB = 80;
 export const LARGO_NOMBRE_CORTO = 20;
 export const LARGO_NOMBRE_EQUIPO = 60;
 export const LARGO_CATEGORIA = 40;
-
-/** Quita espacios de los bordes y junta los repetidos de dentro. */
-export function limpiarTexto(texto: string): string {
-  return texto.trim().replace(/\s+/g, ' ');
-}
 
 function demasiadoLargo(largo: number): string {
   return `Como mucho ${largo} caracteres.`;
@@ -143,50 +144,10 @@ export function ordenarEquipos<T extends Pick<Equipo, 'name' | 'kind'>>(
   });
 }
 
-/**
- * Marca de «la base no tocó ninguna fila». Una actualización que la RLS no
- * deja hacer no da error en PostgREST: devuelve cero filas. `api/` la
- * convierte en un error con este mensaje para que no pase por un éxito.
- */
-export const SIN_FILAS = 'SIN_FILAS';
-
-function codigoDe(error: unknown): string | null {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    const { code } = error;
-
-    return typeof code === 'string' ? code : null;
-  }
-
-  return null;
-}
-
-/**
- * Frase para quien está delante cuando guardar no sale bien.
- *
- * @param repetido qué decir si la base rechaza un duplicado (23505). Cada
- *   pantalla sabe qué es lo que no se puede repetir: el nombre del equipo en
- *   la A04, el dorsal en la plantilla.
- */
+/** Mismo mensaje que el común, con el duplicado que importa en la A04. */
 export function mensajeDeErrorAlGuardar(
   error: unknown,
   repetido = 'Ya hay un equipo con ese nombre en el club.',
 ): string {
-  const codigo = codigoDe(error);
-
-  if (codigo === '23505') {
-    return repetido;
-  }
-
-  // 42501: la RLS rechazó la escritura.
-  if (codigo === '42501' || (error instanceof Error && error.message === SIN_FILAS)) {
-    return 'No tienes permiso para cambiar esto.';
-  }
-
-  // `fetch` sin red lanza un TypeError. No es un fallo del dato: es la
-  // cobertura del campo.
-  if (error instanceof TypeError) {
-    return 'No hay conexión. No se ha guardado nada: vuelve a intentarlo con cobertura.';
-  }
-
-  return 'No se ha podido guardar. Vuelve a intentarlo.';
+  return mensajeComun(error, repetido);
 }

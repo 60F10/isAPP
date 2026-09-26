@@ -137,17 +137,15 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'competiciones',
-                    element: <PantallaPendiente id="A08" titulo="Competiciones" tarea="T-203" />,
+                    lazy: async () => ({
+                      Component: (await import('@modules/rules')).CompeticionesPage,
+                    }),
                   },
                   {
                     path: 'competiciones/:id',
-                    element: (
-                      <PantallaPendiente
-                        id="A08"
-                        titulo="Reglamento de la competición"
-                        tarea="T-203"
-                      />
-                    ),
+                    lazy: async () => ({
+                      Component: (await import('@modules/rules')).CompeticionPage,
+                    }),
                   },
                 ],
               },

@@ -1,0 +1,57 @@
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fila {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:last-child {
+  border-block-end: 0;
+}
+
+/* El nombre es el enlace a la ficha: 48 px de alto y subrayado, que en una
+   lista de enlaces es lo que dice «esto se pulsa» sin depender del color. */
+.nombre {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  overflow-wrap: anywhere;
+
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.nombre:focus-visible,
+.volver:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.resumen {
+  color: var(--color-text-secondary);
+}
+
+/* Enlace con pinta de control: borde y peso, no solo color (1.4.1). */
+.volver {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
