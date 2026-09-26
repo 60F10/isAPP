@@ -17,7 +17,12 @@ import type { Tables } from '@app-types/database.types';
 const COLUMNAS =
   'id, club_id, season_id, name, kind, periods_count, period_minutes, halftime_minutes, clock_mode, substitution_type, substitutions_max, squad_max, players_on_pitch, yellow_cards_for_ban, red_card_default_bans, enabled_event_types';
 
-type Fila = Omit<Tables<'competitions'>, 'created_by' | 'created_at' | 'updated_at'>;
+// Las cuatro columnas de la categoría (DOC 05 §14.4) ya están en la base, pero
+// no se leen hasta la T-203b, que las pone en la A08.
+type Fila = Omit<
+  Tables<'competitions'>,
+  'created_by' | 'created_at' | 'updated_at' | 'category' | 'level' | 'scope' | 'group_label'
+>;
 
 function aCompeticion(fila: Fila): Competicion {
   return {

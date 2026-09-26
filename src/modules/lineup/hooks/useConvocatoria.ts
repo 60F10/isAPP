@@ -30,9 +30,10 @@ function esFaltaDePermiso(error: unknown): boolean {
  * Guarda la convocatoria y pasa el partido a convocado (L-07).
  *
  * Devuelve `false` en `marcado` cuando la convocatoria se guardó pero el
- * partido no cambió de estado por falta de permiso: la RLS de `matches` no
- * admite todavía `lineup.manage` (DOC 05 §14.5). Cualquier otro fallo se lanza
- * igual que el de la convocatoria, y reintentar no duplica nada.
+ * partido no cambió de estado: o ya había empezado, o falta `lineup.manage` en
+ * el equipo del partido, que la guardia mira en el equipo activo (punto 26 del
+ * DOC 13). Cualquier otro fallo se lanza igual que el de la convocatoria, y
+ * reintentar no duplica nada.
  */
 export function useGuardarConvocatoria(partidoId: string) {
   const { session } = useAuth();
