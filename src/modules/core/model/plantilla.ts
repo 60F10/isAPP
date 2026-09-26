@@ -137,7 +137,7 @@ export function fechaDeHoy(ahora: Date): string {
 }
 
 /**
- * El dorsal con el que vuelve un jugador dado de baja (DOC 13, punto 30): el
+ * El dorsal con el que vuelve un jugador dado de baja (PR #51): el
  * suyo, si nadie de la plantilla lo lleva ahora; si no, ninguno, porque la
  * base no deja repetirlo entre activos (`squad_shirt_unique`). Se le pone uno
  * nuevo desde su ficha.

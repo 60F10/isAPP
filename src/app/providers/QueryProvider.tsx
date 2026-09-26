@@ -16,7 +16,7 @@ import type { ReactNode } from 'react';
  * pasajeros, se reintentan hasta dos veces.
  *
  * Qué es definitivo lo decide `esErrorDefinitivo`: hasta la T-206 solo se
- * miraba el estado HTTP, y el error de Supabase no lo trae (DOC 13, punto 16).
+ * miraba el estado HTTP, y el error de Supabase no lo trae (DOC 06 §10.1).
  */
 
 const queryClient = new QueryClient({

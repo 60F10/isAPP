@@ -3,7 +3,7 @@
 //
 // Todo lo de aquí arrastra Dexie: el enrutador lo carga en perezoso, nunca
 // con una importación estática (D06-26). Desde la T-207 la A12 tampoco va en
-// el paquete inicial (DOC 13, punto 47).
+// el paquete inicial (D06-29).
 
 export { ConvocatoriaConPrecarga } from './routes/ConvocatoriaConPrecarga';
 export { LiveMatchPage } from './routes/LiveMatchPage';

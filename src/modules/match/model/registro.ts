@@ -2,16 +2,16 @@
 // §5, §7 y §8.3).
 //
 // Lo llama el reductor de `directo.ts`. Cada evento sale como una fila de
-// `match_events` comprobada contra los tipos generados (DOC 13, punto 49), y
+// `match_events` comprobada contra los tipos generados (T-208), y
 // el estado del directo se recalcula con él: quién está en el campo, quién
 // puede entrar, quién está amonestado.
 //
-// EL SEGUNDO LO PONE EL APARATO (DOC 13, punto 55). Con reloj, la parte en
+// EL SEGUNDO LO PONE EL APARATO (T-208). Con reloj, la parte en
 // curso y los segundos por anclaje, pausa descontada; y `occurred_at` al lado,
 // por si otro día hace falta cuadrarlo. El servidor solo deriva los segundos
 // cuando no llegan, y no conoce la pausa.
 //
-// EN DIFERIDO, EL MINUTO VA A MANO (DOC 04 §5.4, punto 59): parte y segundos
+// EN DIFERIDO, EL MINUTO VA A MANO (DOC 04 §5.4): parte y segundos
 // escritos, sin `occurred_at`. Si la parte todavía no existe, se crea con su
 // duración prevista, que es la que manda cuando no se sabe la real.
 

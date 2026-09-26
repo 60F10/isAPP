@@ -1,4 +1,4 @@
-// `fetchDelClubSinInscribir` (DOC 13, punto 29). Lo que se vigila: de
+// `fetchDelClubSinInscribir` (PR #51). Lo que se vigila: de
 // `players` solo se pide el apodo, y no sale quien ya tiene fila en el equipo
 // y la temporada, aunque sea de baja.
 
