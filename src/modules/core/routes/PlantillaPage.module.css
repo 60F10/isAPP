@@ -1,0 +1,113 @@
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Dorsal, datos y enlace en una fila. A 320 px o con el texto al 200 %, el
+   enlace baja debajo en vez de desbordar (1.4.10). */
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:last-child {
+  border-block-end: 0;
+}
+
+/* El dorsal en una caja de ancho fijo, para que los apodos queden en
+   columna. Tinta principal y peso: se lee de un vistazo. */
+.dorsal {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.datos {
+  flex: 1 1 10rem;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.apodo {
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+}
+
+.detalle {
+  color: var(--color-text-secondary);
+}
+
+/* «No disponible» o «Sancionado» en la tinta del estado pendiente, además de
+   escrito: el color subraya, el texto informa. */
+.aviso {
+  color: var(--color-pending);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Enlace con pinta de control: borde y peso, no solo color (1.4.1). */
+.enlace,
+.volver {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.enlace:focus-visible,
+.volver:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-inline-size: 32rem;
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+.fallo {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Solo para lectores de pantalla: «Dorsal» delante del número. */
+.oculto {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
