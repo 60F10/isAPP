@@ -8,14 +8,17 @@ import {
   actualizarApodo,
   actualizarInscripcion,
   crearJugador,
+  fetchBajas,
+  fetchDelClubSinInscribir,
   fetchEquipoDePlantilla,
   fetchInscripcion,
   fetchPlantilla,
+  inscribirDelClub,
 } from '../api/plantilla';
 import { coreKeys } from '../api/queryKeys';
-import { fechaDeHoy, ordenarPlantilla } from '../model/plantilla';
+import { dorsalAlReincorporar, fechaDeHoy, ordenarPlantilla } from '../model/plantilla';
 
-import type { Disponibilidad, Posicion } from '../model/plantilla';
+import type { Disponibilidad, Inscripcion, Posicion } from '../model/plantilla';
 
 export function useEquipoDePlantilla(equipoId: string) {
   return useQuery({
@@ -124,6 +127,61 @@ export function useDarDeBaja(equipoId: string) {
   return useMutation({
     mutationFn: (inscripcionId: string) =>
       actualizarInscripcion(inscripcionId, { left_on: fechaDeHoy(new Date()) }),
+    onSuccess: invalidar,
+  });
+}
+
+/** Las bajas de la temporada, por dorsal (DOC 13, punto 30). */
+export function useBajas(equipoId: string, temporadaId: string) {
+  return useQuery({
+    queryKey: coreKeys.bajas(equipoId, temporadaId),
+    queryFn: () => fetchBajas(equipoId, temporadaId),
+    select: ordenarPlantilla,
+  });
+}
+
+/** Los del club que se pueden inscribir en este equipo (DOC 13, punto 29). */
+export function useDelClubSinInscribir(clubId: string, equipoId: string, temporadaId: string) {
+  return useQuery({
+    queryKey: coreKeys.delClubSinInscribir(equipoId, temporadaId),
+    queryFn: () => fetchDelClubSinInscribir(clubId, equipoId, temporadaId),
+  });
+}
+
+export function useInscribirDelClub(destino: { equipoId: string; temporadaId: string }) {
+  const { session } = useAuth();
+  const invalidar = useInvalidarPlantilla(destino.equipoId);
+
+  return useMutation({
+    mutationFn: (jugadorId: string) => {
+      if (session === null) {
+        throw new Error('Sin sesión.');
+      }
+
+      return inscribirDelClub({ ...destino, userId: session.user.id }, jugadorId);
+    },
+    onSuccess: invalidar,
+  });
+}
+
+/**
+ * Reincorpora una baja: vacía `left_on` y conserva su dorsal si está libre.
+ * Devuelve si ha vuelto sin dorsal, para decirlo.
+ */
+export function useReincorporar(equipoId: string) {
+  const invalidar = useInvalidarPlantilla(equipoId);
+
+  return useMutation({
+    mutationFn: async (datos: {
+      baja: Inscripcion;
+      plantilla: readonly Inscripcion[];
+    }): Promise<{ sinDorsal: boolean }> => {
+      const dorsal = dorsalAlReincorporar(datos.baja, datos.plantilla);
+
+      await actualizarInscripcion(datos.baja.id, { left_on: null, shirt_number: dorsal });
+
+      return { sinDorsal: datos.baja.shirtNumber !== null && dorsal === null };
+    },
     onSuccess: invalidar,
   });
 }

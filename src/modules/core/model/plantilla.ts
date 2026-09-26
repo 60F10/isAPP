@@ -135,3 +135,20 @@ export function fechaDeHoy(ahora: Date): string {
 
   return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`;
 }
+
+/**
+ * El dorsal con el que vuelve un jugador dado de baja (DOC 13, punto 30): el
+ * suyo, si nadie de la plantilla lo lleva ahora; si no, ninguno, porque la
+ * base no deja repetirlo entre activos (`squad_shirt_unique`). Se le pone uno
+ * nuevo desde su ficha.
+ */
+export function dorsalAlReincorporar(
+  baja: Pick<Inscripcion, 'shirtNumber'>,
+  plantilla: readonly Pick<Inscripcion, 'shirtNumber'>[],
+): number | null {
+  if (baja.shirtNumber === null) {
+    return null;
+  }
+
+  return plantilla.some((otro) => otro.shirtNumber === baja.shirtNumber) ? null : baja.shirtNumber;
+}

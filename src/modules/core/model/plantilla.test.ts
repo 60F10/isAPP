@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DISPONIBILIDADES,
+  dorsalAlReincorporar,
   fechaDeHoy,
   LARGO_APODO,
   ordenarPlantilla,
@@ -133,5 +134,21 @@ describe('etiquetas', () => {
 describe('fechaDeHoy', () => {
   it('la fecha local en formato de columna date, con ceros delante', () => {
     expect(fechaDeHoy(new Date(2026, 8, 5, 23, 59))).toBe('2026-09-05');
+  });
+});
+
+describe('dorsalAlReincorporar', () => {
+  const plantilla = [{ shirtNumber: 7 }, { shirtNumber: null }];
+
+  it('conserva su dorsal si nadie lo lleva', () => {
+    expect(dorsalAlReincorporar({ shirtNumber: 9 }, plantilla)).toBe(9);
+  });
+
+  it('vuelve sin dorsal si ya lo lleva otro: la base no deja repetirlo', () => {
+    expect(dorsalAlReincorporar({ shirtNumber: 7 }, plantilla)).toBeNull();
+  });
+
+  it('sin dorsal, sigue sin él', () => {
+    expect(dorsalAlReincorporar({ shirtNumber: null }, plantilla)).toBeNull();
   });
 });
