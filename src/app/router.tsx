@@ -181,8 +181,13 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'partidos/:id/convocatoria',
+                    // La A11 de `lineup` con la precarga del partido encima
+                    // (T-206). Por ruta directa y no por el barril de `match`,
+                    // que va en el paquete inicial con la A12: esta arrastra
+                    // Dexie, que no cabe en el arranque.
                     lazy: async () => ({
-                      Component: (await import('@modules/lineup')).ConvocatoriaPage,
+                      Component: (await import('@modules/match/routes/ConvocatoriaConPrecarga'))
+                        .ConvocatoriaConPrecarga,
                     }),
                   },
                 ],

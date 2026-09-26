@@ -13,6 +13,11 @@
 //
 // Se prepara también en el portátil (DOC 02 §5): todo es un control nativo y
 // se recorre con el tabulador.
+//
+// DOS PUNTOS DE ENGANCHE, `aviso` y `alGuardar` (T-206). La ruta de verdad es
+// la de `match`, que pone encima el estado de la precarga del partido y vuelve
+// a precargar al guardar. `lineup` no sabe nada de la capa offline: no puede
+// importar de `sync` (DOC 06 §4.2).
 
 import { useId, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -43,6 +48,7 @@ import styles from './ConvocatoriaPage.module.css';
 import type { FilaConvocatoria, Llamada, ResultadoConvocatoria } from '../model/convocatoria';
 import type { Partido } from '@modules/agenda';
 import type { Posicion } from '@modules/core';
+import type { ReactNode } from 'react';
 
 interface Reglamento {
   squad_max: number;
@@ -183,9 +189,10 @@ interface EditorProps {
   partidoId: string;
   inicial: FilaConvocatoria[];
   reglamento: Reglamento;
+  alGuardar: (() => void) | undefined;
 }
 
-function Editor({ partidoId, inicial, reglamento }: EditorProps) {
+function Editor({ partidoId, inicial, reglamento, alGuardar }: EditorProps) {
   const anunciar = useAnnounce();
   const navigate = useNavigate();
   const guardar = useGuardarConvocatoria(partidoId);
@@ -226,6 +233,8 @@ function Editor({ partidoId, inicial, reglamento }: EditorProps) {
 
         guardar.mutate(resultado.valores, {
           onSuccess: ({ marcado }) => {
+            alGuardar?.();
+
             if (marcado) {
               anunciar('Convocatoria guardada');
               void navigate('/calendario');
@@ -336,7 +345,14 @@ function Reintentar({ texto, alPulsar }: { texto: string; alPulsar: () => void }
   );
 }
 
-export function ConvocatoriaPage() {
+interface ConvocatoriaPageProps {
+  /** Lo que va debajo de «Volver al calendario», antes de la convocatoria. */
+  aviso?: ReactNode;
+  /** Se llama cada vez que la convocatoria se guarda, marcado o no el partido. */
+  alGuardar?: () => void;
+}
+
+export function ConvocatoriaPage({ aviso, alGuardar }: ConvocatoriaPageProps = {}) {
   const { id: partidoId = '' } = useParams();
   const { teams, activeSeasonId } = useAuth();
   const partido = usePartido(partidoId);
@@ -436,6 +452,7 @@ export function ConvocatoriaPage() {
             partidoId={datos.id}
             inicial={filas}
             reglamento={competicion.data}
+            alGuardar={alGuardar}
           />
         </Card>
       </>
@@ -449,6 +466,7 @@ export function ConvocatoriaPage() {
           Volver al calendario
         </Link>
       </p>
+      {aviso}
       {contenido()}
     </Pantalla>
   );

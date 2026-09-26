@@ -5,117 +5,113 @@
 
 ---
 
-## Sesión 26/09/2026 — T-205, convocatoria y alineación inicial: ✅ cerrada
+## Sesión 26/09/2026 — T-206, capa offline: ✅ cerrada entera, antes del hito del 4 de octubre
 
-Sesión en la nube, sin acceso a Supabase y sin nadie respondiendo a mitad: las decisiones que la
-tarea pedía están abajo, en «Decisiones tomadas», con su porqué. Ninguna toca el esquema. Lo que
-necesita la base va al **DOC 05 §14.5**, para la misma sesión de Cowork que la migración del §14.4.
+Misma sesión en la nube que la T-205, sin acceso a Supabase. La T-205 se fusionó a mitad
+(PR #45) y Raúl pidió seguir. Antes de picar código, dos decisiones suyas:
 
-El entorno obliga a subir a una rama de sesión; la que toca por convención es
-`feat/lineup-convocatoria`, y con ese nombre se hizo el commit para que pasara el hook de
-`pre-commit`. La pull request lo dice.
+| Pregunta                                                                  | Decisión de Raúl                                                           |
+| :------------------------------------------------------------------------ | :------------------------------------------------------------------------- |
+| Precargar al entrar en la convocatoria sin que `lineup` importe de `sync` | **Desde el enrutador**: la ruta carga la A11 envuelta por `match` (D06-28) |
+| Una entrega esta sesión y la precarga en otra, o la T-206 entera          | **La T-206 entera** en esta sesión                                         |
+
+El entorno obliga a subir a la rama de sesión; la que toca por convención es
+`feat/sync-cola-offline`, y con ese nombre se hizo el commit. La rama de sesión de la T-205 se
+borró al fusionar su PR, así que esta sube limpia desde `main`. La pull request lo dice.
 
 ---
 
 ## HECHO
 
-**El módulo `lineup` nace con la A11**, en su propio trozo perezoso. Sustituye a la
-`PantallaPendiente` de `/partidos/:id/convocatoria`, a la que ya enlazaba «Convocatoria» del
-calendario.
+| Pieza                                           | Qué hace                                                                                                                                                                                                                                              |
+| :---------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/lib/db.ts`                              | Dexie con los cuatro almacenes del DOC 06 §8.2, sin tocar sus índices. El trabajo gana `userId` y `sentAt`                                                                                                                                            |
+| `sync/model/cola.ts`                            | Retroceso de 1 a 60 s con hasta 1 s al azar, qué es éxito, reintento o definitivo, el primero listo de cada partido, la purga a 48 h y la cuenta para la C04                                                                                          |
+| `sync/model/vaciador.ts`                        | Vuelta a vuelta: marca «enviándose», manda, guarda lo que pasó. El almacén y el transporte entran como argumento                                                                                                                                      |
+| `sync/api/transporte.ts`                        | Un trabajo, una petición. `update` sin filas es `SIN_FILAS`; `delete` sin filas, éxito; nunca lanza                                                                                                                                                   |
+| `sync/api/almacen.ts` y `encolar.ts`            | La cola sobre Dexie, `encolar()` (guarda y pide vaciado), `contarPendientes`, las purgas y el estado observable                                                                                                                                       |
+| `sync/api/arranque.ts`                          | Cerrojo `sasi-outbox` entre pestañas y disparadores: arranque, `online`, vuelta a primer plano, cada 10 s con red, al encolar y «Sincronizar ahora». Lo rechazado va a `error_logs` con la tabla, la operación y lo que dijo el servidor, sin la fila |
+| **C04** `sync/components/BandaDeSincronizacion` | Sin red, por enviar o rechazado, con el número en palabras, «Sincronizar ahora» y lo que dijo el servidor, plegado. Anuncia el cambio de conexión, no la cuenta                                                                                       |
+| `app/components/Sincronizacion.tsx`             | Carga `sync` con `import()` en cuanto hay sesión, arranca el vaciado y pinta la banda (D06-26)                                                                                                                                                        |
+| **C01** `app/routes/AjustesPage.tsx`            | Antes de cerrar sesión cuenta la cola y, si hay algo, pide confirmar (punto 25 cerrado)                                                                                                                                                               |
+| `match/api/precarga.ts`                         | Partido, reglamento, convocatoria (solo apodo), partes y eventos en paralelo; los guarda en una transacción y pide almacén persistente (D06-10b). `leerInstantanea` para la T-207                                                                     |
+| `match/components/EstadoDePrecarga`             | «Preparando…», «Partido listo para usar sin conexión» o el fallo con «Volver a intentarlo», antes de ir al campo                                                                                                                                      |
+| `match/routes/ConvocatoriaConPrecarga`          | La A11 con la precarga encima y otra precarga al guardar. La ruta la carga por ruta directa (D06-28)                                                                                                                                                  |
+| `lineup` A11                                    | Dos enganches, `aviso` y `alGuardar`. No sabe nada de la capa offline                                                                                                                                                                                 |
+| `logging`                                       | Origen nuevo `sync` en `OrigenDeError`                                                                                                                                                                                                                |
+| DOC 06 v2.1, DOC 08 v2.5 y `CLAUDE.md`          | D06-26 a D06-28, las tres reglas del transporte, el presupuesto y el estado                                                                                                                                                                           |
 
-| Qué hace la A11                  | Cómo                                                                                                                                                              |
-| :------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Reparte la plantilla** (L-01)  | Cada jugador del equipo, con tres opciones: Titular, Suplente, No convocado. Radios nativos en línea, 48 px por opción, y bajan de línea a 320 px                 |
-| **Dorsal y posición** (L-05, 06) | Al convocarlo salen, propuestos desde la inscripción, y se cambian solo para ese partido                                                                          |
-| **No convocables** (L-04, R-03)  | «No disponible» o «Sancionado: no se puede convocar», sin opciones. Si estaba convocado, «se quita al guardar»                                                    |
-| **La cuenta**                    | «Titulares: 5 de 11 · Suplentes: 3 · Convocados: 8 de 18 como mucho», arriba y abajo de la lista                                                                  |
-| **Guardar** (L-03, R-01)         | Exige los titulares exactos, no pasar del máximo y dorsales del 1 al 99 sin repetir entre convocados. Pasa el partido a «Convocado» (L-07) y vuelve al calendario |
-| **Partido empezado** (L-08)      | Titulares y suplentes en solo lectura, sin formulario                                                                                                             |
-| **Faltas**                       | Sin plantilla, enlaza a darla de alta. Sin competición legible, lo dice. Sin cobertura, «Reintentar»                                                              |
-
-| Pieza                                     | Qué hace                                                                                                                                                                                         |
-| :---------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `modules/lineup/model/convocatoria.ts`    | Juntar plantilla y convocatoria guardada, quién se puede convocar, la cuenta y la validación contra el reglamento                                                                                |
-| `modules/lineup/api/convocatoria.ts`      | Leer `match_squad` con el apodo y guardarla en dos `upsert` repetibles, con `SIN_FILAS` si vuelven menos líneas de las mandadas                                                                  |
-| `modules/lineup/hooks/useConvocatoria.ts` | Consulta y mutación. Si el partido no puede pasar a «Convocado» por permiso, la convocatoria queda guardada y lo devuelve en `marcado`                                                           |
-| `agenda/api/partidos.ts`                  | `marcarComoConvocado`: de programado o convocado a convocado, con `SIN_FILAS`                                                                                                                    |
-| Barriles                                  | `agenda` exporta `usePartido`, `agendaKeys`, `enfrentamiento`, `NOMBRES_DE_ESTADO` y `marcarComoConvocado`; `core`, `usePlantilla`, `POSICIONES` y `DISPONIBILIDADES`; `rules`, `useCompeticion` |
-| `rules/hooks/useCompeticiones.ts`         | `useCompeticion` espera con el identificador vacío: la A11 no lo sabe hasta leer el partido                                                                                                      |
-| `shared/ui/GrupoDeOpciones`               | Prop `enLinea`: opciones una al lado de otra y abajo si no caben                                                                                                                                 |
-| **DOC 05 §14.5**                          | Tres piezas para Cowork: `marcar_convocado()`, el máximo de convocados en la base y, opcional, el dorsal repetido                                                                                |
-| **DOC 08** y `CLAUDE.md`                  | T-205 en ✅ y el estado al día                                                                                                                                                                   |
-
-**Sin comprobar en el navegador**, porque aquí no se puede entrar con Google. Las pruebas montan la
-pantalla entera con la red simulada; el viaje real está en «Comandos para verificar».
+**Comprobado en Chromium de verdad**, con `vite preview`: el trozo de Dexie abre IndexedDB con
+las cuatro tablas en la versión 1, guarda un trabajo y responden el índice de `status` y el
+compuesto `[matchId+createdAt]`. **Sin comprobar con Supabase**: nadie encola todavía (punto 50),
+y aquí no se entra con Google.
 
 ### Pruebas
 
-**194 en verde**, 29 nuevas. Cada una se vio fallar antes de darla por buena: quince del modelo
-contra un esbozo vacío, las diez de pantalla contra una pantalla vacía, y la del modelo que el
-esbozo no tumbaba, las de `api/` y cinco de pantalla, otra vez, con un mutante a mano sobre la
-línea que vigilan.
+**240 en verde**, 46 nuevas. Cada una se vio fallar antes de darla por buena: contra un esbozo
+vacío las del modelo, el vaciador, la banda y el estado de la precarga, y con un mutante a mano
+sobre la línea que vigilan las demás y las que el esbozo no tumbaba. Un mutante sobrevivió y
+destapó un hueco: nada comprobaba que un partido sin reglamento legible no se precargara. Tiene
+caso nuevo.
 
-| Archivo                               | Casos | Qué vigila                                                                                                                                                                    |
-| :------------------------------------ | ----: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lineup/model/convocatoria.test.ts`   |    16 | Propuesta desde la inscripción, lo guardado manda, no convocables y retirados, bajas al final, la cuenta, titulares exactos, máximo, dorsal fuera de rango y repetido         |
-| `lineup/api/convocatoria.test.ts`     |     3 | Primera escritura sin convocar y con `created_by`, segunda sin él, `SIN_FILAS` con líneas de menos y parada si falla la primera                                               |
-| `lineup/routes/Convocatoria.test.tsx` |    10 | Plantilla y motivos, convocar y guardar, titulares de menos, máximo, dorsal repetido junto a su campo, lo guardado, sin permiso para marcar, sin red, empezado, sin plantilla |
+| Archivo                                      | Casos | Qué vigila                                                                                                                           |
+| :------------------------------------------- | ----: | :----------------------------------------------------------------------------------------------------------------------------------- |
+| `sync/model/cola.test.ts`                    |    15 | Retroceso, éxito y duplicado, reintento, definitivo, orden por partido, aplazado que frena, purga, cuenta por persona, trabajo nuevo |
+| `sync/model/vaciador.test.ts`                |     6 | Orden, sin red, rechazo sin frenar al siguiente, «enviándose» antes de mandar, transporte que lanza, cuenta ajena                    |
+| `sync/api/transporte.test.ts`                |     5 | Tabla de la entidad, error con código, `update` sin filas, `delete` sin filas, petición que lanza                                    |
+| `sync/components/BandaDeSincronizacion.test` |     5 | Callada, sin red, por enviar, rechazados, anuncio solo del cambio de conexión                                                        |
+| `match/api/precarga.test.ts`                 |     8 | Paquete completo con solo el apodo, sin partido, sin reglamento, error de una consulta, transacción, persistencia                    |
+| `match/components/EstadoDePrecarga.test.tsx` |     3 | Preparando y lista, navegador que no promete guardar, fallo con anuncio y reintento                                                  |
+| `app/routes/AjustesPage.test.tsx`            |    +3 | Aviso con cola y quedarse, salir confirmando, salir sin preguntar con la cola vacía                                                  |
+| `lineup/routes/Convocatoria.test.tsx`        |    +1 | Los dos enganches                                                                                                                    |
 
 ---
 
 ## DECISIONES TOMADAS
 
-**Guardar exige la convocatoria válida.** Titulares exactos (L-03) y máximo (R-01), aunque el
-DOC 04 pone R-02 como «aviso bloqueante antes de iniciar». `called` significa «convocatoria
-guardada y validada» (§8.1): guardar una a medias y marcar el partido como convocado sería mentir.
-Sin borradores a medias; si Isaac los echa en falta, se añade un «Guardar sin validar» que no
-cambie el estado.
+Las tres grandes están en el DOC 06: **D06-26** (`sync` y Dexie fuera del arranque, cargados en
+un efecto y no con `lazy`), **D06-27** (cada trabajo se envía solo con la sesión de quien lo
+encoló) y **D06-28** (la precarga en `match`, disparada por la ruta y cargada por ruta directa).
+Y las tres reglas del transporte del §8.5: duplicado de inserción es éxito en cualquier tabla,
+`update` sin filas es definitivo y `delete` sin filas es éxito.
 
-**Las líneas nuevas nacen sin convocar.** Guardar son dos peticiones: la primera crea con
-`created_by` las líneas que faltan, como «no convocado», sin pisar las que hay; la segunda escribe
-todas sin tocar `created_by`. Quien convocó primero sigue constando, un reintento no choca con lo
-que ya llegó, y la base nunca ve de más a medio guardar: es lo que deja escribir el disparador de
-R-01 del §14.5 sin que rechace un cambio de uno por otro con la convocatoria llena.
+**Un trabajo aplazado frena a los de detrás de su partido; uno rechazado, no.** El rechazado ya
+no se va a mandar, y esperar por él bloquearía el partido entero por un dato malo.
 
-**Todo inscrito tiene línea**, también los no convocados (L-01). La primera vez se escriben todas.
-El no convocado se guarda sin dorsal ni posición, y la próxima vez se le vuelve a proponer lo de
-su inscripción.
+**«Enviándose» cuenta como pendiente.** Con un vaciador por cerrojo, uno que se encuentra así es
+de una pestaña que murió a mitad; reenviarlo es seguro por la idempotencia.
 
-**Si no puede pasar a «Convocado», la convocatoria se guarda igual y la pantalla lo dice.** El
-permiso que falta es de `matches`, no de `match_squad`, y perder la convocatoria por eso no ayuda
-a nadie (punto 40).
+**Lo rechazado no se purga solo** (punto 48), y lo que se registra en `error_logs` no lleva la
+fila: solo tabla, operación y lo que dijo el servidor.
 
-**La disponibilidad manda, y se lee de la inscripción.** Nada de `sanctions`: su cómputo no
-existe todavía (punto 43).
+**Al pedir confirmación para salir, el foco va al aviso, y vuelve a «Cerrar sesión» al quedarse
+dentro.** El botón y la confirmación se sustituyen, y sin esto el foco caía a `body` (2.4.3). Lo
+señaló el `revisor`.
 
-**El dorsal repetido se mira solo entre convocados.** Dos jugadores de la plantilla no pueden
-compartirlo (`squad_shirt_unique`), pero un dorsal cambiado para un partido puede coincidir con el
-de uno que no va. Eso no molesta en el acta.
+**La banda anuncia el cambio de conexión, no la cuenta.** Con cuatro anotadores, la región viva
+sería un contador.
 
-**La cuenta no es una región viva.** Cambia con cada toque y repetirla cansa; el radio ya anuncia
-lo que se ha elegido. Los errores al guardar sí se anuncian, por la región única del `AppLayout`.
-
-**Sin alineación gráfica ni sistema táctico.** E7-03 y E7-04 son de la V1.1 en el backlog.
+**Sin nuevas dependencias.** Dexie ya estaba. Para la prueba en Chromium se instaló
+`playwright-core` fuera del proyecto, en el borrador de la sesión.
 
 ---
 
 ## PENDIENTE DE LA TAREA
 
-Nada de lo que pide la fila del DOC 08. Lo que falta es de la base y está en el DOC 05 §14.5.
+Nada de la fila del DOC 08. Lo que falta es de quien encola, el directo: puntos 47 y 49 a 52.
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-Los puntos 40 a 46 de abajo.
+Los puntos 47 a 54 de abajo. **El 47 es una decisión que la T-207 tiene que tomar antes de
+empezar.**
 
 ---
 
 ## LO QUE SIGUE ABIERTO
 
-**No se cierra ningún punto de la lista anterior.** Se actualizan el 11 (ocho pantallas
-pendientes) y el 32, que alcanza también a la A11. Se suman siete al final, del 40 al 46. La
-numeración no cambia.
+Se cierra el 25. Se suman ocho al final, del 47 al 54. La numeración no cambia.
 
 Pendiente de decidir, que no lo decide el código:
 
@@ -194,8 +190,9 @@ Pendiente de hacer:
 24. **Las preferencias de pantalla viven en el dispositivo** (D06-25). Salidas: una columna
     `preferences jsonb` en `profiles` con `localStorage` como caché para arrancar sin red
     —recomendada—; o dejarlo así y corregir el DOC 07. Pide migración: sesión de Cowork.
-25. **Cerrar sesión no avisa de datos sin sincronizar.** Hoy no hay ninguno. La T-206 tiene que
-    añadir el aviso y no dejar salir con la cola llena sin que la persona lo confirme.
+25. **Cerrado en la T-206.** La C01 cuenta la cola antes de salir y, si hay algo, lo dice con el
+    número por delante y pide confirmar. Lo pendiente no se pierde: se queda en el dispositivo y
+    sale cuando vuelve a entrar esa cuenta (D06-27).
 26. **El alta de un club nuevo no se puede hacer desde la aplicación.** `clubs_insert` deja crear el
     club, pero `clubs_select` y `teams_insert` piden ser miembro del club, y en uno nuevo no lo es
     nadie: el club nace invisible y sin forma de meterle un equipo. Salidas:
@@ -282,6 +279,37 @@ Pendiente de hacer:
 46. **Quien se da de baja con convocatoria guardada sigue en ella.** La A11 lo enseña al final,
     «Ya no está en la plantilla: no se puede convocar», y al guardar lo pasa a no convocado. Su
     línea no se borra: los eventos apuntan a `match_squad` con `on delete restrict`.
+47. **La A12 va en el paquete inicial y el directo necesitará Dexie.** La cabecera de
+    `app/router.tsx` la mete en el arranque para que abra sin red aunque no se haya visitado. Dexie
+    pesa 31 kB y el margen es de 19,39. **La T-207 decide**, antes de escribir una línea del
+    directo:
+
+    | Salida                                                                    | Consecuencia                                                                                                                                                                                                                              |
+    | :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | **A. La A12 pasa a perezosa**, como el resto                              | El service worker ya precachea **todos** los `.js`, perezosos incluidos (`globPatterns` de `vite.config.ts`): tras la primera visita con red, el trozo está aunque no se haya abierto nunca el directo. Libera kilobytes. **Recomendada** |
+    | B. La A12 se queda en el arranque y carga su capa de datos con `import()` | Mismo resultado sin red, pero el arranque carga con el esqueleto del directo aunque no haya partido                                                                                                                                       |
+    | C. Dexie entra en el arranque                                             | No cabe: pasaría de los 200 kB                                                                                                                                                                                                            |
+
+48. **Lo rechazado por el servidor no se puede descartar ni reintentar desde la interfaz.** La C04
+    lo cuenta y enseña lo que dijo el servidor, plegado. Se queda en la cola sin purgarse, a
+    propósito: nadie lo ha revisado. La T-210 (cierre y discordancias) es su sitio natural.
+49. **Una sola conversión de tipo en la cola.** `sync/api/transporte.ts` entrega la fila con
+    `as never`, porque la cola guarda JSON y no sabe qué es un gol. El tipo tiene que comprobarse
+    al encolar: **la T-208 envuelve `encolar` en `match` con los tipos generados**
+    (`TablesInsert<'match_events'>`), para que ningún evento salga sin comprobar.
+50. **Nadie encola todavía.** La cola está probada con un almacén en memoria, con el transporte
+    simulado y con IndexedDB de verdad en Chromium, pero el viaje entero hasta Supabase lo estrena
+    la T-208 con el primer evento.
+51. **La C04 sale también en el directo.** El DOC 06 §8.6 pone en su cabecera un contador «⚠3».
+    La T-207 decide si la banda se esconde en `FullScreenLayout` o se queda.
+52. **El aviso al salir del directo con trabajos en cola** (D06-10b) es de la T-207. El de la
+    pantalla de inicio lo cubre la C04, que sale en todas las pantallas nada más abrir.
+53. **La precarga y los eventos locales no se purgan.** `purgarPartido` limpia lo enviado de la
+    cola; `matchSnapshots` y `matchEvents` crecen con cada partido. Pocos kilobytes por partido;
+    la T-210 los limpia al cerrar.
+54. **La segunda precarga, al guardar la convocatoria, falla en silencio.** La pantalla ya ha
+    navegado. La siguiente entrada en la convocatoria o en el directo lo vuelve a intentar, y el
+    directo tendrá que decir si su precarga es vieja.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
@@ -298,35 +326,37 @@ temporada activa, que es la de todos los partidos que ofrece el calendario.
 
 | Momento                   | Inicial comprimido | Margen sobre 200 kB |
 | :------------------------ | -----------------: | ------------------: |
-| Tras la T-204, en Linux   |          179,92 kB |            20,08 kB |
-| **Esta sesión, en Linux** |      **179,97 kB** |        **20,03 kB** |
+| Tras la T-205, en Linux   |          179,97 kB |            20,03 kB |
+| **Esta sesión, en Linux** |      **180,61 kB** |        **19,39 kB** |
 
-**+0,05 kB, en `App-*.js`**: la entrada perezosa nueva. La pantalla vive en el trozo de `lineup`
-(4,03 kB de JavaScript y 0,69 kB de estilos), que no se descarga al arrancar.
+**+0,64 kB.** Rollup saca a un trozo común lo que el arranque comparte con los perezosos
+—`supabase-js` entre otras cosas, en `announceContext-*.js`—, y eso cuesta algo de envoltorio;
+lo demás es `Sincronizacion.tsx` y el aviso de la C01. **Dexie no está**: vive en `db-*.js`
+(31,42 kB), y `sync` en `sync-*.js` (2,98 kB).
 
 | Trozo del arranque         |    Comprimido |
 | :------------------------- | ------------: |
-| `index-*.js`               |      72,21 kB |
-| `App-*.js`                 |     101,62 kB |
-| `QueryClientProvider-*.js` |       0,26 kB |
+| `index-*.js`               |      71,94 kB |
+| `announceContext-*.js`     |      55,62 kB |
+| `App-*.js`                 |      46,88 kB |
+| `QueryClientProvider-*.js` |       0,29 kB |
 | `workbox-window`           |       2,20 kB |
 | Dos hojas de estilo        |       3,68 kB |
-| **Total**                  | **179,97 kB** |
+| **Total**                  | **180,61 kB** |
 
-La lista buena de trozos sale de `dist/index.html` y de las importaciones de `App-*.js`. En crudo,
-`precache 32 entries (753.24 KiB)`.
+**Cómo se mide desde ahora**: recorriendo las importaciones estáticas desde `dist/index.html` y
+desde `App-*.js`, no por nombre de archivo. El nombre del trozo común cambia según qué módulo
+le toque dar nombre. En crudo, `precache 38 entries (862.14 KiB)`.
 
 ---
 
 ## SIGUIENTE
 
-**Para una sesión de Cowork: la migración del DOC 05 §14.4 y, en la misma o aparte, el §14.5.**
-Después, `npm run db:types`, el script de la T-105b y el auditor. Con el §14.5 aplicado,
-`marcarComoConvocado` pasa a llamar a `marcar_convocado()`.
+**Para una sesión de Cowork: la migración del DOC 05 §14.4 y el §14.5**, sin cambios.
 
-**Siguiente tarea de código: T-206**, capa offline: Dexie, precarga del partido y cola de salida.
-**El hito del 4 de octubre** (DOC 08) es para ella: si ese día no está cerrada, la capa offline se
-recorta. La **T-203b** va detrás de la migración, cuando esté.
+**Siguiente tarea de código: T-207**, el esqueleto del directo. **Lo primero, el punto 47**: cómo
+entra la A12 con Dexie. Después lee el partido con `leerInstantanea` de `match/api/precarga.ts`
+y escribe las partes por la cola.
 
 ---
 
@@ -345,25 +375,21 @@ npm run test -- --run
 npm run build
 ```
 
-`npm run test -- --run` tiene que decir `Test Files 21 passed (21)` y `Tests 194 passed (194)`. El
+`npm run test -- --run` tiene que decir `Test Files 27 passed (27)` y `Tests 240 passed (240)`. El
 build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
-**En el navegador, con `npm run dev` y la cuenta de Isaac o la tuya:**
+**En el navegador, con `npm run dev` y tu cuenta:**
 
-1. Hace falta un partido «Programado» en la Agenda y jugadores en la plantilla. Si no hay, dalos
-   de alta en Equipos y Agenda.
-2. En la Agenda, «Convocatoria» del partido. Sale toda la plantilla como «No convocado», con la
-   cuenta arriba: «Titulares: 0 de 11».
-3. Marca un titular: aparecen su dorsal y su posición, ya rellenos desde la ficha.
-4. Marca diez titulares y pulsa «Guardar convocatoria»: no deja, «Tienen que ser 11 titulares y
-   hay 10».
-5. Marca el undécimo y un par de suplentes, y guarda: vuelves al calendario y el partido sale
-   como «Convocado».
-6. Abre otra vez la convocatoria: sale lo guardado.
-7. En la A06, pon a un convocado «No disponible» y vuelve a la convocatoria: sale sin opciones y
-   con «Estaba convocado: se quita al guardar».
-8. Con el móvil o con la ventana a 320 px: las tres opciones bajan de línea y no hay scroll
-   lateral.
+1. Abre la convocatoria de un partido. Arriba sale «Preparando el partido…» y después «Partido
+   listo para usar sin conexión».
+2. En las herramientas del navegador, Aplicación → IndexedDB → `sasi`: `matchSnapshots` tiene el
+   partido.
+3. Red → «Sin conexión»: arriba sale la banda «Sin conexión». Vuelve a «Sin limitación»: se va y el
+   lector de pantalla dice «Conexión recuperada».
+4. Con la red cortada, recarga la convocatoria: dice que no ha podido preparar el partido y ofrece
+   «Volver a intentarlo». Con red, reintenta y sale bien.
+5. Ajustes → «Cerrar sesión» con la cola vacía: sale sin preguntar. (Con trabajos en cola se
+   podrá probar cuando el directo encole, T-208.)
 
 **`npm run db:types` NO se lanza a la ligera.** Esta sesión no tocó el esquema.
 
@@ -371,8 +397,10 @@ build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 ## AVISO DE SEGURIDAD
 
-Sin cambios de configuración esta sesión: ni variables de entorno, ni Netlify, ni migraciones. **Las
-migraciones del §14.4 y el §14.5 las aplica una sesión de Cowork contra la base de producción**:
-con la consulta de duplicados antes y el script de la T-105b después. El aviso de Chrome
-autorrellenando el panel de Google en Supabase sigue vigente para el día que haga falta abrirlo:
-**vacía «Client IDs» y «Client Secret» antes de tocar nada.**
+Sin cambios de configuración: ni variables de entorno, ni Netlify, ni migraciones. **Lo nuevo que
+toca la seguridad**: IndexedDB guarda en el móvil el partido precargado (apodos, dorsales,
+eventos) y la cola; nada de nombres reales. Cada trabajo se envía solo con la sesión de quien lo
+encoló, y cerrar sesión no borra la cola. Las migraciones del §14.4 y el §14.5 las aplica una
+sesión de Cowork contra la base de producción. El aviso de Chrome autorrellenando el panel de
+Google en Supabase sigue vigente para el día que haga falta abrirlo: **vacía «Client IDs» y
+«Client Secret» antes de tocar nada.**

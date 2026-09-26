@@ -1,0 +1,68 @@
+/* Banda de la C04. Mismo reparto que `AvisoSesion.module.css` y por el mismo
+   motivo, el criterio 2.4.11: es una fila más del marco, sin
+   `position: fixed`, así que no tapa nunca el control que tenga el foco. */
+
+.banda {
+  flex: 0 0 auto;
+
+  display: flex;
+  /* A 320 px con el texto al 200 % el botón baja a su línea (criterio 1.4.10). */
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tap-gap);
+
+  padding: var(--space-3) var(--space-4);
+  padding-block-start: calc(var(--space-3) + env(safe-area-inset-top));
+
+  /* El mensaje lo lleva el texto, no el color. En alto contraste el fondo
+     pasa a blanco y queda el borde negro. */
+  background-color: var(--color-pending-soft);
+  border-block-end: 2px solid var(--color-pending);
+  color: var(--color-text);
+}
+
+.conFallos {
+  background-color: var(--color-rejected-soft);
+  border-block-end-color: var(--color-rejected);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-tight);
+}
+
+.titular {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.fallo {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* El desplegable es un control: 48 px de alto y foco visible. */
+.resumen {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  cursor: pointer;
+}
+
+.resumen:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.detalle {
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-size-75);
+}

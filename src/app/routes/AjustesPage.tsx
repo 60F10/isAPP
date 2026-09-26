@@ -12,7 +12,7 @@
 // ganar solo el aspecto.
 
 import { useQueryClient } from '@tanstack/react-query';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 // Rutas directas y no el barril: ver `AuthProvider`.
@@ -74,6 +74,23 @@ export function AjustesPage() {
   const [preferencias, setPreferencias] = useState<Preferencias>(() => leerPreferencias());
   const [saliendo, setSaliendo] = useState(false);
   const [falloAlSalir, setFalloAlSalir] = useState(false);
+  const [pendientesAlSalir, setPendientesAlSalir] = useState<number | null>(null);
+  // El botón y la confirmación se sustituyen el uno a la otra, y el foco se
+  // iría a `body` (2.4.3). Se lleva al aviso al preguntar y de vuelta al botón
+  // al quedarse dentro.
+  const avisoAlSalir = useRef<HTMLParagraphElement>(null);
+  const botonDeSalir = useRef<HTMLDivElement>(null);
+  const preguntado = useRef(false);
+
+  useEffect(() => {
+    if (pendientesAlSalir !== null) {
+      preguntado.current = true;
+      avisoAlSalir.current?.focus();
+    } else if (preguntado.current) {
+      preguntado.current = false;
+      botonDeSalir.current?.querySelector('button')?.focus();
+    }
+  }, [pendientesAlSalir]);
 
   const cambiar = (cambio: Partial<Preferencias>) => {
     const nuevas = { ...preferencias, ...cambio };
@@ -83,7 +100,38 @@ export function AjustesPage() {
     aplicarPreferencias(nuevas);
   };
 
+  /**
+   * Antes de salir se mira la cola (DOC 13, punto 25). Lo pendiente no se
+   * pierde: se queda en el dispositivo y sale cuando vuelva a entrar esta
+   * misma cuenta, nunca con la sesión de otra (T-206). Pero quien sale tiene
+   * que saberlo. Si el trozo de `sync` no baja, se sale sin preguntar: no hay
+   * forma de contar, y bloquear la salida sería peor.
+   */
+  const pedirSalida = async () => {
+    const userId = session === null ? null : session.user.id;
+
+    if (userId !== null) {
+      try {
+        const { contarPendientes } = await import('@modules/sync');
+        const cuantos = await contarPendientes(userId);
+
+        if (cuantos > 0) {
+          setPendientesAlSalir(cuantos);
+          anunciar(
+            `Hay ${cuantos === 1 ? '1 anotación' : `${cuantos} anotaciones`} sin enviar en este dispositivo`,
+          );
+          return;
+        }
+      } catch {
+        // Sin cola legible, se sale sin preguntar (ver arriba).
+      }
+    }
+
+    await salir();
+  };
+
   const salir = async () => {
+    setPendientesAlSalir(null);
     setSaliendo(true);
     setFalloAlSalir(false);
 
@@ -135,17 +183,49 @@ export function AjustesPage() {
             Has entrado como <strong className={styles.cuenta}>{cuenta}</strong>.
           </p>
         )}
-        <div>
-          <Button
-            variant="secondary"
-            disabled={saliendo}
-            onClick={() => {
-              void salir();
-            }}
-          >
-            {saliendo ? 'Cerrando sesión…' : 'Cerrar sesión'}
-          </Button>
-        </div>
+        {pendientesAlSalir === null ? (
+          <div ref={botonDeSalir}>
+            <Button
+              variant="secondary"
+              disabled={saliendo}
+              onClick={() => {
+                void pedirSalida();
+              }}
+            >
+              {saliendo ? 'Cerrando sesión…' : 'Cerrar sesión'}
+            </Button>
+          </div>
+        ) : (
+          <div className={styles.confirmar}>
+            <p ref={avisoAlSalir} className={styles.aviso} tabIndex={-1}>
+              Hay{' '}
+              {pendientesAlSalir === 1
+                ? '1 anotación sin enviar'
+                : `${pendientesAlSalir} anotaciones sin enviar`}{' '}
+              en este dispositivo. Se quedan guardadas aquí y se envían cuando vuelvas a entrar con
+              esta cuenta, nunca con la de otra persona.
+            </p>
+            <div className={styles.acciones}>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setPendientesAlSalir(null);
+                }}
+              >
+                Seguir dentro
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={saliendo}
+                onClick={() => {
+                  void salir();
+                }}
+              >
+                Cerrar sesión igualmente
+              </Button>
+            </div>
+          </div>
+        )}
         {falloAlSalir ? (
           <p className={styles.fallo}>No se pudo cerrar la sesión. Vuelve a intentarlo.</p>
         ) : null}

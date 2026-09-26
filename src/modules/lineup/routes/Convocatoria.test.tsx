@@ -117,11 +117,11 @@ function auth(): AuthState {
   };
 }
 
-function montar() {
+function montar(props: Parameters<typeof ConvocatoriaPage>[0] = {}) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
-      { path: '/partidos/:id/convocatoria', element: <ConvocatoriaPage /> },
+      { path: '/partidos/:id/convocatoria', element: <ConvocatoriaPage {...props} /> },
       { path: '/calendario', element: <p>Calendario</p> },
     ],
     { initialEntries: ['/partidos/par-1/convocatoria'] },
@@ -339,5 +339,19 @@ describe('A11 · Convocatoria', () => {
       'href',
       '/equipos/eq-1/plantilla',
     );
+  });
+
+  it('enseña el aviso que le pasan y avisa al guardar (enganches de la T-206)', async () => {
+    const alGuardar = vi.fn();
+    montar({ aviso: <p>Partido listo para usar sin conexión</p>, alGuardar });
+
+    expect(await screen.findByText('Partido listo para usar sin conexión')).toBeInTheDocument();
+
+    await elegir('1 · Pepe', 'Titular');
+    await elegir('7 · Juanito', 'Titular');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar convocatoria' }));
+
+    expect(await screen.findByText('Calendario')).toBeInTheDocument();
+    expect(alGuardar).toHaveBeenCalledTimes(1);
   });
 });
