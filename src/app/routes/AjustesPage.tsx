@@ -101,7 +101,7 @@ export function AjustesPage() {
   };
 
   /**
-   * Antes de salir se mira la cola (DOC 13, punto 25). Lo pendiente no se
+   * Antes de salir se mira la cola (T-206). Lo pendiente no se
    * pierde: se queda en el dispositivo y sale cuando vuelva a entrar esta
    * misma cuenta, nunca con la sesión de otra (T-206). Pero quien sale tiene
    * que saberlo. Si el trozo de `sync` no baja, se sale sin preguntar: no hay

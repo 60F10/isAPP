@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Contexto
 
 Proyecto **SASI**: PWA de gestión y estadísticas de fútbol base, para Isaac, entrenador de un equipo cadete.
-Deadline del MVP: **25 de octubre de 2026** (inicio de liga). Presupuesto: 0 € extra sobre suscripciones ya contratadas.
+Deadline del MVP: **25 de octubre de 2026**. La liga empieza antes: el Cadete A juega el primer partido el **sábado 3 de octubre** (DOC 08 §8). Presupuesto: 0 € extra sobre suscripciones ya contratadas.
 
 **Stack cerrado** (no propongas alternativas salvo que se pida): React + Vite con `vite-plugin-pwa` · Supabase (PostgreSQL, Auth con Google, RLS, Storage, Edge Functions) · Netlify · IndexedDB para el modo offline · Recharts o Chart.js para gráficas.
 
@@ -39,7 +39,7 @@ Desde la **T-203** está la A08 en `modules/rules`: competiciones de la temporad
 
 Desde la **T-204** están A09 (Calendario) y A10 (Alta y edición de partido) en `modules/agenda`. **La fecha y la hora se escriben y se enseñan en la hora del móvil** y se guardan en UTC en `kickoff_at`. El rival y la competición salen de `@modules/core` y `@modules/rules` por sus barriles. `GrupoDeOpciones` vive ya en `shared/ui`.
 
-**Desde el 26/09 está aplicada la migración del DOC 05 §14.4 a §14.6** (sesión de Cowork, §14.7): `competitions` tiene `category`, `level`, `scope` y `group_label` y nombre único por club y temporada; `clubs` tiene `home_venue` y `home_venue_address`, ya rellenos para el C.D. Unión Tejina; crear equipos pide `team.manage`; `marcar_convocado()` pasa el partido a `called` con `lineup.manage`; la base rechaza pasar del máximo de convocados (`check_squad_max`, error 23514); y **el estado de cada evento lo fija la base** según `event.approve`, mande lo que mande el cliente. La **T-203b** conecta las columnas nuevas en la A08 y la A10; hasta entonces `rules/api/competiciones.ts` las deja fuera de su `Fila` a propósito.
+**Desde el 26/09 está aplicada la migración del DOC 05 §14.4 a §14.6** (sesión de Cowork, §14.7): `competitions` tiene `category`, `level`, `scope` y `group_label` y nombre único por club y temporada; `clubs` tiene `home_venue` y `home_venue_address`, ya rellenos para el C.D. Unión Tejina; crear equipos pide `team.manage`; `marcar_convocado()` pasa el partido a `called` con `lineup.manage`; la base rechaza pasar del máximo de convocados (`check_squad_max`, error 23514); y **el estado de cada evento lo fija la base** según `event.approve`, mande lo que mande el cliente. Desde la **T-203b** la A08 lee y escribe categoría, nivel, ámbito y grupo (opcionales; el nombre visible sigue siendo `name` y no se compone con ellos), y la A10 propone el campo de casa del club, con el del último partido en casa de recambio.
 
 Desde la **T-205** está la A11 en `modules/lineup`: titulares, suplentes y no convocados sobre la plantilla, con el dorsal y la posición de cada partido en `match_squad`. **Guardar son dos `upsert` repetibles**: el primero crea las líneas que faltan sin convocar y con `created_by`, el segundo escribe todas sin tocar `created_by`. Las líneas nuevas nacen sin convocar para que la base nunca vea más convocados de la cuenta a medio guardar. **Pasar el partido a `called` va por `supabase.rpc('marcar_convocado')`**, que pide `lineup.manage` y devuelve `false` si el partido ya empezó; no escribas en `matches` para eso. El directo leerá la convocatoria de `@modules/lineup`.
 
@@ -49,7 +49,7 @@ Desde la **T-207** está el esqueleto de la A12, **perezosa como el resto** (D06
 
 Desde la **T-208** la A12 registra eventos. `match/model/eventos.ts` deriva quién está en el campo y el marcador de los eventos que conoce el aparato; `registro.ts` valida y convierte cada evento en una fila tipada contra `TablesInsert<'match_events'>`; `flujo.ts` son los pasos de cada botón (D06-33). **El aparato manda los segundos** (la pausa es local) y el estado `approved` solo con `event.approve`, que la base impone desde el 26/09 con el disparador `match_events_a_set_status` (DOC 05 §14.6). **Los `model/` no importan barriles en tiempo de ejecución**: arrastran pantallas y el cliente de Supabase.
 
-Siguiente tarea de código: **T-209**, varios anotadores: cobertura declarada, tiempo real y duplicados. La T-203b ya puede empezar.
+Siguiente tarea de código: **T-209**, varios anotadores: cobertura declarada, tiempo real y duplicados.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 
@@ -195,8 +195,9 @@ Convención completa en `docs/15_Convenciones_Git.md`. Los hooks de `.husky` y e
 - **Ámbitos** (= módulos): `auth` `core` `rules` `agenda` `training` `discipline` `lineup` `match` `sync` `review` `stats` `logging` `platform` `design` `db` `docs` `deps` `ci` `repo`.
 - Ruptura: `tipo(ámbito)!:` más pie `BREAKING CHANGE:` con la migración.
 - **Pull request por rama**, título con el mismo formato que un commit, plantilla rellenada, CI en verde, **squash merge**.
-- **Cada subida de rama y cada fusión gasta minutos de compilación de Netlify**, y el plan gratuito trae 300 al mes. Por eso `netlify.toml` lleva un comando `ignore` que cancela la compilación cuando el commit solo toca `docs/`, `.md`, `.github/`, `.claude/`, `.husky/` o `supabase/`. Si añades un archivo que **sí** acaba en `dist/` dentro de alguna de esas carpetas, quita esa carpeta de la lista o el sitio dejará de actualizarse en silencio. El detalle está en el DOC 10 §2.1.
-- **Agrupa los commits y sube la rama una sola vez.** Cada `git push` a una rama con pull request abierta lanza una compilación nueva.
+- **`main` es pre y `release` es pro** (decisión de Raúl del 26/09, DOC 10 §2.1). Cada fusión a `main` se despliega sola en `https://main--gavetastats.netlify.app`; producción, `https://gavetastats.netlify.app`, sale de `release`, y **publica solo Raúl** con `git push origin main:release`. **Nunca toques `release`**: ni push, ni pull request, ni borrado.
+- **Netlify funciona por créditos, 300 al mes. Lo que gasta es publicar, no subir ramas ni fusionar**: un despliegue a producción cuesta 15, y las vistas previas de las pull requests y el despliegue de rama de `main`, 0. `netlify.toml` lleva un comando `ignore` que cancela la compilación cuando el commit solo toca `docs/`, `.md`, `.github/`, `.claude/`, `.husky/` o `supabase/`. Si añades un archivo que **sí** acaba en `dist/` dentro de alguna de esas carpetas, quita esa carpeta de la lista o el sitio dejará de actualizarse en silencio.
+- **Agrupa los commits y sube la rama una sola vez.** No gasta créditos, pero cada `git push` a una rama con pull request abierta lanza otra vista previa y otro CI.
 - Ámbito o módulo nuevo: se añade a `commitlint.config.mjs`, al patrón de `.husky/pre-commit` y a DOC 15, en el mismo commit.
 
 Ejemplos buenos: `feat(match): add internal running clock with manual pause` · `fix(sync): drop duplicate events within the 30s window` · `chore(repo): configure husky and commitlint`.

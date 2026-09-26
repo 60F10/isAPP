@@ -62,7 +62,7 @@ export async function fetchPlantilla(
   return data.map(aInscripcion);
 }
 
-/** Las bajas del equipo en la temporada: inscripciones con `left_on` (DOC 13, punto 30). */
+/** Las bajas del equipo en la temporada: inscripciones con `left_on` (PR #51). */
 export async function fetchBajas(equipoId: string, temporadaId: string): Promise<Inscripcion[]> {
   const { data, error } = await supabase
     .from('squad_memberships')
@@ -80,7 +80,7 @@ export async function fetchBajas(equipoId: string, temporadaId: string): Promise
 
 /**
  * Los jugadores del club sin ninguna inscripción en este equipo y temporada:
- * los que se pueden inscribir sin crear un jugador nuevo (DOC 13, punto 29).
+ * los que se pueden inscribir sin crear un jugador nuevo (PR #51).
  * Quien ya tiene fila, aunque sea de baja, no sale aquí: se reincorpora.
  *
  * Solo `id` y `nickname` de `players`, como en el resto del archivo.

@@ -6,10 +6,18 @@
   command = "npm run build"
   publish = "dist"
 
-  # Netlify compila en cada subida a una rama con previsualización y en cada
-  # fusión a main, y el plan Free trae 300 minutos de compilación al mes. Un
-  # cambio que solo toca documentación produce exactamente el mismo `dist/`:
-  # compilarlo gasta minutos para publicar lo de siempre.
+  # Tres contextos (DOC 10 §2.1, modelo de Raúl del 26/09/2026):
+  #   · `main` es pre: despliegue de rama en main--gavetastats.netlify.app.
+  #   · `release` es pro: la rama de producción, en gavetastats.netlify.app.
+  #     Publicar es `git push origin main:release`, y lo hace solo Raúl.
+  #   · Cada pull request tiene su vista previa.
+  # El plan gratuito funciona por créditos, 300 al mes: un despliegue a
+  # producción cuesta 15, y las vistas previas y los despliegues de rama, 0.
+  # Lo que gasta es publicar, no subir ramas ni fusionar.
+  #
+  # Un cambio que solo toca documentación produce exactamente el mismo
+  # `dist/`: compilarlo es publicar lo de siempre. En pro, eso son 15
+  # créditos tirados; en pre y en las vistas previas, solo tiempo de cola.
   #
   # Este comando decide si merece la pena. La polaridad es la de Netlify y es
   # fácil de invertir sin querer: **salida 0 cancela la compilación**, salida
@@ -17,7 +25,7 @@
   # cuando no encuentra diferencias.
   #
   # La lista es de exclusión a propósito, no de inclusión. Lo que el comando no
-  # reconozca, compila. Equivocarse hacia compilar de más cuesta minutos;
+  # reconozca, compila. Equivocarse hacia compilar de más cuesta créditos;
   # equivocarse hacia no compilar deja el sitio sin actualizar y nadie se entera
   # hasta que alguien abre la aplicación y ve la versión vieja.
   #
@@ -26,15 +34,20 @@
   #
   # Si `CACHED_COMMIT_REF` viene vacío —primera compilación de un contexto— la
   # primera condición falla, la cadena devuelve distinto de 0 y se compila.
+  # En las vistas previas no llega a cancelar: `CACHED_COMMIT_REF` es el
+  # commit de la caché restaurada, no el padre. Cuestan 0, así que se deja.
   ignore = '''test -n "$CACHED_COMMIT_REF" && git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- . ':(exclude)docs' ':(exclude)*.md' ':(exclude).github' ':(exclude).claude' ':(exclude).husky' ':(exclude)supabase' '''
 
 [build.environment]
   NODE_VERSION = "22"
 
-# Deploy preview por rama: cada rama tiene su URL para probar en el móvil.
+# Vista previa por pull request: cada una tiene su URL para probar en el
+# móvil. No gasta créditos.
 [context.deploy-preview]
   command = "npm run build"
 
+# Despliegue de rama: `main` es pre, en main--gavetastats.netlify.app. No
+# gasta créditos. Producción es `release` (DOC 10 §2.1).
 [context.branch-deploy]
   command = "npm run build"
 

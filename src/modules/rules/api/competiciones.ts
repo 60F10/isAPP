@@ -11,18 +11,14 @@
 import { SIN_FILAS } from '@shared/lib/guardado';
 import { supabase } from '@shared/lib/supabase';
 
-import type { Competicion, Reglamento, TipoDeCompeticion } from '../model/competicion';
+import type { Competicion, DatosDeCompeticion } from '../model/competicion';
 import type { Tables } from '@app-types/database.types';
 
+// Con las cuatro de la categoría (DOC 05 §14.4, T-203b).
 const COLUMNAS =
-  'id, club_id, season_id, name, kind, periods_count, period_minutes, halftime_minutes, clock_mode, substitution_type, substitutions_max, squad_max, players_on_pitch, yellow_cards_for_ban, red_card_default_bans, enabled_event_types';
+  'id, club_id, season_id, name, kind, category, level, scope, group_label, periods_count, period_minutes, halftime_minutes, clock_mode, substitution_type, substitutions_max, squad_max, players_on_pitch, yellow_cards_for_ban, red_card_default_bans, enabled_event_types';
 
-// Las cuatro columnas de la categoría (DOC 05 §14.4) ya están en la base, pero
-// no se leen hasta la T-203b, que las pone en la A08.
-type Fila = Omit<
-  Tables<'competitions'>,
-  'created_by' | 'created_at' | 'updated_at' | 'category' | 'level' | 'scope' | 'group_label'
->;
+type Fila = Omit<Tables<'competitions'>, 'created_by' | 'created_at' | 'updated_at'>;
 
 function aCompeticion(fila: Fila): Competicion {
   return {
@@ -31,6 +27,10 @@ function aCompeticion(fila: Fila): Competicion {
     seasonId: fila.season_id,
     name: fila.name,
     kind: fila.kind,
+    category: fila.category,
+    level: fila.level,
+    scope: fila.scope,
+    group_label: fila.group_label,
     periods_count: fila.periods_count,
     period_minutes: fila.period_minutes,
     halftime_minutes: fila.halftime_minutes,
@@ -44,8 +44,6 @@ function aCompeticion(fila: Fila): Competicion {
     enabled_event_types: fila.enabled_event_types,
   };
 }
-
-type Datos = Reglamento & { name: string; kind: TipoDeCompeticion };
 
 /** Las competiciones del club en una temporada. */
 export async function fetchCompeticiones(
@@ -83,7 +81,7 @@ export async function fetchCompeticion(competicionId: string): Promise<Competici
 
 export async function crearCompeticion(
   destino: { clubId: string; temporadaId: string; userId: string },
-  datos: Datos,
+  datos: DatosDeCompeticion,
 ): Promise<Competicion> {
   const { data, error } = await supabase
     .from('competitions')
@@ -103,10 +101,10 @@ export async function crearCompeticion(
   return aCompeticion(data);
 }
 
-/** Cambia nombre, tipo o reglamento. Lanza `SIN_FILAS` si la RLS no lo deja. */
+/** Cambia nombre, tipo, categoría o reglamento. Lanza `SIN_FILAS` si la RLS no lo deja. */
 export async function actualizarCompeticion(
   competicionId: string,
-  datos: Datos,
+  datos: DatosDeCompeticion,
 ): Promise<Competicion> {
   const { data, error } = await supabase
     .from('competitions')

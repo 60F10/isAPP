@@ -1,6 +1,6 @@
 # DOC 10 — Entornos y despliegue
 
-> **Versión:** 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
+> **Versión:** 0.5 — 26/09/2026 (§2.1 y §2.2: pre en `main`, pro en `release` y los créditos de Netlify, decisión de Raúl) · 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
 > **Depende de:** DOC 05 (modelo de datos), DOC 06 (arquitectura frontend), DOC 15 (convenciones de Git)
 >
 > Esta versión registra **la configuración real de los servicios externos** tal como quedó al montar Supabase. El resto del documento —deploy previews, checklist de publicación, procedimiento de vuelta atrás— está por escribir; ver §7.
@@ -26,19 +26,29 @@ Dice dónde vive cada servicio, qué valor tiene configurado y quién lo guarda.
 
 Todo dentro del presupuesto de 0 € del proyecto. La región de Supabase es Irlanda: lo más cercano a Canarias dentro de la UE, que es lo que pide el DOC 11.
 
-### 2.1 El recurso que se agota en Netlify: los minutos de compilación
+### 2.1 Pre y pro, y el recurso que se agota: los créditos de Netlify
 
-El plan gratuito de Netlify trae **300 minutos de compilación al mes**, y el equipo es `60F10`. Es el único recurso del proyecto que se puede agotar sin que nadie lo note hasta que deja de desplegar.
+**Modelo decidido por Raúl el 26/09/2026.** El plan gratuito de Netlify funciona por **créditos: 300 al mes**, y el equipo es `60F10`. **Lo que gasta es publicar en producción, no subir ramas ni fusionar.** Es el único recurso del proyecto que se puede agotar sin que nadie lo note hasta que deja de desplegar.
 
-**Netlify compila dos veces por cada pull request:** una al subir la rama, que genera la previsualización, y otra al fusionar a `main`. Con el método del DOC 00 §5 —una pull request de código y otra de documentación por tarea— eso son **cuatro compilaciones por tarea**, y las dos de la documentación producen exactamente el mismo `dist/` que la anterior.
+| Entorno                | Rama      | URL                                                 | Quién lo publica                                     | Coste       |
+| :--------------------- | :-------- | :-------------------------------------------------- | :--------------------------------------------------- | :---------- |
+| **Pre**                | `main`    | `https://main--gavetastats.netlify.app`             | Cada fusión a `main`, sola: es un despliegue de rama | 0 créditos  |
+| **Pro**                | `release` | `https://gavetastats.netlify.app`                   | **Solo Raúl**, con `git push origin main:release`    | 15 créditos |
+| Vista previa de una PR | la de PR  | `https://deploy-preview-N--gavetastats.netlify.app` | Cada subida a una rama con pull request abierta      | 0 créditos  |
 
-**Por eso `netlify.toml` lleva un comando `ignore`.** Cancela la compilación cuando el commit no toca nada que acabe en `dist/`: `docs/`, cualquier `.md`, `.github/`, `.claude/`, `.husky/` y `supabase/migrations/`. Todo lo demás compila.
+**Publicar es un avance rápido.** `release` no recibe commits propios: siempre va por detrás de `main` o igual, y `git push origin main:release` la adelanta hasta `main`. Si Git lo rechaza por no ser avance rápido, alguien ha escrito en `release`, y hay que mirarlo antes de forzar nada. **La rama `release` es permanente**: ni se borra, ni se le abre pull request, ni la tocan las sesiones de Claude.
+
+**Con 300 créditos salen, como mucho, veinte publicaciones al mes.** Pre es gratis: lo que se quiera probar en el móvil antes de publicar se prueba en `main--gavetastats`, que tiene HTTPS y deja probar la PWA de verdad (service worker, instalación, sin conexión). El inicio de sesión con Google en pre necesita la URL de pre en la lista de redirecciones de Supabase (§4.5).
+
+Lo que tiene que estar así en el panel de Netlify para que el modelo funcione: **rama de producción `release`**, despliegues de rama activos para `main` y vistas previas de pull request activas.
+
+**El comando `ignore` de `netlify.toml` sigue.** Cancela la compilación cuando el commit no toca nada que acabe en `dist/`: `docs/`, cualquier `.md`, `.github/`, `.claude/`, `.husky/` y `supabase/`. Todo lo demás compila. Con el modelo de créditos, donde ahorra de verdad es en **pro**: una publicación que solo traiga documentación no se despliega. En pre y en las vistas previas cuesta 0 igualmente, y lo que ahorra es tiempo de cola.
 
 | Concepto                | Detalle                                                                                                   |
 | :---------------------- | :-------------------------------------------------------------------------------------------------------- |
 | Polaridad               | **Salida 0 cancela** la compilación; distinta de 0 la lanza. `git diff --quiet` da justo esa polaridad    |
 | Tipo de lista           | **De exclusión**, no de inclusión. Lo que no reconozca, compila                                           |
-| Por qué de exclusión    | Compilar de más cuesta minutos; no compilar deja el sitio viejo y nadie se entera                         |
+| Por qué de exclusión    | Compilar de más cuesta tiempo y, en pro, créditos; no compilar deja el sitio viejo y nadie se entera      |
 | `netlify.toml` excluido | **No.** Aquí viven la redirección de SPA y las cabeceras de caché: un cambio ahí sí tiene que desplegarse |
 | Sin caché previa        | `CACHED_COMMIT_REF` vacío hace fallar la primera condición, así que compila                               |
 
@@ -54,33 +64,21 @@ El plan gratuito de Netlify trae **300 minutos de compilación al mes**, y el eq
 
 De las diez compilaciones de las sesiones del 14 y el 18 de septiembre, **cuatro se habrían cancelado**.
 
-### 2.2 Los builds están PARADOS desde el 20/09/2026
+**Límite conocido: en las vistas previas no cancela.** `CACHED_COMMIT_REF` apunta al commit de la caché restaurada, no al padre inmediato, y una rama que solo toca `docs/` compila su vista previa igual (DOC 13, punto 12). Con el modelo de créditos no cuesta nada, así que se deja como está.
 
-**Lo primero que hay que saber al ver que el sitio no cambia.** El interruptor está en _Project configuration → Developer settings → Continuous deployment → Build settings_, con **Build status** en **Stopped builds**. Mientras siga así, Netlify **no compila nada**: ni producción, ni vistas previas de pull request, ni branch deploys; los _build hooks_ se ignoran y «Trigger deploy» está deshabilitado. El sitio ya publicado sigue en pie.
+### 2.2 Producción, parada desde el 20/09/2026 por falta de créditos
 
-**Por qué.** Hasta que haya pantallas que enseñar, cada fusión gastaba minutos en una compilación que además no publicaba: la cuenta está en créditos operativos y los despliegues de producción están parados (DOC 13). Se pagaba por no desplegar.
+**Los despliegues a producción están parados desde el 20/09** porque la cuenta se quedó sin créditos. **Se reanudan con el siguiente ciclo de facturación**, y a partir de ahí publica Raúl con `git push origin main:release`. El 26/09 por la tarde, `https://gavetastats.netlify.app` y `https://main--gavetastats.netlify.app` servían el mismo build viejo, anterior a la T-106: `index.html` apunta a `assets/index-jOB7hSkO.js` y no hay trozo `App-*.js`.
 
-**Qué se pierde, y no es gratis.** Las vistas previas por rama, que el §2.1 defiende por una razón buena: dejan probar en el móvil sin tocar producción. Para el desarrollo diario lo cubre `npm run dev -- --host` por la red local. Para probar la PWA de verdad —service worker, instalación, offline— hace falta HTTPS, y ahí no hay sustituto cómodo: **cuando llegue la T-207 y haya que probar el directo en el campo, toca reactivar.**
+**Pre no debería depender de eso**, porque los despliegues de rama cuestan 0. Si una fusión a `main` no aparece en `https://main--gavetastats.netlify.app`, mira por este orden:
 
-**Cómo se publica mientras tanto**, que es el paso único que sustituye al despliegue automático:
+1. El registro del despliegue en Netlify. «Build cancelled» con el motivo del `ignore` quiere decir que alguien ha metido en una carpeta excluida un archivo que sí acaba en `dist/`.
+2. _Project configuration → Developer settings → Continuous deployment → Build settings_: **Build status** tiene que estar en **Active builds**. Con **Stopped builds**, Netlify no compila nada, ni producción, ni vistas previas, ni despliegues de rama. Estuvo así desde el 20/09 para no gastar en compilaciones que no publicaban; con el modelo de créditos ya no hace falta.
+3. Si la cuenta, sin créditos, para también los despliegues de rama. Está sin comprobar: lo dirá la primera fusión con los builds activos.
 
-```powershell
-cd D:\Documentos\Proyectos\ProyectoSASI\App
-Remove-Item Env:\NODE_ENV
-npm ci
-npm run build
-npx netlify-cli deploy --prod --dir=dist
-```
+**Reactivar los builds no lanza ninguna compilación por sí solo**: hace falta un push después.
 
-La primera vez pide `netlify login` y `netlify link` contra el sitio `gavetastats`. **Lo que sube es el `dist/` de tu máquina, no un build limpio del CI**, así que se despliega solo desde `main` recién actualizado y tras `npm ci`, nunca desde una rama a medias. Sin comprobar todavía: si los créditos operativos rechazan también un despliegue manual de producción.
-
-**Reactivar los builds no lanza ninguna compilación por sí solo**: hay que hacer un push después.
-
----
-
-**Si algún día el sitio deja de actualizarse tras una fusión** y los builds están activos, mira esto lo primero: el registro del despliegue en Netlify dice «Build cancelled» y el motivo. Lo más probable es que alguien haya metido en una carpeta excluida un archivo que sí acaba en `dist/`.
-
-**Lo que no se tocó, y por qué.** Desactivar las previsualizaciones por rama ahorraría más, pero el DOC 14 §5 las señala como lo que «te deja probar en el móvil sin tocar producción», y en un proyecto cuyo núcleo se usa a pie de campo eso vale más que unos minutos. Juntar las dos pull requests en una también ahorraría, y se descartó para no ensuciar el diff de código con documentación.
+**Lo que no se tocó, y por qué.** Las vistas previas de las pull requests se quedan: el DOC 14 §5 las señala como lo que «te deja probar en el móvil sin tocar producción», y ahora además no cuestan nada.
 
 ---
 

@@ -26,7 +26,7 @@ const api = vi.hoisted(() => ({
   actualizarPartido: vi.fn(),
   borrarPartido: vi.fn(),
 }));
-const core = vi.hoisted(() => ({ fetchEquiposDelClub: vi.fn() }));
+const core = vi.hoisted(() => ({ fetchEquiposDelClub: vi.fn(), fetchClub: vi.fn() }));
 const rules = vi.hoisted(() => ({ fetchCompeticiones: vi.fn() }));
 
 vi.mock('../api/partidos', () => api);
@@ -35,6 +35,14 @@ vi.mock('@modules/rules/api/competiciones', () => rules);
 vi.mock('@shared/lib/supabase', () => ({ supabase: {} }));
 
 const COMPETICION = { id: 'comp-1', name: 'Cadete Primera Tenerife G2' };
+const CLUB = {
+  id: 'club-1',
+  name: 'C.D. Unión Tejina',
+  shortName: null,
+  crestUrl: null,
+  homeVenue: 'Campo de Fútbol Izquierdo Rodríguez',
+  homeVenueAddress: 'Av. Milán, 27-29, 38260 La Laguna, Santa Cruz de Tenerife',
+};
 const EQUIPOS = [
   {
     id: 'eq-1',
@@ -141,12 +149,14 @@ beforeEach(() => {
   for (const simulada of [
     ...Object.values(api),
     core.fetchEquiposDelClub,
+    core.fetchClub,
     rules.fetchCompeticiones,
   ]) {
     simulada.mockReset();
   }
 
   core.fetchEquiposDelClub.mockResolvedValue(EQUIPOS);
+  core.fetchClub.mockResolvedValue(CLUB);
   rules.fetchCompeticiones.mockResolvedValue([COMPETICION]);
 });
 
@@ -197,12 +207,14 @@ describe('A09 · Calendario', () => {
 });
 
 describe('A10 · Nuevo partido', () => {
-  it('con una sola competición ya elegida y el campo de casa propuesto', async () => {
-    api.fetchCalendario.mockResolvedValue([partido()]);
+  it('con una sola competición ya elegida y el campo de casa del club propuesto', async () => {
+    // Calendario vacío: el campo sale del club, no de un partido anterior.
+    api.fetchCalendario.mockResolvedValue([]);
     api.crearPartido.mockResolvedValue(partido({ id: 'par-2', opponentName: 'UD Orotava' }));
     const { anunciar } = montar('/partidos/nuevo');
 
     const datos = await tarjeta('Datos del partido');
+    expect(core.fetchClub).toHaveBeenCalledWith('club-1');
     expect(within(datos).getByLabelText(/^Competición/)).toHaveValue('comp-1');
     expect(within(datos).getByLabelText(/^Campo/)).toHaveValue(
       'Campo de Fútbol Izquierdo Rodríguez',
@@ -228,6 +240,29 @@ describe('A10 · Nuevo partido', () => {
       await screen.findByRole('heading', { level: 1, name: 'Calendario' }),
     ).toBeInTheDocument();
     expect(anunciar).toHaveBeenCalledWith('Cadete A – UD Orotava añadido al calendario');
+  });
+
+  it('si el club no tiene campo de casa, propone el del último partido en casa', async () => {
+    core.fetchClub.mockResolvedValue({ ...CLUB, homeVenue: null, homeVenueAddress: null });
+    api.fetchCalendario.mockResolvedValue([partido({ venue: 'Campo Municipal de Tejina' })]);
+    montar('/partidos/nuevo');
+
+    const datos = await tarjeta('Datos del partido');
+
+    expect(within(datos).getByLabelText(/^Campo/)).toHaveValue('Campo Municipal de Tejina');
+  });
+
+  it('al pasar de fuera a casa con el campo vacío, propone el del club', async () => {
+    api.fetchCalendario.mockResolvedValue([]);
+    montar('/partidos/nuevo');
+
+    const datos = await tarjeta('Datos del partido');
+    const campo = within(datos).getByLabelText(/^Campo/);
+    await userEvent.click(within(datos).getByRole('radio', { name: 'Fuera' }));
+    await userEvent.clear(campo);
+    await userEvent.click(within(datos).getByRole('radio', { name: 'En casa' }));
+
+    expect(campo).toHaveValue('Campo de Fútbol Izquierdo Rodríguez');
   });
 
   it('sin rival elegido se para junto al campo, sin llamar a la base', async () => {

@@ -6,8 +6,9 @@ export { FichaJugadorPage } from './routes/FichaJugadorPage';
 export { HomePage } from './routes/HomePage';
 export { PlantillaPage } from './routes/PlantillaPage';
 
-// Para `agenda`, que elige rival entre los equipos de referencia del club.
-export { useClubActivo, useEquipos } from './hooks/useClubYEquipos';
+// Para `agenda`, que elige rival entre los equipos de referencia del club y
+// propone el campo de casa del club en la A10 (T-203b).
+export { useClub, useClubActivo, useEquipos } from './hooks/useClubYEquipos';
 
 // Para `lineup`, que convoca sobre la plantilla del equipo (T-205).
 export { usePlantilla } from './hooks/usePlantilla';

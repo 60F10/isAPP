@@ -131,7 +131,7 @@ export function useDarDeBaja(equipoId: string) {
   });
 }
 
-/** Las bajas de la temporada, por dorsal (DOC 13, punto 30). */
+/** Las bajas de la temporada, por dorsal (PR #51). */
 export function useBajas(equipoId: string, temporadaId: string) {
   return useQuery({
     queryKey: coreKeys.bajas(equipoId, temporadaId),
@@ -140,7 +140,7 @@ export function useBajas(equipoId: string, temporadaId: string) {
   });
 }
 
-/** Los del club que se pueden inscribir en este equipo (DOC 13, punto 29). */
+/** Los del club que se pueden inscribir en este equipo (PR #51). */
 export function useDelClubSinInscribir(clubId: string, equipoId: string, temporadaId: string) {
   return useQuery({
     queryKey: coreKeys.delClubSinInscribir(equipoId, temporadaId),

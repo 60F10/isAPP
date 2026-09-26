@@ -23,6 +23,12 @@ export interface Club {
   shortName: string | null;
   /** Ruta en Storage. Hoy siempre nula: el cubo `crests` no existe. */
   crestUrl: string | null;
+  /**
+   * Campo de casa (DOC 05 §14.4). La A10 lo propone en los partidos en casa.
+   * Se lee y no se edita desde la A03 todavía (DOC 13).
+   */
+  homeVenue: string | null;
+  homeVenueAddress: string | null;
 }
 
 export interface Equipo {

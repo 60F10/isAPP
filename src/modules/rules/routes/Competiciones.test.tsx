@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthContext } from '@modules/auth';
 import { AnnounceContext } from '@shared/hooks/announceContext';
 
-import { REGLAMENTO_CADETE } from '../model/competicion';
+import { REGLAMENTO_CADETE, SIN_CATEGORIA } from '../model/competicion';
 import { CompeticionesPage } from './CompeticionesPage';
 import { CompeticionPage } from './CompeticionPage';
 
@@ -36,6 +36,10 @@ const G2: Competicion = {
   seasonId: 'temp-1',
   name: 'Cadete Primera Tenerife G2',
   kind: 'league',
+  category: 'Cadete',
+  level: 'Primera',
+  scope: 'Tenerife',
+  group_label: 'G2',
 };
 
 const AUTH: AuthState = {
@@ -126,7 +130,7 @@ describe('A08 · Competiciones', () => {
     ).toBeInTheDocument();
   });
 
-  it('crea la liga con el reglamento del cadete y abre su ficha', async () => {
+  it('crea la liga con el reglamento del cadete y su categoría, y abre su ficha', async () => {
     api.fetchCompeticiones.mockResolvedValue([]);
     api.crearCompeticion.mockResolvedValue(G2);
     api.fetchCompeticion.mockResolvedValue(G2);
@@ -134,11 +138,23 @@ describe('A08 · Competiciones', () => {
 
     const alta = await tarjeta('Crear competición');
     await userEvent.type(within(alta).getByLabelText(/^Nombre/), ' Cadete  Primera Tenerife G2 ');
+    await userEvent.type(within(alta).getByLabelText(/^Categoría/), 'Cadete');
+    await userEvent.type(within(alta).getByLabelText(/^Nivel/), 'Primera');
+    await userEvent.type(within(alta).getByLabelText(/^Ámbito/), ' Tenerife ');
+    await userEvent.type(within(alta).getByLabelText(/^Grupo/), 'G2');
     await userEvent.click(within(alta).getByRole('button', { name: 'Crear competición' }));
 
     expect(api.crearCompeticion).toHaveBeenCalledWith(
       { clubId: 'club-1', temporadaId: 'temp-1', userId: 'usuario-1' },
-      { ...REGLAMENTO_CADETE, name: 'Cadete Primera Tenerife G2', kind: 'league' },
+      {
+        ...REGLAMENTO_CADETE,
+        name: 'Cadete Primera Tenerife G2',
+        kind: 'league',
+        category: 'Cadete',
+        level: 'Primera',
+        scope: 'Tenerife',
+        group_label: 'G2',
+      },
     );
     expect(anunciar).toHaveBeenCalledWith(
       'Cadete Primera Tenerife G2 creada. Revisa su reglamento',
@@ -160,6 +176,41 @@ describe('A08 · Competiciones', () => {
       within(alta).getByText('Ya hay una competición con ese nombre esta temporada.'),
     ).toBeInTheDocument();
     expect(api.crearCompeticion).not.toHaveBeenCalled();
+  });
+
+  it('sin categoría se crea igual, con las cuatro a nulo', async () => {
+    api.fetchCompeticiones.mockResolvedValue([]);
+    api.crearCompeticion.mockResolvedValue({ ...G2, ...SIN_CATEGORIA, name: 'Copa Heliodoro' });
+    api.fetchCompeticion.mockResolvedValue({ ...G2, ...SIN_CATEGORIA, name: 'Copa Heliodoro' });
+    montar('/competiciones');
+
+    const alta = await tarjeta('Crear competición');
+    await userEvent.type(within(alta).getByLabelText(/^Nombre/), 'Copa Heliodoro');
+    await userEvent.click(within(alta).getByRole('radio', { name: 'Copa' }));
+    await userEvent.click(within(alta).getByRole('button', { name: 'Crear competición' }));
+
+    expect(api.crearCompeticion).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ name: 'Copa Heliodoro', kind: 'cup', ...SIN_CATEGORIA }),
+    );
+  });
+
+  it('si la base rechaza el nombre repetido, lo dice con las mismas palabras', async () => {
+    // Otro dispositivo creó la misma liga entre la carga y el envío.
+    api.fetchCompeticiones.mockResolvedValue([]);
+    api.crearCompeticion.mockRejectedValue({ code: '23505', message: 'duplicate key' });
+    const { anunciar } = montar('/competiciones');
+
+    const alta = await tarjeta('Crear competición');
+    await userEvent.type(within(alta).getByLabelText(/^Nombre/), 'Cadete Primera Tenerife G2');
+    await userEvent.click(within(alta).getByRole('button', { name: 'Crear competición' }));
+
+    expect(
+      await within(alta).findByText('Ya hay una competición con ese nombre esta temporada.'),
+    ).toBeInTheDocument();
+    // Junto al campo, como cuando lo para la pantalla.
+    expect(within(alta).getByLabelText(/^Nombre/)).toHaveAttribute('aria-invalid', 'true');
+    expect(anunciar).toHaveBeenCalledWith('Ya hay una competición con ese nombre esta temporada.');
   });
 });
 
@@ -185,12 +236,45 @@ describe('A08 · Reglamento', () => {
       ...REGLAMENTO_CADETE,
       name: 'Cadete Primera Tenerife G2',
       kind: 'league',
+      category: 'Cadete',
+      level: 'Primera',
+      scope: 'Tenerife',
+      group_label: 'G2',
       period_minutes: 35,
       enabled_event_types: REGLAMENTO_CADETE.enabled_event_types.filter((tipo) => tipo !== 'note'),
     });
     await vi.waitFor(() => {
       expect(anunciar).toHaveBeenCalledWith('Reglamento guardado');
     });
+  });
+
+  it('enseña la categoría guardada y la cambia; vaciar un campo lo deja a nulo', async () => {
+    api.fetchCompeticion.mockResolvedValue(G2);
+    api.fetchCompeticiones.mockResolvedValue([G2]);
+    api.actualizarCompeticion.mockResolvedValue(G2);
+    montar('/competiciones/comp-1');
+
+    const ficha = await tarjeta('Reglamento');
+    expect(within(ficha).getByLabelText(/^Categoría/)).toHaveValue('Cadete');
+    expect(within(ficha).getByLabelText(/^Nivel/)).toHaveValue('Primera');
+    expect(within(ficha).getByLabelText(/^Ámbito/)).toHaveValue('Tenerife');
+
+    const grupo = within(ficha).getByLabelText(/^Grupo/);
+    expect(grupo).toHaveValue('G2');
+    await userEvent.clear(grupo);
+    await userEvent.clear(within(ficha).getByLabelText(/^Nivel/));
+    await userEvent.type(within(ficha).getByLabelText(/^Nivel/), 'Preferente');
+    await userEvent.click(within(ficha).getByRole('button', { name: 'Guardar reglamento' }));
+
+    expect(api.actualizarCompeticion).toHaveBeenCalledWith(
+      'comp-1',
+      expect.objectContaining({
+        category: 'Cadete',
+        level: 'Preferente',
+        scope: 'Tenerife',
+        group_label: null,
+      }),
+    );
   });
 
   it('un valor fuera de rango se para junto a su campo', async () => {

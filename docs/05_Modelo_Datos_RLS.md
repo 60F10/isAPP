@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.10 — 26/09/2026 (§14: los puntos del DOC 13 citados son de su día; §14.4 conectada en la T-203b) · 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — ocho archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
@@ -260,7 +260,7 @@ El dorsal vive aquí y no en el jugador: cambia de temporada en temporada y las 
 
 Todo el reglamento del DOC 04 §4.1 en columnas explícitas y no en un JSON. Así se validan con restricciones y se consultan sin desempaquetar nada.
 
-**Dos huecos que destapó la T-203.** No hay columnas de **categoría, nivel, ámbito ni grupo**: la federación nombra las ligas así («Cadete Primera Tenerife G2») y hoy todo va en `name`. Y **no hay unicidad de nombre** por club y temporada: la pantalla lo comprueba, la base no. **Los dos, cerrados el 26/09** con la migración del §14.4: las cuatro columnas de arriba y el índice único `competitions_name_unique` sobre `(club_id, season_id, lower(name))`. La A08 las usará con la T-203b.
+**Dos huecos que destapó la T-203.** No hay columnas de **categoría, nivel, ámbito ni grupo**: la federación nombra las ligas así («Cadete Primera Tenerife G2») y hoy todo va en `name`. Y **no hay unicidad de nombre** por club y temporada: la pantalla lo comprueba, la base no. **Los dos, cerrados el 26/09** con la migración del §14.4: las cuatro columnas de arriba y el índice único `competitions_name_unique` sobre `(club_id, season_id, lower(name))`. La A08 las lee y escribe desde la T-203b, opcionales, y `name` sigue siendo el nombre visible.
 
 ---
 
@@ -620,6 +620,8 @@ Las ocho están aplicadas al proyecto GavetaStats: las dos primeras desde el 11/
 
 Las migraciones siguientes las crea el propio CLI con `supabase migration new <nombre>`, que pone la marca de tiempo sola. **Nunca renombres una migración ya aplicada**: el historial remoto dejaría de encontrarla.
 
+**Los «puntos del DOC 13» de los apartados de abajo y de los comentarios de las migraciones son los de la numeración del día en que se escribieron.** El DOC 13 se renumera en cada sesión; para saber qué punto sigue abierto hoy, léelo a él. Las migraciones aplicadas no se tocan ni para esto.
+
 ### 14.1 Qué corrigió el endurecimiento
 
 El auditor de Supabase destapó tres cosas al aplicar el esquema inicial, y una era un agujero:
@@ -739,7 +741,7 @@ update public.clubs
  where name ilike '%tejina%';
 ```
 
-**Después de aplicarla:** `npm run db:types` para regenerar `src/types/database.types.ts` (con copia antes, punto 3 del DOC 13), relanzar el script de la T-105b y mirar el auditor. **El código que la aprovecha es la T-203b** del DOC 08: los cuatro campos de categoría en la A08 y el campo de casa propuesto desde `clubs` en la A10. Sin la migración, esa tarea no se puede empezar.
+**Después de aplicarla:** `npm run db:types` para regenerar `src/types/database.types.ts` (con copia antes, punto 3 del DOC 13), relanzar el script de la T-105b y mirar el auditor. **El código que la aprovecha es la T-203b** del DOC 08, **hecha el 26/09**: los cuatro campos de categoría en la A08 y el campo de casa propuesto desde `clubs` en la A10. `home_venue_address` se lee y no se usa todavía, y la A03 no edita el campo de casa (DOC 13).
 
 ### 14.5 Lo que dejó pendiente la T-205: 5a y 5b aplicadas el 26/09
 

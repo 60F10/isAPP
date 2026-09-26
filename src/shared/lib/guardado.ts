@@ -2,7 +2,7 @@
 //
 // Nace en la T-201 dentro de `core` y se muda aquí en la T-203, cuando `rules`
 // lo necesita también. Es la primera pieza del «ayudante común» del §10.1
-// (punto 16 del DOC 13): lo que falta es envolver cada `{ data, error }`.
+// (DOC 06): lo que falta es envolver cada `{ data, error }`.
 
 /** Quita espacios de los bordes y junta los repetidos de dentro. */
 export function limpiarTexto(texto: string): string {
@@ -71,7 +71,7 @@ const DE_LA_SESION = /^PGRST3/;
 
 /**
  * Si repetir la petición no va a arreglar el error: es del dato o del
- * permiso (DOC 06 §10.1, DOC 13 punto 16). Lo usa la caché de lectura para no
+ * permiso (DOC 06 §10.1). Lo usa la caché de lectura para no
  * reintentar un 42501 de la RLS dos veces antes de enseñarlo.
  *
  * Las funciones de `api/` lanzan el `PostgrestError` de Supabase, que trae

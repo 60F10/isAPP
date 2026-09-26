@@ -4,7 +4,7 @@
 // curso, por dorsal, y el alta de uno nuevo. Cada jugador lleva a su ficha
 // (A06) para cambiar dorsal, posición, disponibilidad o darlo de baja.
 //
-// Y dos listas que solo salen si tienen algo (DOC 13, puntos 29 y 30):
+// Y dos listas que solo salen si tienen algo (PR #51):
 // inscribir a alguien que ya es del club, sin crear otro jugador con el
 // mismo apodo, y reincorporar a quien se dio de baja esta temporada.
 //

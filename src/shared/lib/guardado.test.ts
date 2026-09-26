@@ -1,5 +1,5 @@
-// Mensajes comunes al guardar (T-203) y qué errores no se reintentan (DOC 13,
-// punto 16). Los casos de `core` siguen en
+// Mensajes comunes al guardar (T-203) y qué errores no se reintentan (DOC 06
+// §10.1). Los casos de `core` siguen en
 // `core/model/clubYEquipos.test.ts`; aquí, lo que solo tiene la versión común.
 
 import { describe, expect, it } from 'vitest';

@@ -3,7 +3,7 @@
 // DIVISIÓN DEL PAQUETE. Cada pantalla de módulo entra con `lazy`, que descarga
 // su trozo cuando la ruta se activa y no antes.
 //
-// LA A12 TAMBIÉN, DESDE LA T-207 (DOC 13, punto 47; decisión de Raúl del
+// LA A12 TAMBIÉN, DESDE LA T-207 (D06-29; decisión de Raúl del
 // 26/09). Iba en el paquete inicial para abrir sin red sin haber pasado antes
 // por el directo, pero el service worker precachea todos los `.js`, perezosos
 // incluidos (`globPatterns` de `vite.config.ts`): tras la primera visita con

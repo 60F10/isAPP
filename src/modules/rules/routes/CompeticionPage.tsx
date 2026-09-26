@@ -2,7 +2,9 @@
 //
 // Todo el reglamento del DOC 04 §4.1 en un formulario por bloques: partido,
 // cambios, convocatoria, disciplina y botones del directo. La duración del
-// partido se calcula a la vista, nunca se escribe.
+// partido se calcula a la vista, nunca se escribe. Delante, el nombre, el
+// tipo y, desde la T-203b, la clasificación de la federación en sus cuatro
+// columnas (DOC 05 §14.4).
 //
 // LOS BOTONES DEL DIRECTO. Solo se ofrecen los once del MVP. Los ocho que
 // nacen apagados —pases, tiros, fueras de juego…— no tienen botón en el
@@ -20,6 +22,7 @@ import { Field } from '@shared/ui/Field';
 import { GrupoDeOpciones } from '@shared/ui/GrupoDeOpciones';
 import { Pantalla } from '@shared/ui/Pantalla';
 
+import { CamposDeCategoria } from '../components/CamposDeCategoria';
 import {
   useActualizarCompeticion,
   useCompeticion,
@@ -29,6 +32,7 @@ import {
   aFormulario,
   duracionDeJuego,
   LARGO_NOMBRE_COMPETICION,
+  NOMBRE_REPETIDO,
   NOMBRES_DE_EVENTO,
   NOMBRES_DE_TIPO,
   SIN_LIMITE_DE_CAMBIOS,
@@ -143,8 +147,14 @@ function Ficha({ competicion, otras }: FichaProps) {
             anunciar('Reglamento guardado');
           },
           onError: (error) => {
-            const mensaje = mensajeDeErrorAlGuardar(error);
-            setFalloAlGuardar(mensaje);
+            const mensaje = mensajeDeErrorAlGuardar(error, NOMBRE_REPETIDO);
+            // El nombre repetido que para la base va junto al campo, como el
+            // que para la pantalla; el resto, junto al botón.
+            if (mensaje === NOMBRE_REPETIDO) {
+              setErrores({ name: mensaje });
+            } else {
+              setFalloAlGuardar(mensaje);
+            }
             anunciar(mensaje);
           },
         });
@@ -152,7 +162,7 @@ function Ficha({ competicion, otras }: FichaProps) {
     >
       <Field
         label="Nombre"
-        hint="Categoría, nivel, ámbito y grupo, como la llama la federación. La temporada va aparte."
+        hint="Como la llama la federación: «Cadete Primera Tenerife G2». La temporada va aparte."
         required
         maxLength={LARGO_NOMBRE_COMPETICION}
         autoComplete="off"
@@ -168,6 +178,13 @@ function Ficha({ competicion, otras }: FichaProps) {
         valor={formulario.kind}
         alCambiar={(kind) => {
           cambiar({ kind });
+        }}
+      />
+      <CamposDeCategoria
+        valores={formulario}
+        errores={errores}
+        alCambiar={(campo, valor) => {
+          cambiar({ [campo]: valor });
         }}
       />
 

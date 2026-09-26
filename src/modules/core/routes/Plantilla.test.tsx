@@ -204,7 +204,7 @@ describe('A05 · Plantilla', () => {
   });
 });
 
-describe('A05 · Bajas e inscritos del club (puntos 29 y 30 del DOC 13)', () => {
+describe('A05 · Bajas e inscritos del club (PR #51)', () => {
   const baja = (shirtNumber: number | null): Inscripcion => ({
     id: 'ins-9',
     playerId: 'jug-9',

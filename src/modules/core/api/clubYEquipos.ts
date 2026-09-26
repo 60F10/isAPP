@@ -20,17 +20,28 @@ import { SIN_FILAS } from '../model/clubYEquipos';
 import type { Club, Equipo, TipoDeEquipo } from '../model/clubYEquipos';
 import type { Tables } from '@app-types/database.types';
 
-const COLUMNAS_CLUB = 'id, name, short_name, crest_url';
+// El campo de casa entra con la T-203b (DOC 05 §14.4), para la A10.
+const COLUMNAS_CLUB = 'id, name, short_name, crest_url, home_venue, home_venue_address';
 const COLUMNAS_EQUIPO = 'id, club_id, name, category, kind, crest_url';
 
-type FilaClub = Pick<Tables<'clubs'>, 'id' | 'name' | 'short_name' | 'crest_url'>;
+type FilaClub = Pick<
+  Tables<'clubs'>,
+  'id' | 'name' | 'short_name' | 'crest_url' | 'home_venue' | 'home_venue_address'
+>;
 type FilaEquipo = Pick<
   Tables<'teams'>,
   'id' | 'club_id' | 'name' | 'category' | 'kind' | 'crest_url'
 >;
 
 function aClub(fila: FilaClub): Club {
-  return { id: fila.id, name: fila.name, shortName: fila.short_name, crestUrl: fila.crest_url };
+  return {
+    id: fila.id,
+    name: fila.name,
+    shortName: fila.short_name,
+    crestUrl: fila.crest_url,
+    homeVenue: fila.home_venue,
+    homeVenueAddress: fila.home_venue_address,
+  };
 }
 
 function aEquipo(fila: FilaEquipo): Equipo {
