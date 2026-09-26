@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
+> **Versión:** 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -101,7 +101,7 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 
 | ID        | Tarea                                                                                     | Pantallas | Depende de | Sesiones | Rama                           | Estado |
 | :-------- | :---------------------------------------------------------------------------------------- | :-------- | :--------- | :------- | :----------------------------- | :----- |
-| **T-201** | Club y equipos: alta, edición, escudo, equipo gestionado frente a equipo de referencia    | A03, A04  | T-105      | 1        | `feat/core-club-y-equipos`     | ⬜     |
+| **T-201** | Club y equipos: alta, edición, escudo, equipo gestionado frente a equipo de referencia    | A03, A04  | T-105      | 1        | `feat/core-club-y-equipos`     | ✅     |
 | **T-202** | Plantilla y ficha de jugador: apodo, dorsal, posición, estado. Sin nombre real ni foto    | A05, A06  | T-201      | 1        | `feat/core-plantilla`          | ⬜     |
 | **T-203** | Competiciones y reglamento: duración de partes, jugadores en campo, `enabled_event_types` | A08       | T-201      | 1        | `feat/rules-competiciones`     | ⬜     |
 | **T-204** | Calendario y alta de partido, incluido el partido a posteriori                            | A09, A10  | T-203      | 1        | `feat/agenda-calendario`       | ⬜     |
@@ -112,6 +112,8 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 | **T-209** | Directo, varios anotadores: cobertura declarada, tiempo real y marca de duplicado         | A12       | T-208      | 1,5      | `feat/match-directo-cobertura` | ⬜     |
 | **T-210** | Cierre de partido y panel de discordancias: aprobar, descartar, recálculo de tramos       | A13       | T-209      | 2        | `feat/review-cierre-partido`   | ⬜     |
 | **T-211** | Mis aportaciones                                                                          | A14       | T-210      | 0,5      | `feat/review-mis-aportaciones` | ⬜     |
+
+**La T-201, cerrada el 26/09, con dos piezas fuera.** A03 enseña y edita el club del equipo activo; A04 lista los equipos del club separando los propios de los rivales, y los da de alta y los edita. **Fuera**: el alta de un club nuevo, porque con la RLS actual el club nacería invisible hasta para quien lo crea (ciclo del DOC 13, punto 26), y el escudo, porque el cubo `crests` no existe. El logo del C.D. Unión Tejina espera en `docs/recursos/` para subirlo cuando exista. Sin borrado: ni `clubs` ni `teams` tienen política para ello.
 
 **La T-206 va antes que el directo a propósito.** Enchufar la cola a una pantalla ya escrita obliga a reescribir cada manejador de evento; escribir la pantalla contra una cola que ya existe no cuesta nada. Es la dependencia que más caro sale saltarse.
 

@@ -1,0 +1,17 @@
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-inline-size: 32rem;
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+/* El mensaje lleva el texto; el color solo lo subraya (criterio 1.4.1). */
+.fallo {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}

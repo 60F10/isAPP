@@ -23,15 +23,17 @@ Desde la **T-102** es una PWA instalable: `vite-plugin-pwa` con `registerType: '
 
 Desde la **T-105** se entra con Google de verdad. `AuthProvider` trae sesión, perfil, equipos, equipo activo, temporada activa y permisos; `src/modules/auth/` tiene ya sus carpetas `api/` y `model/`, y la vuelta de Google aterriza en `/auth/callback`. **Dos reglas que no se pueden romper al tocar esto:** `permisos` vale `null` mientras la consulta no conteste y un conjunto —vacío incluido— a partir de ahí, porque rellenarlo antes manda a `/403` a quien sí tiene el permiso; y los permisos salen solo de `team_member_permissions` del equipo activo, sin regalarle ninguno al administrador de plataforma, que en la base tampoco los tiene.
 
-**Ojo con dos cosas al escribir pantallas ahora mismo:** el paquete inicial mide **179,92 kB comprimidos** de los 200 kB del presupuesto, así que quedan unos 20 kB para A12 de verdad y Dexie. Y `app/providers/AuthProvider.tsx` importa de `@modules/auth` **por ruta directa y no por el barril**: hacerlo por el barril arrastra las pantallas de `auth` al paquete inicial y el build avisa con `INEFFECTIVE_DYNAMIC_IMPORT`.
+**Ojo con dos cosas al escribir pantallas ahora mismo:** el paquete inicial mide **179,42 kB comprimidos** de los 200 kB del presupuesto, así que quedan unos 20 kB para A12 de verdad y Dexie. Y `app/providers/AuthProvider.tsx` importa de `@modules/auth` **por ruta directa y no por el barril**: hacerlo por el barril arrastra las pantallas de `auth` al paquete inicial y el build avisa con `INEFFECTIVE_DYNAMIC_IMPORT`.
 
-**Los datos hay que sembrarlos.** El esquema no deja arrancar solo: crear un club lo permite la RLS, crear el equipo dentro exige `team.manage`, y ese permiso no existe hasta que hay `team_members`. `supabase/seed.sql` rompe ese ciclo y se lanza a mano desde el panel de Supabase. Sin él, se entra y las veinte rutas mandan a `/403`.
+**Los datos hay que sembrarlos.** El esquema no deja arrancar solo: crear un club lo permite la RLS, pero leerlo y crear el equipo dentro exigen ser miembro del club, y nadie lo es hasta que hay `team_members`. `supabase/seed.sql` rompe ese ciclo y se lanza a mano desde el panel de Supabase. Sin él, se entra y las veinte rutas mandan a `/403`.
 
 Desde la **T-106** los errores se ven y se registran: Error Boundary global y `errorElement` del enrutador con la C03 (`modules/logging`), captura global de `window`, registro silencioso en `error_logs` —solo con sesión, limpio de testigos y correos— y la banda de sesión a punto de caducar. **`main.tsx` carga `App` con `import()` a propósito** (D06-23): es lo que deja pintar el error de entorno en vez de una pantalla en blanco. No lo vuelvas estático. Y `app/` importa de `@modules/logging` por ruta directa, por el mismo motivo que de `auth`.
 
 Desde la **T-107** está la C01, Ajustes (`app/routes/AjustesPage.tsx`, perezosa): alto contraste y movimiento reducido, que se guardan **en el dispositivo** (`sasi.preferencias`, D06-25) y aplica `main.tsx` antes de cargar `App`, y «Cerrar sesión», que sale solo en este dispositivo. Con eso la **fase 1 está completa**.
 
-Siguiente tarea de código: **T-201**, club y equipo. Ojo con el ciclo de la RLS: crear un club se puede, crear el equipo dentro exige `team.manage`, que en un club nuevo no tiene nadie.
+Desde la **T-201** están A03 (Club) y A04 (Equipos) en `modules/core`, con su `api/`, `model/` y `hooks/`: se edita el club del equipo activo y se dan de alta y se editan equipos propios y rivales. **No hay alta de club**: con la RLS actual el club nacería invisible hasta para quien lo crea, y `seed.sql` sigue siendo la única puerta (DOC 13). **Las actualizaciones piden la fila de vuelta**: si la RLS dice que no, PostgREST no da error, devuelve cero filas, y `api/` lo convierte en `SIN_FILAS`. Repite el patrón en cada `update` nuevo.
+
+Siguiente tarea de código: **T-202**, plantilla y ficha de jugador. Solo apodo y dorsal: ningún nombre real, ninguna foto.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 

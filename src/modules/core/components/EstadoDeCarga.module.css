@@ -1,0 +1,10 @@
+.texto {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}

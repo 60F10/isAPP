@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — cinco archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
@@ -535,6 +535,8 @@ Todas se declaran `stable` y con `search_path` fijado a `public`. Lo primero per
 | `app_settings`            | Cualquiera autenticado                                                     | Administrador de la plataforma                                                                     |
 | `audit_log`               | `members.manage` del club                                                  | Nadie. Solo los disparadores                                                                       |
 | `error_logs`              | Administrador de la plataforma                                             | Cualquiera autenticado puede insertar los suyos                                                    |
+
+**Ojo, que la tabla y la base no dicen lo mismo en `teams` (hallazgo de la T-201).** La tabla pide `team.manage` para escribir, y eso es lo que hace `teams_update`. Pero `teams_insert` solo pide `is_club_member(club_id)`: cualquier miembro activo de algún equipo del club, también un anotador o un espectador, puede dar de alta equipos llamando a la API. La interfaz solo enseña el alta a quien tiene `team.manage`. Cerrarlo es una línea en la próxima migración de permisos; está en el DOC 13.
 
 Dos reglas merecen atención:
 
