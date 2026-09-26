@@ -248,11 +248,14 @@ Pendiente de hacer:
     `clubs.home_venue` y `clubs.home_venue_address` con la migración del DOC 05 §14.4, y la T-203b lo
     propondrá en la A10. Hasta entonces, la A10 propone el campo del último partido en casa: se
     escribe la primera vez y a partir de ahí sale solo.
-38. **El calendario de la federación no se puede leer desde aquí.** Raúl pasó la página de la
-    Federación Interinsular: `https://futboltenerife.com/1panel-cadete/?ruta=cadete`. El proxy de red
-    de las sesiones en la nube la bloquea, así que los rivales y las jornadas de la Cadete Primera
-    Tenerife G2 se meten a mano: primero los rivales en Equipos y después cada partido en el
-    calendario. Leerla sola sería el _scraping_ de la fase 6, fuera del MVP.
+38. **El calendario de la federación no se puede leer desde aquí.** El proxy de red de las sesiones
+    en la nube bloquea `futboltenerife.com`. **Raúl pasó el código de la página del panel cadete, y de
+    ahí salen los doce equipos del grupo y la jornada 1**, en
+    `docs/recursos/cadete_primera_tenerife_g2_2026-27.md`: el Cadete A debuta el 4 de octubre a las
+    12:00, fuera, contra el At. Tacoronte. **Esa página solo trae la jornada 1.** El calendario completo
+    está en `https://futboltenerife.com/1cadete-primera-grupo-dos`: con su código se completa el
+    archivo. Mientras, rivales y partidos se meten a mano. Leerla sola sería el _scraping_ de la fase
+    6, fuera del MVP.
 39. **La hora es la del móvil.** La fecha y la hora se escriben y se enseñan en la zona del
     dispositivo y se guardan en UTC. En Canarias es la hora canaria; un partido en la península se
     escribe con la hora canaria en la que empieza. Si algún día anotan dispositivos en zonas
