@@ -5,111 +5,108 @@
 
 ---
 
-## Sesión 26/09/2026 — T-202, plantilla y ficha de jugador: ✅ cerrada
+## Sesión 26/09/2026 — T-203, competiciones y reglamento: ✅ cerrada
 
-Sesión en la nube, sin acceso a Supabase. Raúl preguntó qué tenía que decidir antes de la tarea y
-pidió hacerla: la respuesta es que **nada la bloqueaba**. El punto 20 (referencias cruzadas entre
-clubes) no le afecta, porque el alta crea el jugador en el club del equipo y lo inscribe en ese mismo
-equipo; pasa a decidirse antes de la T-204.
+Sesión en la nube, sin acceso a Supabase, con Raúl respondiendo. **Raúl confirmó con Isaac el
+reglamento del cadete** del DOC 04 §4.2 —2 × 40, 15 de descanso, reloj corrido, 5 cambios fijos
+**sin reentrada**, 18 convocados, 11 titulares, 5 amarillas— y dio el nombre de la liga: **«Cadete
+Primera Tenerife G2»**, temporada 2026-27, club C.D. Unión Tejina, equipo Cadete A. Pidió que la
+liga especifique la categoría, y pasó el orden de la federación en Tenerife, de más a menos:
+Autonómico Canarias, Provincial Tenerife, Preferente G1 a G3 y Primera G1 a G7. Anotado en el DOC 04
+§4.2. En su lista, la Primera G7 aparece como 2025-26; es la temporada anterior y no se usa.
 
 El entorno obliga a subir a una rama `claude/…`; la que toca por convención es
-`feat/core-plantilla`, y con ese nombre se hizo el commit para que pasara el hook de `pre-commit`.
-La pull request lo dice.
+`feat/rules-competiciones`, y con ese nombre se hizo el commit para que pasara el hook de
+`pre-commit`. La pull request lo dice.
 
 ---
 
 ## HECHO
 
-**A05 y A06 sustituyen a sus `PantallaPendiente`**, las dos en el trozo perezoso de `core`.
+**El módulo `rules` nace con la A08**, en su propio trozo perezoso. Sustituye a las dos
+`PantallaPendiente` de `/competiciones` y `/competiciones/:id`.
 
-| Pantalla                   | Qué hace                                                                                                                                                                                                                            |
-| :------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A05 · Plantilla**        | Los jugadores del equipo de la ruta en la temporada en curso, por dorsal: dorsal, apodo, posición y, solo si no puede jugar, «No disponible» o «Sancionado» escrito. Debajo, «Añadir jugador». Un rival dice que no tiene plantilla |
-| **A06 · Ficha de jugador** | Apodo, dorsal, posición habitual y disponibilidad. «Dar de baja» en dos pasos en el mismo sitio, sin ventana emergente, y vuelta a la plantilla                                                                                     |
+| Pantalla                | Qué hace                                                                                                                                                                                                                                               |
+| :---------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A08 · Competiciones** | Las de la temporada en curso del club, cada una con su reglamento en una línea: «Liga · 2 × 40 min · 5 cambios fijos, sin reentrada · 18 convocados, 11 titulares». Debajo, «Crear competición», que nace con el reglamento del cadete y abre su ficha |
+| **A08 · Reglamento**    | Nombre, tipo y el reglamento entero del DOC 04 §4.1 en cinco bloques: partido, cambios, convocatoria, disciplina y botones del directo. La duración se calcula a la vista de lo escrito                                                                |
 
-| Pieza                                      | Qué hace                                                                                                                          |
-| :----------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
-| `modules/core/model/plantilla.ts`          | Valida apodo, dorsal (1–99, solo cifras, sin repetir) y posición; ordena por dorsal; nombres de posiciones y estados; fecha local |
-| `modules/core/api/plantilla.ts`            | Leer plantilla, ficha y equipo; alta con borrado compensatorio; cambiar apodo e inscripción                                       |
-| `modules/core/hooks/usePlantilla.ts`       | Consultas y mutaciones. Guardar invalida la plantilla entera del equipo                                                           |
-| `modules/core/components/SelectorPosicion` | `<select>` nativo con el aspecto de `Field`, compartido por A05 y A06                                                             |
-| `mensajeDeErrorAlGuardar`                  | Acepta ya qué decir ante un duplicado: el nombre del equipo en la A04, el dorsal en la plantilla                                  |
+| Pieza                                      | Qué hace                                                                                                                                      |
+| :----------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
+| `modules/rules/model/competicion.ts`       | Tipos, rangos iguales a los `check` de la base, `REGLAMENTO_CADETE`, nombres en español, `duracionDeJuego`, validación y resumen en una línea |
+| `modules/rules/api/competiciones.ts`       | Listar, leer, crear y actualizar, con `SIN_FILAS` en la actualización                                                                         |
+| `modules/rules/hooks/useCompeticiones.ts`  | Club y temporada del equipo activo, consultas y mutaciones                                                                                    |
+| `modules/rules/components/GrupoDeOpciones` | Radios nativos con `fieldset` y `legend`, genérico en el tipo del valor                                                                       |
+| `modules/rules/index.ts`                   | Las dos pantallas y el modelo que leerá el directo: `duracionDeJuego`, `TIPOS_DEL_MVP`, `NOMBRES_DE_EVENTO` y los tipos                       |
+| `shared/lib/guardado.ts`                   | `SIN_FILAS`, `mensajeDeErrorAlGuardar` y `limpiarTexto`, mudados desde `core` porque `rules` los necesita. Suma el 23514 (fuera de rango)     |
 
 **Sin comprobar en el navegador**, porque aquí no se puede entrar con Google. Las pruebas montan las
 dos pantallas enteras con la red simulada; el viaje real está en «Comandos para verificar».
 
 ### Pruebas
 
-**121 en verde**, 24 nuevas. Cada una se vio fallar antes de darla por buena: diez contra un esbozo
-vacío y las demás con un mutante a mano sobre la línea que vigilan. Una destapó un fallo de verdad:
-la A05 pedía la plantilla aunque el equipo fuera un rival. Arreglado: la consulta espera a saber que
-el equipo es propio.
+**142 en verde**, 21 nuevas. Cada una se vio fallar antes de darla por buena: trece contra un
+esbozo vacío y las demás con un mutante a mano sobre la línea que vigilan.
 
-| Archivo                           | Casos | Qué vigila                                                                                                                          |
-| :-------------------------------- | ----: | :---------------------------------------------------------------------------------------------------------------------------------- |
-| `core/model/plantilla.test.ts`    |    11 | Que solo salgan las tres columnas permitidas; apodo; dorsal fuera de rango, con decimales o repetido; orden con «ñ»; fecha          |
-| `core/model/clubYEquipos.test.ts` |    +1 | El mensaje de duplicado lo elige cada pantalla                                                                                      |
-| `core/api/plantilla.test.ts`      |     3 | A `players` solo viaja el apodo; si la inscripción falla, el jugador se borra; si el jugador no se crea, no se inscribe             |
-| `core/routes/Plantilla.test.tsx`  |     9 | Orden y avisos de la lista; alta limpia; dorsal repetido sin red; rechazo de la base; rival; sin temporada; ficha; sancionado; baja |
+| Archivo                               | Casos | Qué vigila                                                                                                                   |
+| :------------------------------------ | ----: | :--------------------------------------------------------------------------------------------------------------------------- |
+| `rules/model/competicion.test.ts`     |    13 | El cadete confirmado; los once del MVP; rangos iguales a la base; duración; nombre; repetido; rangos; titulares ≤ convocados |
+| `rules/routes/Competiciones.test.tsx` |     6 | Lista y resumen; alta con el cadete que abre la ficha; repetido; duración viva y guardado; fuera de rango; tipos conservados |
+| `shared/lib/guardado.test.ts`         |     2 | Duplicado en general y el 23514                                                                                              |
 
 ---
 
 ## DECISIONES TOMADAS
 
-**Del jugador solo viajan apodo, dorsal y posición.** Ninguna consulta de `api/plantilla.ts` nombra
-`full_name`, `name_consent_at` ni `name_consent_note`: ni al leer, ni al escribir. Aunque alguien las
-rellenara a mano en la base, la aplicación no las pasearía. `validarJugador` solo produce las tres
-columnas permitidas, y una prueba lo vigila. La ayuda del campo lo pide con palabras: «Solo el apodo.
-Nada de nombre ni apellidos».
+**La categoría va en el nombre de la competición.** `competitions` solo tiene `name` y `kind`: ni
+categoría, ni nivel, ni ámbito, ni grupo. Sin poder migrar, la ayuda del campo pide escribirla como
+la llama la federación, sin la temporada, que ya va aparte. Las salidas para tenerla en columnas,
+en el punto 33.
 
-**El alta son dos inserciones con borrado compensatorio.** PostgREST no junta dos tablas en una
-transacción. Si la inscripción falla —un dorsal que otra persona acaba de coger—, se borra el jugador
-recién creado y el error que sale es el de la inscripción, que es el que explica qué pasó. El borrado
-lo permite `players_write`, que es `for all` con `roster.manage`.
+**Una competición nueva nace con el reglamento del cadete, no con los valores por defecto de la
+base.** La base trae 2 × 45: nacer con eso obligaría a cambiarlo siempre, y el único equipo es un
+cadete. Al crearla se abre su ficha para revisarlo.
 
-**El dorsal es opcional.** La base lo admite nulo, y un chico que llega a mitad de semana puede no
-tenerlo todavía. Si se escribe, solo cifras del 1 al 99 y sin repetir entre los activos: la base lo
-impide igual con `squad_shirt_unique`, pero así el aviso sale junto al campo.
+**Los rangos de la pantalla son los mismos que los `check` de `competitions`**, y una prueba lo
+vigila: si se toca uno, se toca el otro.
 
-**Disponibilidad: «Disponible» o «No disponible», sin motivo.** DOC 04 §12.4: la app no trata datos
-de salud. **«Sancionado» no se elige**: lo pone y lo quita el cómputo de sanciones. La ficha lo
-enseña y no manda la disponibilidad al guardar, para no pisarlo.
+**Titulares no más que convocados.** Con más titulares que convocados no se podrían cumplir a la vez
+la R-01 y la R-02 del DOC 04 §4.3. La base no lo impide; la pantalla sí.
 
-**La lista solo escribe la disponibilidad cuando es la excepción.** Diecinueve «Disponible»
-seguidos son ruido; el que no puede jugar tiene que saltar a la vista. Va en palabras, en la tinta
-del estado pendiente (7,27:1).
+**El nombre no se repite en la temporada**, sin mirar mayúsculas. Esta vez solo lo comprueba la
+pantalla: la base no tiene restricción (punto 34).
 
-**La baja rellena `left_on` con la fecha local y nada más.** El jugador sigue en el club y sus
-partidos siguen contando. Fecha local y no UTC: `toISOString()` daría el día anterior pasada la
-medianoche en Canarias en horario de verano.
+**Solo los once botones del MVP se encienden desde la A08.** Los otros ocho no tienen botón en el
+directo. Si alguien los encendió en la base, se conservan al guardar (punto 35).
 
-**La ficha recibe el equipo en `?equipo=`.** Un jugador puede estar inscrito en dos equipos del club
-la misma temporada, y dorsal y disponibilidad son de cada inscripción. Sin el parámetro, se usa el
-equipo activo.
+**Sin borrado de competiciones** (punto 36).
 
-**Guardar la ficha manda primero la inscripción y después el apodo, y el apodo solo si cambia.** El
-choque de dorsal es lo más probable, así que va primero.
+**`rules` exporta el modelo por su barril.** El directo (T-207) leerá de ahí la duración, los tipos
+encendidos y los nombres de los eventos, sin entrar en las carpetas de `rules` (DOC 06 §4.1, regla 3).
+
+**Lo común de guardar sube a `shared/lib/guardado.ts`.** `rules` no puede importar el `model/` de
+`core`. `core` lo reexporta para no cambiar sus importaciones, y su mensaje de duplicado sigue
+hablando de equipos.
 
 ---
 
 ## PENDIENTE DE LA TAREA
 
-Nada de lo que pide la fila del DOC 08. Lo que se queda corto está en los puntos 29 a 32.
+Nada de lo que pide la fila del DOC 08. La categoría en columnas propias pide migración (punto 33).
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-Los puntos 29 a 32 de abajo: jugador compartido entre equipos, bajas sin reincorporación,
-operaciones de dos peticiones y permiso mirado en el equipo activo.
+Los puntos 33 a 36 de abajo.
 
 ---
 
 ## LO QUE SIGUE ABIERTO
 
-**No se cierra ningún punto de la lista anterior.** Se suman cuatro al final, del 29 al 32, y se
-actualizan el 11 (catorce pantallas pendientes) y el 20 (se decide antes de la T-204). La numeración
-no cambia.
+**No se cierra ningún punto de la lista anterior.** Se suman cuatro al final, del 33 al 36, y se
+actualizan el 11 (doce pantallas pendientes) y el 16 (el ayudante común empieza a existir). La
+numeración no cambia.
 
 Pendiente de decidir, que no lo decide el código:
 
@@ -145,7 +142,7 @@ Pendiente de hacer:
    Lo resuelve la T-303.
 10. Faltan tokens de anchura de maqueta en el DOC 07: el rail y la caja de `BareLayout` salen de
     `--tap-min`.
-11. **Catorce rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
+11. **Doce rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
 12. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
     índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
     comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones repetidas
@@ -161,8 +158,9 @@ Pendiente de hacer:
     publicado.
 16. **`esErrorDeCliente` no reconoce un error de Supabase**, así que los 4xx se reintentan dos veces
     en vez de rendirse a la primera. Se arregla con el «ayudante común» del DOC 06 §10.1, que
-    todavía no existe en `shared/lib/` ni tiene tarea asignada. La T-201 deja la primera pieza,
-    `SIN_FILAS`, para mudarla allí.
+    todavía no está completo ni tiene tarea asignada. **La T-203 muda a `shared/lib/guardado.ts`**
+    lo que ya había: `SIN_FILAS`, `mensajeDeErrorAlGuardar` y `limpiarTexto`. Falta envolver cada
+    `{ data, error }` y que `esErrorDeCliente` reconozca el error de Supabase.
 17. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
     tabla `invitations` existe y no la usa ninguna pantalla. Es la T-301, y **la idea de Raúl de
     elegir equipo como seguidor al entrar se apunta aquí**: hace falta decidirla en el DOC 03,
@@ -223,6 +221,27 @@ Pendiente de hacer:
     guardar recibe «No tienes permiso» si no tiene `roster.manage` en ese equipo. No hay fuga, pero
     sí una pantalla que ofrece lo que no puede hacer. Salida: comprobar el permiso del equipo de la
     ruta con las membresías de `useAuth()`.
+33. **La categoría de la competición va en el nombre.** `competitions` solo tiene `name` y `kind`.
+    La federación nombra las ligas por categoría, nivel, ámbito y grupo («Cadete Primera Tenerife
+    G2»), y Raúl pidió que la liga especifique la categoría: hoy se cumple escribiéndola en el
+    nombre, con la ayuda del campo pidiéndolo. Salidas:
+
+    | Salida                                                                             | Consecuencia                                                                                                                                                                 |
+    | :--------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | **A. Dejarlo en el nombre**                                                        | Cero trabajo. Se lee bien y basta para elegir la competición al crear un partido. No se puede filtrar ni ordenar por nivel                                                   |
+    | **B. Una columna `category text`** en `competitions`, como la que ya tiene `teams` | Una línea de migración. Permite unir equipo y competición por categoría (el Cadete A solo ve ligas cadete). **Recomendada**                                                  |
+    | C. Cuatro columnas: categoría, nivel, ámbito y grupo                               | Recoge entera la jerarquía de la federación y permite ordenar de más a menos. Cuatro campos más en la A08 y una lista de niveles que mantener. Sale caro para un solo equipo |
+
+34. **El nombre de la competición no es único en la base.** La A08 no deja repetirlo en la
+    temporada, pero `competitions` no tiene restricción: por la API, o con dos móviles a la vez, se
+    pueden crear dos «Cadete Primera Tenerife G2». Una línea en la próxima migración:
+    `unique (club_id, season_id, name)`.
+35. **Los ocho tipos de evento fuera del MVP no se encienden desde la A08.** No tienen botón en el
+    directo, y encenderlos prometería algo que no existe. Si alguien los enciende en la base, la A08
+    los conserva al guardar. Cuando se construya su botón, se añaden a la lista de la ficha.
+36. **No se borran competiciones.** La RLS lo permite, pero los partidos apuntan a su competición con
+    `on delete restrict`, y una con partidos no se puede borrar. Una sin partidos mal creada se
+    renombra. Si molesta, un «Borrar» que solo salga sin partidos.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
@@ -238,44 +257,40 @@ disciplina, después del MVP.
 
 | Momento                   | Inicial comprimido | Margen sobre 200 kB |
 | :------------------------ | -----------------: | ------------------: |
-| Tras la T-201, en Linux   |          179,44 kB |            20,56 kB |
-| **Esta sesión, en Linux** |      **179,77 kB** |        **20,23 kB** |
+| Tras la T-202, en Linux   |          179,77 kB |            20,23 kB |
+| **Esta sesión, en Linux** |      **179,85 kB** |        **20,15 kB** |
 
-**+0,33 kB, todo en `App-*.js`**: las dos entradas perezosas nuevas del enrutador. Las pantallas
-viven en el trozo de `core`, que crece a 8,41 kB de JavaScript y 1,38 kB de estilos y no se
-descarga al arrancar.
+**+0,08 kB, en `App-*.js`**: las dos entradas perezosas de la A08. La A08 vive en el trozo de
+`rules` (4,92 kB de JavaScript y 0,70 kB de estilos). Lo que comparten `core` y `rules` —`Field`, lo
+de guardar— sale a un trozo común, `guardado-*.js` (1,73 kB y 0,46 kB de estilos). Ninguno de los
+tres se descarga al arrancar.
 
 | Trozo del arranque         |    Comprimido |
 | :------------------------- | ------------: |
 | `index-*.js`               |      72,21 kB |
-| `App-*.js`                 |     101,42 kB |
+| `App-*.js`                 |     101,50 kB |
 | `QueryClientProvider-*.js` |       0,26 kB |
 | `workbox-window`           |       2,20 kB |
 | Dos hojas de estilo        |       3,68 kB |
-| **Total**                  | **179,77 kB** |
+| **Total**                  | **179,85 kB** |
 
 La lista buena de trozos sale de `dist/index.html` y de las importaciones de `App-*.js`. En crudo,
-`precache 24 entries (702.21 KiB)`.
+`precache 28 entries (719.43 KiB)`.
 
 ---
 
 ## SIGUIENTE TAREA SUGERIDA
 
-**T-203**: competiciones y reglamento. **Antes, que Isaac confirme los valores del cadete** del DOC
-04 §4.2, porque de ellos sale la duración del partido y la validación de cambios del directo:
+**T-204**: calendario y alta de partido, incluido el partido a posteriori. Necesita la competición de
+esta tarea y los rivales de la A04. Lo que conviene tener antes:
 
-| Valor                  | Hoy en el DOC 04 | Qué confirmar                                                           |
-| :--------------------- | :--------------- | :---------------------------------------------------------------------- |
-| Partes × minutos       | 2 × 40           | Que siga siendo así esta temporada                                      |
-| Descanso               | 15 min           | —                                                                       |
-| Tipo de cambios        | Fijos            | Si son fijos o volantes, y si un jugador cambiado puede volver a entrar |
-| Cambios máximos        | 5                | El número de la federación para cadete                                  |
-| Convocados máximos     | 18               | —                                                                       |
-| Jugadores en el campo  | 11               | —                                                                       |
-| Amarillas para sanción | 5                | —                                                                       |
-
-Y el nombre de la liga tal como quiere verlo. Si no llega la respuesta, la T-203 arranca con estos
-valores, que se pueden cambiar en la A08 sin tocar código.
+- **El calendario de la Cadete Primera Tenerife G2**: rivales, jornadas, fechas y si se juega en
+  casa o fuera. No bloquea —cada partido se da de alta a mano—, pero con la lista delante se meten
+  los rivales en la A04 de una vez.
+- **El nombre del campo de casa**, tal como quiere verlo Isaac. `matches.venue` es texto libre.
+- **El punto 20** (referencias cruzadas entre clubes). La pantalla solo ofrecerá los rivales y las
+  competiciones del propio club, así que no puede mezclar clubes; lo que queda abierto es que la
+  base tampoco lo impida.
 
 ---
 
@@ -294,19 +309,18 @@ npm run test -- --run
 npm run build
 ```
 
-`npm run test -- --run` tiene que decir `Test Files 13 passed (13)` y `Tests 121 passed (121)`. El
+`npm run test -- --run` tiene que decir `Test Files 16 passed (16)` y `Tests 142 passed (142)`. El
 build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 **En el navegador, con `npm run dev` y la cuenta de Isaac o la tuya:**
 
-1. «Equipo» → «Plantilla» del Cadete A. Si el club no tiene temporada en curso, la pantalla lo dice:
-   entonces hay que crearla en la base antes de seguir.
-2. Añade «El Rubio» con el 7 y «Centrocampista». Sale en la lista en su sitio por dorsal.
-3. Añade otro con el 7: el aviso sale junto al dorsal y no se envía nada.
-4. «Editar» en El Rubio: márcalo «No disponible» y guarda. En la plantilla sale «No disponible».
-5. «Dar de baja» → «Sí, dar de baja a El Rubio». Vuelves a la plantilla y ya no está.
-6. En Supabase, `players`: la fila de El Rubio tiene `full_name`, `name_consent_at` y
-   `name_consent_note` vacíos.
+1. Abre `/competiciones`. Sin ninguna todavía, lo dice.
+2. «Crear competición»: «Cadete Primera Tenerife G2», tipo «Liga». Se abre su ficha con «Duración: 80
+   minutos de juego» y los cambios fijos marcados.
+3. Cambia los minutos por parte a 35: la duración pasa a 70 al momento. Déjalo en 40 y guarda.
+4. Vuelve a Competiciones: sale con «Liga · 2 × 40 min · 5 cambios fijos, sin reentrada · 18
+   convocados, 11 titulares».
+5. Intenta crear otra con el mismo nombre en minúsculas: el aviso sale junto al campo.
 
 **`npm run db:types` NO se lanza a la ligera.** Esta sesión no tocó el esquema.
 

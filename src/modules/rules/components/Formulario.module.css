@@ -1,0 +1,83 @@
+/* Piezas de formulario de la A08. Mismos tamaños que las de `core`: filas de
+   48 px (`--tap-min`) separadas por `--tap-gap`. */
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-inline-size: 36rem;
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Encabezado de cada bloque del reglamento. Es la `legend` de su fieldset:
+   el lector de pantalla la lee al entrar en cualquier campo de dentro. */
+.titulo {
+  margin-block-end: var(--space-2);
+  padding: 0;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+.grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tap-gap);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.leyenda {
+  margin-block-end: var(--space-1);
+  padding: 0;
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--tap-min);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.marca {
+  flex: 0 0 auto;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* Dos campos numéricos por fila cuando cabe; uno por fila a 320 px. */
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-4);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+/* La duración calculada: dato que se lee, no un control. */
+.duracion {
+  font-weight: var(--font-weight-semibold);
+}
+
+.fallo {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
