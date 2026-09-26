@@ -146,11 +146,7 @@ Pendiente de hacer:
 15. **Netlify tiene los despliegues PARADOS desde el 20/09** (DOC 10 §2.2). Fusionar a `main` no
     publica nada hasta reactivarlos a mano: ni la T-106, ni la T-107, ni la T-201 están en el sitio
     publicado.
-16. **`esErrorDeCliente` no reconoce un error de Supabase**, así que los 4xx se reintentan dos veces
-    en vez de rendirse a la primera. Se arregla con el «ayudante común» del DOC 06 §10.1, que
-    todavía no está completo ni tiene tarea asignada. **La T-203 muda a `shared/lib/guardado.ts`**
-    lo que ya había: `SIN_FILAS`, `mensajeDeErrorAlGuardar` y `limpiarTexto`. Falta envolver cada
-    `{ data, error }` y que `esErrorDeCliente` reconozca el error de Supabase.
+16. **Cerrado fuera de la cola** (`fix/platform-reintentos-4xx`). `esErrorDefinitivo`, en `shared/lib/guardado.ts`, reconoce el error de Supabase por su `status` HTTP o por su código de PostgreSQL. TanStack Query deja de reintentar lo que no se arregla repitiendo: un 4xx, `SIN_FILAS` o un código de PostgreSQL que no sea de conexión ni de sesión. Sí reintenta el 401, el 408 y el 429, los errores de red y los de clase 08, 53, 57, 58 y XX.
 17. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
     tabla `invitations` existe y no la usa ninguna pantalla. Es la T-301, y **la idea de Raúl de
     elegir equipo como seguidor al entrar se apunta aquí**: hace falta decidirla en el DOC 03,
