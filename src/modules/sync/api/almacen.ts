@@ -48,6 +48,40 @@ export async function encolarTrabajo(entrada: EntradaDeTrabajo): Promise<Trabajo
   return trabajo;
 }
 
+/**
+ * Mete varios trabajos en la cola y ejecuta `tambien` en la misma
+ * transacción de IndexedDB: o se guarda todo o no se guarda nada. Es lo que
+ * usa el directo para guardar su estado junto con las filas que genera, de
+ * forma que un cierre a mitad no deje una parte abierta en el móvil y sin
+ * encolar, ni al revés (T-207).
+ *
+ * `tambien` solo puede tocar Dexie: cualquier otra espera dentro de la
+ * transacción la cerraría antes de tiempo. Los trabajos llevan un
+ * milisegundo de diferencia para que su orden sea el de la lista.
+ */
+export async function encolarTrabajosJunto(
+  entradas: readonly EntradaDeTrabajo[],
+  tambien: () => Promise<void>,
+): Promise<Trabajo[]> {
+  const userId = await usuarioActual();
+
+  if (userId === null) {
+    throw new Error('Sin sesión: no se puede encolar.');
+  }
+
+  const ahora = Date.now();
+  const trabajos = entradas.map((entrada, orden) =>
+    crearTrabajo(entrada, { id: crypto.randomUUID(), userId, ahora: ahora + orden }),
+  );
+
+  await db.transaction('rw', db.tables, async () => {
+    await db.outbox.bulkAdd(trabajos);
+    await tambien();
+  });
+
+  return trabajos;
+}
+
 /** Cuántos trabajos siguen por enviar de esa persona. Para avisar antes de salir. */
 export async function contarPendientes(userId: string): Promise<number> {
   return (await almacenDexie.pendientes(userId)).length;

@@ -9,10 +9,11 @@
 // decide: se marca como interfaz normal y el anuncio se manda una sola vez
 // por la región de siempre.
 
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import { useAnnounce } from '@shared/hooks/announceContext';
+import { leerPartidoEnCurso, suscribirPartidoEnCurso } from '@shared/lib/partidoEnCurso';
 import { Button } from '@shared/ui/Button';
 
 import styles from './ActualizacionDisponible.module.css';
@@ -23,25 +24,24 @@ export function ActualizacionDisponible() {
     needRefresh: [hayVersionNueva, setHayVersionNueva],
     updateServiceWorker,
   } = useRegisterSW();
+  const partidoEnCurso = useSyncExternalStore(
+    suscribirPartidoEnCurso,
+    () => leerPartidoEnCurso(Date.now()) !== null,
+  );
 
   // Una vez, al aparecer, no en cada render: la dependencia es el propio
   // estado, así que solo dispara en el cambio de falso a cierto. `anunciar`
   // es estable —sale de un `useMemo` sin dependencias— y no vuelve a lanzarlo.
   useEffect(() => {
-    if (hayVersionNueva) {
+    if (hayVersionNueva && !partidoEnCurso) {
       anunciar('Hay una versión nueva disponible');
     }
-  }, [hayVersionNueva, anunciar]);
+  }, [hayVersionNueva, partidoEnCurso, anunciar]);
 
-  // PUNTO DE ENGANCHE DE LA T-207. La D06-14 dice que, con un partido en
-  // curso, el aviso se guarda y no se enseña hasta que el partido acabe. Hoy
-  // no existe el estado de partido, así que el aviso sale siempre, también en
-  // mitad del directo: es la deuda que deja esta tarea. Cuando la T-207 cree
-  // ese estado, esto pasa a ser
-  //     if (!hayVersionNueva || partidoEnCurso) return null;
-  // y no hace falta nada más: `needRefresh` se queda a cierto por su cuenta y
-  // la banda aparece sola al terminar el partido.
-  if (!hayVersionNueva) {
+  // D06-14: con un partido en curso en este dispositivo, el aviso se guarda
+  // y no se enseña. `needRefresh` se queda a cierto por su cuenta y la banda
+  // aparece sola cuando la A12 quita la marca al finalizar (T-207).
+  if (!hayVersionNueva || partidoEnCurso) {
     return null;
   }
 

@@ -11,9 +11,8 @@
 //
 // DE `players` SOLO SE LEE `nickname`, por la convocatoria.
 //
-// DEXIE NO VA EN EL ARRANQUE: este archivo solo se carga desde la ruta de la
-// convocatoria, en perezoso. El barril de `match` no lo exporta, porque la
-// A12 viaja en el paquete inicial (cabecera de `app/router.tsx`).
+// DEXIE NO VA EN EL ARRANQUE: este archivo solo se carga con las rutas de la
+// convocatoria y del directo, en perezoso (D06-26).
 
 import { db } from '@shared/lib/db';
 import { supabase } from '@shared/lib/supabase';
@@ -69,7 +68,7 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
       .eq('match_id', partidoId),
     supabase
       .from('match_periods')
-      .select('period_number, planned_seconds, actual_seconds, started_at, ended_at')
+      .select('id, period_number, planned_seconds, actual_seconds, started_at, ended_at')
       .eq('match_id', partidoId),
     supabase.from('match_events').select(COLUMNAS_EVENTO).eq('match_id', partidoId),
   ]);
@@ -109,6 +108,7 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
       position: linea.position,
     })),
     partes: (partes.data ?? []).map((parte) => ({
+      id: parte.id,
       periodNumber: parte.period_number,
       plannedSeconds: parte.planned_seconds,
       actualSeconds: parte.actual_seconds,
@@ -123,11 +123,20 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
  * Guarda el paquete en una sola transacción: o queda entero o no queda nada.
  * Los eventos del servidor entran como enviados; si había uno local con el
  * mismo `client_event_id`, es que llegó, y la copia del servidor manda.
+ *
+ * Conserva el estado del directo que hubiera guardado este aparato: refrescar
+ * la precarga no puede borrar una pausa ni una parte que el servidor aún no
+ * conoce. Qué estado manda lo decide `elegirEstado` al abrir el directo.
  */
 export async function guardarPaquete(paquete: PaqueteDePartido, ahora: number): Promise<void> {
-  const instantanea: Instantanea = { paquete, descargadoEn: ahora };
-
   await db.transaction('rw', db.matchSnapshots, db.matchEvents, async () => {
+    const anterior = await db.matchSnapshots.get(paquete.partido.id);
+    const estado = anterior === undefined ? undefined : (anterior.datos as Instantanea).estado;
+    const instantanea: Instantanea =
+      estado === undefined
+        ? { paquete, descargadoEn: ahora }
+        : { paquete, descargadoEn: ahora, estado };
+
     await db.matchSnapshots.put({
       matchId: paquete.partido.id,
       updatedAt: ahora,

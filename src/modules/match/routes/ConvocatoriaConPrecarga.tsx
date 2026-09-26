@@ -9,8 +9,7 @@
 // quede con la de antes. La pantalla ya ha navegado para entonces: si falla,
 // la siguiente entrada lo vuelve a intentar y el directo lo dirá.
 //
-// NO SALE POR EL BARRIL DE `match`, que va en el paquete inicial con la A12.
-// `app/router.tsx` la importa por ruta directa y en perezoso: arrastra Dexie.
+// Arrastra Dexie: el enrutador la carga en perezoso, por el barril de `match`.
 
 import { useParams } from 'react-router';
 

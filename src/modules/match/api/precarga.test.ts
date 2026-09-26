@@ -20,6 +20,7 @@ const red = vi.hoisted(() => ({
 }));
 
 const almacen = vi.hoisted(() => ({
+  anterior: undefined as unknown,
   snapshots: [] as unknown[],
   eventos: [] as unknown[],
   meta: [] as unknown[],
@@ -47,6 +48,7 @@ vi.mock('@shared/lib/supabase', () => ({
 vi.mock('@shared/lib/db', () => ({
   db: {
     matchSnapshots: {
+      get: () => Promise.resolve(almacen.anterior),
       put: (fila: unknown) => {
         almacen.snapshots.push(fila);
         return Promise.resolve();
@@ -118,6 +120,7 @@ beforeEach(() => {
     match_periods: {
       data: [
         {
+          id: 'parte-1',
           period_number: 1,
           planned_seconds: 2400,
           actual_seconds: null,
@@ -129,6 +132,7 @@ beforeEach(() => {
     },
     match_events: { data: [{ client_event_id: 'ce-1', period: 1 }], error: null },
   };
+  almacen.anterior = undefined;
   almacen.snapshots = [];
   almacen.eventos = [];
   almacen.meta = [];
@@ -161,6 +165,7 @@ describe('descargarPaquete', () => {
       ],
       partes: [
         {
+          id: 'parte-1',
           periodNumber: 1,
           plannedSeconds: 2400,
           actualSeconds: null,
@@ -216,6 +221,24 @@ describe('guardarPaquete', () => {
         period: 1,
         fila: { client_event_id: 'ce-1', period: 1 },
       },
+    ]);
+  });
+});
+
+describe('guardarPaquete con estado del directo', () => {
+  it('conserva el estado que había guardado este aparato', async () => {
+    const paquete: PaqueteDePartido = await descargarPaquete('par-1');
+    const estado = { partidoId: 'par-1', fase: 'pausado' };
+    almacen.anterior = {
+      matchId: 'par-1',
+      updatedAt: 1,
+      datos: { paquete, descargadoEn: 1, estado },
+    };
+
+    await guardarPaquete(paquete, 500);
+
+    expect(almacen.snapshots).toEqual([
+      { matchId: 'par-1', updatedAt: 500, datos: { paquete, descargadoEn: 500, estado } },
     ]);
   });
 });

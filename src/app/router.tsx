@@ -3,11 +3,12 @@
 // DIVISIÓN DEL PAQUETE. Cada pantalla de módulo entra con `lazy`, que descarga
 // su trozo cuando la ruta se activa y no antes.
 //
-// EXCEPCIÓN, A12: el partido en directo se importa aquí arriba, de forma
-// estática, y viaja en el paquete inicial. Se abre a pie de campo, con el móvil
-// sin cobertura y sin haber pasado antes por esa pantalla, así que un trozo
-// perezoso que no se llegó a descargar es una pantalla en blanco en mitad del
-// partido. Cuesta unos kilobytes en el arranque y los vale.
+// LA A12 TAMBIÉN, DESDE LA T-207 (DOC 13, punto 47; decisión de Raúl del
+// 26/09). Iba en el paquete inicial para abrir sin red sin haber pasado antes
+// por el directo, pero el service worker precachea todos los `.js`, perezosos
+// incluidos (`globPatterns` de `vite.config.ts`): tras la primera visita con
+// red, el trozo está en el móvil. Y el directo necesita Dexie, que no cabe en
+// el arranque (D06-26).
 //
 // Las rutas que pintan `PantallaPendiente` tampoco van perezosas: es un
 // componente compartido y diminuto, y partirlo no ahorra un byte.
@@ -26,7 +27,6 @@ import { RequirePermission } from '@app/guards/RequirePermission';
 import { AppLayout } from '@app/layouts/AppLayout';
 import { BareLayout } from '@app/layouts/BareLayout';
 import { FullScreenLayout } from '@app/layouts/FullScreenLayout';
-import { LiveMatchPage } from '@modules/match';
 
 /** Texto de las pantallas que se construyen después del MVP. */
 const TRAS_MVP = 'una tarea posterior al MVP';
@@ -182,12 +182,9 @@ export const router = createBrowserRouter([
                   {
                     path: 'partidos/:id/convocatoria',
                     // La A11 de `lineup` con la precarga del partido encima
-                    // (T-206). Por ruta directa y no por el barril de `match`,
-                    // que va en el paquete inicial con la A12: esta arrastra
-                    // Dexie, que no cabe en el arranque.
+                    // (T-206, D06-28). Sale de `match`, no de `lineup`.
                     lazy: async () => ({
-                      Component: (await import('@modules/match/routes/ConvocatoriaConPrecarga'))
-                        .ConvocatoriaConPrecarga,
+                      Component: (await import('@modules/match')).ConvocatoriaConPrecarga,
                     }),
                   },
                 ],
@@ -304,7 +301,14 @@ export const router = createBrowserRouter([
             children: [
               {
                 element: <RequirePermission permission="match.live.write" />,
-                children: [{ path: 'partidos/:id/directo', Component: LiveMatchPage }],
+                children: [
+                  {
+                    path: 'partidos/:id/directo',
+                    lazy: async () => ({
+                      Component: (await import('@modules/match')).LiveMatchPage,
+                    }),
+                  },
+                ],
               },
             ],
           },

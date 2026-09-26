@@ -5,6 +5,7 @@
 // y los eventos ya registrados. Del jugador, solo apodo, dorsal y posición:
 // la convocatoria es la de `lineup`, que no trae nada más.
 
+import type { EstadoDirecto } from './directo';
 import type { LineaGuardada } from '@modules/lineup';
 import type { Reglamento } from '@modules/rules';
 
@@ -24,6 +25,8 @@ export interface PartidoPrecargado {
 }
 
 export interface ParteDelPartido {
+  /** El `id` de `match_periods`: la clave para cerrarla. */
+  id: string;
   periodNumber: number;
   plannedSeconds: number;
   actualSeconds: number | null;
@@ -45,6 +48,8 @@ export interface PaqueteDePartido {
 export interface Instantanea {
   paquete: PaqueteDePartido;
   descargadoEn: number;
+  /** El estado del reductor del directo en este aparato (T-207). */
+  estado?: EstadoDirecto;
 }
 
 /** El resumen de una precarga para la interfaz. */
