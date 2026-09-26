@@ -31,7 +31,7 @@ function esFaltaDePermiso(error: unknown): boolean {
  *
  * Devuelve `false` en `marcado` cuando la convocatoria se guardó pero el
  * partido no cambió de estado: o ya había empezado, o falta `lineup.manage` en
- * el equipo del partido, que la guardia mira en el equipo activo (punto 32 del
+ * el equipo del partido, que la guardia mira en el equipo activo (punto 26 del
  * DOC 13). Cualquier otro fallo se lanza igual que el de la convocatoria, y
  * reintentar no duplica nada.
  */

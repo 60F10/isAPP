@@ -739,7 +739,7 @@ update public.clubs
  where name ilike '%tejina%';
 ```
 
-**Después de aplicarla:** `npm run db:types` para regenerar `src/types/database.types.ts` (con copia antes, punto 5 del DOC 13), relanzar el script de la T-105b y mirar el auditor. **El código que la aprovecha es la T-203b** del DOC 08: los cuatro campos de categoría en la A08 y el campo de casa propuesto desde `clubs` en la A10. Sin la migración, esa tarea no se puede empezar.
+**Después de aplicarla:** `npm run db:types` para regenerar `src/types/database.types.ts` (con copia antes, punto 3 del DOC 13), relanzar el script de la T-105b y mirar el auditor. **El código que la aprovecha es la T-203b** del DOC 08: los cuatro campos de categoría en la A08 y el campo de casa propuesto desde `clubs` en la A10. Sin la migración, esa tarea no se puede empezar.
 
 ### 14.5 Lo que dejó pendiente la T-205: 5a y 5b aplicadas el 26/09
 
@@ -885,9 +885,11 @@ Sesión de Cowork del 26/09/2026, sobre la base de producción, con el MCP de Su
 
 Con esto queda comprobado lo que el §14.5 dejaba en el aire: **un `upsert` dispara los dos disparadores de sentencia y cada uno ve sus filas en `nuevas`**.
 
-**Después.** El script de la T-105b, con `marcar_convocado` añadido a las funciones que se llaman sobre un partido ajeno: **SUPERADA, 168 comprobaciones, 0 fallos y los mismos 14 avisos** de siempre (punto 20 del DOC 13). `clubs`, `teams`, `team_members` y `auth.users` cuentan lo mismo antes y después (1, 1, 1 y 2). `check_squad_max`, `set_event_status` y `set_updated_at` se quedan en `postgres=X | service_role=X`; `marcar_convocado`, además, en `authenticated`. Los tipos de `src/types/database.types.ts` coinciden byte a byte con los que genera el MCP.
+**Después.** El script de la T-105b, con `marcar_convocado` añadido a las funciones que se llaman sobre un partido ajeno: **SUPERADA, 168 comprobaciones, 0 fallos y los mismos 14 avisos** de siempre (punto 17 del DOC 13). `clubs`, `teams`, `team_members` y `auth.users` cuentan lo mismo antes y después (1, 1, 1 y 2). `check_squad_max`, `set_event_status` y `set_updated_at` se quedan en `postgres=X | service_role=X`; `marcar_convocado`, además, en `authenticated`. Los tipos de `src/types/database.types.ts` coinciden byte a byte con los que genera el MCP.
 
 **El auditor suma un 0029, y es a propósito.** `marcar_convocado` es `SECURITY DEFINER` y la llama el cliente: necesita el `EXECUTE` de `authenticated`, como las once que ya lo marcaban (§14.3). Pasa de once a doce. Ningún hallazgo más.
+
+**Dos matices de `marcar_convocado` que salieron en la revisión.** Con un partido que no existe no devuelve `false`, como dice el comentario de la migración, sino que lanza 42501: `team_of_match` da nulo y no hay equipo en el que tener permiso. El cliente trata los dos casos igual, así que no cambia nada; el archivo se deja tal como se aplicó y el JSDoc de `marcarComoConvocado` dice lo que pasa de verdad. Y, a diferencia de `enforce_match_changes` o `set_event_status`, **sin sesión no deja pasar**: también lanza 42501. Es más estricto que el patrón del resto y no molesta, porque solo la llama el cliente.
 
 **La 5c se queda fuera.** Es opcional, la A11 ya lo impide, y una restricción de exclusión diferible cambia cuándo falla la escritura: con la A11 guardando en dos peticiones, cada una en su transacción, habría que probarla contra la pantalla de verdad, con un navegador, antes de meterla en producción. Si algún día se escribe en `match_squad` desde otro sitio, se retoma.
 

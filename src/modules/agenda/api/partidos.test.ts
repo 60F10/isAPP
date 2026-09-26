@@ -1,7 +1,7 @@
 // `marcarComoConvocado` llama a la función `marcar_convocado` de la base
 // (DOC 05 §14.5, pieza 5a) en vez de escribir en `matches`: así basta con
 // `lineup.manage`. Lo que se vigila: la llamada, que un `false` (partido ya
-// empezado o inexistente) salga como `SIN_FILAS`, igual que antes, y que el
+// empezado) salga como `SIN_FILAS`, igual que antes, y que el
 // error de la base, con su código, llegue tal cual al hook.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';

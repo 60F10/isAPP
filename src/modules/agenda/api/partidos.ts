@@ -168,8 +168,9 @@ export async function borrarPartido(partidoId: string): Promise<void> {
  * `schedule.manage`, `match.live.write` o `match.close`, y abrirla a quien
  * solo convoca le dejaría cambiar el resto del partido.
  *
- * Sin el permiso, la base responde con el código `42501`. Lanza `SIN_FILAS` si
- * la función no cambió nada: el partido ya empezó o no existe.
+ * Sin el permiso, la base responde con el código `42501`, y también con un
+ * partido que no existe, porque no tiene equipo en el que tener permiso. Lanza
+ * `SIN_FILAS` si la función no cambió nada: el partido ya había empezado.
  */
 export async function marcarComoConvocado(partidoId: string): Promise<void> {
   const { data, error } = await supabase.rpc('marcar_convocado', { p_match_id: partidoId });
