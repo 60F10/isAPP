@@ -198,9 +198,9 @@ export function separarCalendario<T extends Pick<Partido, 'status' | 'kickoffAt'
 }
 
 /**
- * El campo del partido en casa más reciente que lo tenga, para proponerlo en
- * el siguiente. El campo de casa no vive en `clubs` todavía (DOC 13): se
- * escribe una vez y a partir de ahí se propone solo.
+ * El campo del partido en casa más reciente que lo tenga. Desde la T-203b es
+ * solo el recambio de `campoDeCasaPropuesto`, para un club que no tenga
+ * rellenado su campo de casa.
  */
 export function ultimoCampoDeCasa(
   partidos: readonly Pick<Partido, 'isHome' | 'venue' | 'kickoffAt'>[],
@@ -216,6 +216,20 @@ export function ultimoCampoDeCasa(
   }
 
   return ultimo === null ? '' : ultimo.venue;
+}
+
+/**
+ * El campo que se propone en un partido en casa: el del club, que vive en
+ * `clubs.home_venue` desde el 26/09 (DOC 05 §14.4) y, si el club no lo tiene,
+ * el del último partido en casa que lo tuviera. Vacío si no hay ninguno.
+ */
+export function campoDeCasaPropuesto(
+  campoDelClub: string | null,
+  partidos: readonly Pick<Partido, 'isHome' | 'venue' | 'kickoffAt'>[],
+): string {
+  const delClub = campoDelClub === null ? '' : limpiarTexto(campoDelClub);
+
+  return delClub === '' ? ultimoCampoDeCasa(partidos) : delClub;
 }
 
 /** «Local – Visitante», como se lee en cualquier calendario. */

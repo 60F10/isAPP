@@ -117,7 +117,14 @@ beforeEach(() => {
 });
 
 describe('A03 · Club', () => {
-  const CLUB: Club = { id: 'club-1', name: 'C.D. Unión Tejina', shortName: null, crestUrl: null };
+  const CLUB: Club = {
+    id: 'club-1',
+    name: 'C.D. Unión Tejina',
+    shortName: null,
+    crestUrl: null,
+    homeVenue: 'Campo de Fútbol Izquierdo Rodríguez',
+    homeVenueAddress: 'Av. Milán, 27-29, 38260 La Laguna, Santa Cruz de Tenerife',
+  };
 
   it('carga el club del equipo activo y guarda el cambio limpio', async () => {
     api.fetchClub.mockResolvedValue(CLUB);

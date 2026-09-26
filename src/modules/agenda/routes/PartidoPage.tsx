@@ -7,9 +7,9 @@
 // El rival sale de los equipos de referencia del club (A04) y la competición,
 // de las de la temporada (A08). La pantalla no deja elegir nada de otro club.
 //
-// EL CAMPO. `clubs` no guarda todavía el campo de casa (DOC 13): en un partido
-// en casa se propone el del último partido en casa que lo tuviera. Se escribe
-// una vez y a partir de ahí sale solo.
+// EL CAMPO. En un partido en casa se propone el campo de casa del club, que
+// vive en `clubs.home_venue` desde el 26/09 (DOC 05 §14.4, T-203b). Si el club
+// no lo tiene rellenado, el del último partido en casa que lo tuviera.
 //
 // Se edita mientras el partido no ha empezado (DOC 04 §8.1), y solo se borra
 // si sigue programado: con convocatoria, borrarlo se la llevaría en cascada.
@@ -17,7 +17,7 @@
 import { useId, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { useEquipos } from '@modules/core';
+import { useClub, useEquipos } from '@modules/core';
 import { useCompeticiones } from '@modules/rules';
 import { useAnnounce } from '@shared/hooks/announceContext';
 import { mensajeDeErrorAlGuardar } from '@shared/lib/guardado';
@@ -36,12 +36,12 @@ import {
   usePartido,
 } from '../hooks/usePartidos';
 import {
+  campoDeCasaPropuesto,
   enfrentamiento,
   LARGO_CAMPO,
   NOMBRES_DE_ESTADO,
   partesDeInstante,
   sePuedeEditar,
-  ultimoCampoDeCasa,
   validarPartido,
 } from '../model/partido';
 
@@ -268,9 +268,13 @@ function useDatosDelFormulario() {
   const competiciones = useCompeticiones(clubId, temporadaId);
   const equipos = useEquipos(clubId);
   const calendario = useCalendario(equipoId, temporadaId);
+  // El club, por su campo de casa. Se espera a tenerlo: el formulario toma
+  // su valor inicial una sola vez y no lo cambiaría al llegar tarde.
+  const club = useClub(clubId);
 
-  const cargando = competiciones.isPending || equipos.isPending || calendario.isPending;
-  const error = competiciones.isError || equipos.isError || calendario.isError;
+  const cargando =
+    competiciones.isPending || equipos.isPending || calendario.isPending || club.isPending;
+  const error = competiciones.isError || equipos.isError || calendario.isError || club.isError;
 
   return {
     equipoId,
@@ -283,12 +287,13 @@ function useDatosDelFormulario() {
       void competiciones.refetch();
       void equipos.refetch();
       void calendario.refetch();
+      void club.refetch();
     },
     competiciones: (competiciones.data ?? []).map((c) => ({ id: c.id, nombre: c.name })),
     rivales: (equipos.data ?? [])
       .filter((equipo) => equipo.kind === 'reference')
       .map((equipo) => ({ id: equipo.id, nombre: equipo.name })),
-    campoDeCasa: ultimoCampoDeCasa(calendario.data ?? []),
+    campoDeCasa: campoDeCasaPropuesto(club.data?.homeVenue ?? null, calendario.data ?? []),
   };
 }
 

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   aInstante,
+  campoDeCasaPropuesto,
   enfrentamiento,
   LARGO_CAMPO,
   NOMBRES_DE_ESTADO,
@@ -145,6 +146,27 @@ describe('ultimoCampoDeCasa', () => {
 
   it('sin partidos en casa con campo, vacío', () => {
     expect(ultimoCampoDeCasa([])).toBe('');
+  });
+});
+
+describe('campoDeCasaPropuesto', () => {
+  const ANTERIOR = [
+    { isHome: true, venue: 'Campo Municipal', kickoffAt: new Date(2026, 8, 1).toISOString() },
+  ];
+
+  it('manda el campo de casa del club, limpio, aunque haya partidos anteriores', () => {
+    expect(campoDeCasaPropuesto('  Campo de Fútbol  Izquierdo Rodríguez ', ANTERIOR)).toBe(
+      'Campo de Fútbol Izquierdo Rodríguez',
+    );
+  });
+
+  it('sin campo en el club, el del último partido en casa', () => {
+    expect(campoDeCasaPropuesto(null, ANTERIOR)).toBe('Campo Municipal');
+    expect(campoDeCasaPropuesto('   ', ANTERIOR)).toBe('Campo Municipal');
+  });
+
+  it('sin ninguno de los dos, vacío', () => {
+    expect(campoDeCasaPropuesto(null, [])).toBe('');
   });
 });
 
