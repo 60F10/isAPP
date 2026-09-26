@@ -1,6 +1,6 @@
 # DOC 10 — Entornos y despliegue
 
-> **Versión:** 0.5 — 26/09/2026 (§2.1 y §2.2: pre en `main`, pro en `release` y los créditos de Netlify, decisión de Raúl) · 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
+> **Versión:** 0.6 — 26/09/2026 (§2.2: pre no compiló con la primera fusión; §2.1: el patrón del §4.5 ya cubre pre) · 0.5 — 26/09/2026 (§2.1 y §2.2: pre en `main`, pro en `release` y los créditos de Netlify, decisión de Raúl) · 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
 > **Depende de:** DOC 05 (modelo de datos), DOC 06 (arquitectura frontend), DOC 15 (convenciones de Git)
 >
 > Esta versión registra **la configuración real de los servicios externos** tal como quedó al montar Supabase. El resto del documento —deploy previews, checklist de publicación, procedimiento de vuelta atrás— está por escribir; ver §7.
@@ -38,7 +38,7 @@ Todo dentro del presupuesto de 0 € del proyecto. La región de Supabase es Irl
 
 **Publicar es un avance rápido.** `release` no recibe commits propios: siempre va por detrás de `main` o igual, y `git push origin main:release` la adelanta hasta `main`. Si Git lo rechaza por no ser avance rápido, alguien ha escrito en `release`, y hay que mirarlo antes de forzar nada. **La rama `release` es permanente**: ni se borra, ni se le abre pull request, ni la tocan las sesiones de Claude.
 
-**Con 300 créditos salen, como mucho, veinte publicaciones al mes.** Pre es gratis: lo que se quiera probar en el móvil antes de publicar se prueba en `main--gavetastats`, que tiene HTTPS y deja probar la PWA de verdad (service worker, instalación, sin conexión). El inicio de sesión con Google en pre necesita la URL de pre en la lista de redirecciones de Supabase (§4.5).
+**Con 300 créditos salen, como mucho, veinte publicaciones al mes.** Pre es gratis: lo que se quiera probar en el móvil antes de publicar se prueba en `main--gavetastats`, que tiene HTTPS y deja probar la PWA de verdad (service worker, instalación, sin conexión). El inicio de sesión con Google en pre lo cubre el patrón `https://*--gavetastats.netlify.app/**` del §4.5, si sigue en el panel de Supabase (DOC 13).
 
 Lo que tiene que estar así en el panel de Netlify para que el modelo funcione: **rama de producción `release`**, despliegues de rama activos para `main` y vistas previas de pull request activas.
 
@@ -74,7 +74,9 @@ De las diez compilaciones de las sesiones del 14 y el 18 de septiembre, **cuatro
 
 1. El registro del despliegue en Netlify. «Build cancelled» con el motivo del `ignore` quiere decir que alguien ha metido en una carpeta excluida un archivo que sí acaba en `dist/`.
 2. _Project configuration → Developer settings → Continuous deployment → Build settings_: **Build status** tiene que estar en **Active builds**. Con **Stopped builds**, Netlify no compila nada, ni producción, ni vistas previas, ni despliegues de rama. Estuvo así desde el 20/09 para no gastar en compilaciones que no publicaban; con el modelo de créditos ya no hace falta.
-3. Si la cuenta, sin créditos, para también los despliegues de rama. Está sin comprobar: lo dirá la primera fusión con los builds activos.
+3. La rama de producción y los despliegues de rama del panel: producción tiene que ser `release`, y `main` tiene que tener despliegue de rama.
+
+**Lo que pasó con la primera fusión del modelo, la #53, el 26/09 por la noche.** Los builds están activos: Netlify compiló la vista previa de la PR, y `deploy-preview-53--gavetastats.netlify.app` servía el build nuevo. Pero **no compiló `main`**: el commit de la fusión no tiene ningún estado de Netlify y `main--gavetastats` seguía con el build viejo. Lo más probable es el punto 3: que la rama de producción siga siendo `main`, parada por los créditos, y que `main` no tenga despliegue de rama. Desde las sesiones programadas no se ve el panel. Se arregla ahí, y lo hace Raúl.
 
 **Reactivar los builds no lanza ninguna compilación por sí solo**: hace falta un push después.
 

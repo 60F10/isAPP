@@ -82,7 +82,9 @@ entra antes del primer partido lo decide Raúl.
 
 ## PENDIENTE DE LA TAREA
 
-Nada. La comprobación de pre tras fusionar va en el informe de la sesión y en `_cola\REGISTRO.md`.
+Nada de código. **Pre no se actualizó al fusionar la #53** (punto 13): lo arregla Raúl en el
+panel de Netlify. La comprobación y lo que se corrigió después van en la PR #54, solo de
+documentación.
 
 ---
 
@@ -145,8 +147,15 @@ Pendiente de hacer:
     `https://gavetastats.netlify.app`, y **publica solo Raúl** con `git push origin main:release`.
     Cada publicación cuesta 15 de los 300 créditos del mes. En pro no hay nada desde la T-106. La
     base ya tiene las migraciones del 26/09 y no rompe lo publicado: las columnas nuevas son
-    nulables y lo que hay en el sitio no crea equipos, ni convoca, ni registra eventos. Si pre no
-    enseña una fusión, el DOC 10 §2.2 dice dónde mirar.
+    nulables y lo que hay en el sitio no crea equipos, ni convoca, ni registra eventos.
+    **Comprobado tras fusionar la #53, el 26/09 por la noche: Netlify no compiló `main`.** La vista
+    previa de la PR sí se compiló (`deploy-preview-53--gavetastats.netlify.app` sirve el build
+    nuevo, con su `App-*.js`), así que los builds están activos. Pero el commit de `main` no tiene
+    ningún estado de Netlify, y `main--gavetastats` sigue sirviendo el build viejo
+    (`index-jOB7hSkO.js`), el mismo que producción. Lo más probable es que en el panel la rama de
+    producción siga siendo `main`, parada por los créditos, y que no haya despliegues de rama para
+    ella. **Lo arregla Raúl en el panel** (DOC 10 §2.1: rama de producción `release`, despliegues de
+    rama para `main`). Mientras, cada PR tiene su vista previa, que no gasta créditos.
 14. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
     tabla `invitations` existe y no la usa ninguna pantalla. Es la T-301, y **la idea de Raúl de
     elegir equipo como seguidor al entrar se apunta aquí**: hace falta decidirla en el DOC 03,
@@ -282,9 +291,12 @@ Pendiente de hacer:
     Tejina está relleno en la base; un club nuevo lo tendría vacío, y la A10 caería al recambio del
     último partido en casa. Salida: los dos campos en la A03, solo frontend, con la misma
     actualización que ya cambia el nombre del club.
-52. **El inicio de sesión con Google en pre necesita que Raúl añada la URL de pre a Supabase**
-    (DOC 10 §4.5): `https://main--gavetastats.netlify.app/**` en las URL de redirección permitidas.
-    Sin eso, pre carga, pero no deja entrar. Las sesiones programadas no lo tocan.
+52. **El inicio de sesión con Google en pre, sin comprobar.** La cola decía que Raúl tiene que
+    añadir la URL de pre a Supabase, pero el DOC 10 §4.5 ya registra el patrón
+    `https://*--gavetastats.netlify.app/**` entre las URL de redirección, que cubre
+    `main--gavetastats` y las vistas previas. **Mirar el panel antes de tocar nada**: si el patrón
+    está, no hay que añadir nada; si no, se añade `https://main--gavetastats.netlify.app/**`. Las
+    sesiones programadas no lo tocan.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
@@ -323,8 +335,8 @@ tamaños que da Vite en Windows. El CI da la cifra de referencia. En crudo, `pre
    con un anotador; no hay cierre (T-210) ni varios anotadores (T-209). Lo que no se siga en
    directo se puede meter en diferido (D5).
 2. **La hora del partido**, para meterlo en la A10.
-3. **Publicar en pro** cuando vuelvan los créditos: `git push origin main:release`. Hasta entonces,
-   probar en pre, con la URL de pre dada de alta en Supabase (punto 52).
+3. **Poner pre en marcha en el panel de Netlify** (punto 13) y mirar la URL de pre en Supabase
+   (punto 52). **Publicar en pro** cuando vuelvan los créditos: `git push origin main:release`.
 
 **Siguiente tarea de código: T-209** (sesión y media), varios anotadores. Hereda los puntos 39 y 46. Es la ruta crítica del directo antes de la prueba de campo (T-302), que el DOC 08 pide antes del
 18 de octubre.
@@ -349,7 +361,7 @@ npm run build
 `npm run test -- --run` tiene que decir `Test Files 40 passed (40)` y `Tests 378 passed (378)`. El
 build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
-**En pre** (`https://main--gavetastats.netlify.app`, con la URL dada de alta en Supabase) **o con
+**En pre** (`https://main--gavetastats.netlify.app`, cuando compile: punto 13) **o con
 `npm run dev`, tu cuenta y la temporada en curso:**
 
 1. En Competiciones, crea «Cadete Primera Tenerife G2» con categoría «Cadete», nivel «Primera»,
@@ -377,4 +389,4 @@ identificador, apodo y dorsal: ninguna consulta nueva toca `players`.
 
 El aviso de Chrome autorrellenando el panel de Google en Supabase sigue vigente: al abrir el panel
 del proveedor de Google, Chrome rellena «Client IDs» y «Client Secret»; **vacía los dos campos
-antes de tocar nada.** Vale también al añadir la URL de pre (punto 52).
+antes de tocar nada.** Vale también al mirar las URL de redirección (punto 52).
