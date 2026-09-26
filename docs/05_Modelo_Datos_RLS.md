@@ -1,9 +1,9 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
-> **Anexo:** `supabase/migrations/` — cinco archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
+> **Anexo:** `supabase/migrations/` — ocho archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
 
 ---
 
@@ -115,13 +115,15 @@ Una fila nace sola con cada alta, mediante un disparador sobre `auth.users`.
 
 ### 5.2 `clubs`
 
-| Columna      | Tipo    | Notas                    |
-| :----------- | :------ | :----------------------- |
-| `id`         | uuid PK | —                        |
-| `name`       | text    | —                        |
-| `short_name` | text    | Para cabeceras estrechas |
-| `crest_url`  | text    | Ruta en Storage          |
-| `created_by` | uuid    | → `profiles`             |
+| Columna              | Tipo    | Notas                                                |
+| :------------------- | :------ | :--------------------------------------------------- |
+| `id`                 | uuid PK | —                                                    |
+| `name`               | text    | —                                                    |
+| `short_name`         | text    | Para cabeceras estrechas                             |
+| `crest_url`          | text    | Ruta en Storage                                      |
+| `home_venue`         | text    | Campo de casa. Nulable. Desde el §14.4               |
+| `home_venue_address` | text    | Dirección del campo de casa. Nulable. Desde el §14.4 |
+| `created_by`         | uuid    | → `profiles`                                         |
 
 ### 5.3 `seasons`
 
@@ -251,10 +253,14 @@ El dorsal vive aquí y no en el jugador: cambia de temporada en temporada y las 
 | `yellow_cards_for_ban`  | smallint          | 5                |
 | `red_card_default_bans` | smallint          | 1                |
 | `enabled_event_types`   | event_type[]      | Los once del MVP |
+| `category`              | text              | Nulo. `Cadete`   |
+| `level`                 | text              | Nulo. `Primera`  |
+| `scope`                 | text              | Nulo. `Tenerife` |
+| `group_label`           | text              | Nulo. `G2`       |
 
 Todo el reglamento del DOC 04 §4.1 en columnas explícitas y no en un JSON. Así se validan con restricciones y se consultan sin desempaquetar nada.
 
-**Dos huecos que destapó la T-203.** No hay columnas de **categoría, nivel, ámbito ni grupo**: la federación nombra las ligas así («Cadete Primera Tenerife G2») y hoy todo va en `name`. Y **no hay unicidad de nombre** por club y temporada: la pantalla lo comprueba, la base no. Las salidas, en el DOC 13.
+**Dos huecos que destapó la T-203.** No hay columnas de **categoría, nivel, ámbito ni grupo**: la federación nombra las ligas así («Cadete Primera Tenerife G2») y hoy todo va en `name`. Y **no hay unicidad de nombre** por club y temporada: la pantalla lo comprueba, la base no. **Los dos, cerrados el 26/09** con la migración del §14.4: las cuatro columnas de arriba y el índice único `competitions_name_unique` sobre `(club_id, season_id, lower(name))`. La A08 las usará con la T-203b.
 
 ---
 
@@ -538,7 +544,7 @@ Todas se declaran `stable` y con `search_path` fijado a `public`. Lo primero per
 | `audit_log`               | `members.manage` del club                                                  | Nadie. Solo los disparadores                                                                       |
 | `error_logs`              | Administrador de la plataforma                                             | Cualquiera autenticado puede insertar los suyos                                                    |
 
-**Ojo, que la tabla y la base no dicen lo mismo en `teams` (hallazgo de la T-201).** La tabla pide `team.manage` para escribir, y eso es lo que hace `teams_update`. Pero `teams_insert` solo pide `is_club_member(club_id)`: cualquier miembro activo de algún equipo del club, también un anotador o un espectador, puede dar de alta equipos llamando a la API. La interfaz solo enseña el alta a quien tiene `team.manage`. Cerrarlo es una línea en la próxima migración de permisos; está en el DOC 13.
+**Ojo, que la tabla y la base no dicen lo mismo en `teams` (hallazgo de la T-201).** La tabla pide `team.manage` para escribir, y eso es lo que hace `teams_update`. Pero `teams_insert` solo pide `is_club_member(club_id)`: cualquier miembro activo de algún equipo del club, también un anotador o un espectador, puede dar de alta equipos llamando a la API. La interfaz solo enseña el alta a quien tiene `team.manage`. **Cerrado el 26/09** con la migración del §14.4: `teams_insert` pide ya `has_club_permission(club_id, 'team.manage')`.
 
 Dos reglas merecen atención:
 
@@ -599,16 +605,18 @@ Todo cambio de esquema entra como archivo de migración numerado en `supabase/mi
 
 **Nombres de archivo: marca de tiempo, no número correlativo.** El CLI de Supabase deriva la versión de la migración del prefijo del nombre, y el historial remoto guarda esa misma versión. Si los dos no coinciden, `supabase db push` da por aplicar migraciones que ya están dentro e intenta repetirlas.
 
-| Archivo                                                | Versión registrada | Qué hace                                                                           |
-| :----------------------------------------------------- | :----------------- | :--------------------------------------------------------------------------------- |
-| `20260911213846_initial_schema.sql`                    | `20260911213846`   | Esquema inicial: el anexo de este documento                                        |
-| `20260911214032_hardening_rls_y_permisos.sql`          | `20260911214032`   | Endurecimiento tras el primer auditor (ver más abajo)                              |
-| `20260912142001_permiso_event_approve.sql`             | `20260912142001`   | Valor `event.approve` en `app_permission`                                          |
-| `20260912142131_correcciones_auditoria.sql`            | `20260912142131`   | Correcciones de la auditoría del 12/09 (§14.2)                                     |
-| `20260919040657_endurecimiento_permisos_funciones.sql` | `20260919040657`   | Endurecimiento de permisos sobre funciones (§14.3)                                 |
-| `20260925182524_guarda_permiso_funciones_partido.sql`  | `20260925182524`   | Guarda de permiso en `rebuild_match_stints` y `flag_duplicate_candidates` (T-105b) |
+| Archivo                                                      | Versión registrada | Qué hace                                                                                  |
+| :----------------------------------------------------------- | :----------------- | :---------------------------------------------------------------------------------------- |
+| `20260911213846_initial_schema.sql`                          | `20260911213846`   | Esquema inicial: el anexo de este documento                                               |
+| `20260911214032_hardening_rls_y_permisos.sql`                | `20260911214032`   | Endurecimiento tras el primer auditor (ver más abajo)                                     |
+| `20260912142001_permiso_event_approve.sql`                   | `20260912142001`   | Valor `event.approve` en `app_permission`                                                 |
+| `20260912142131_correcciones_auditoria.sql`                  | `20260912142131`   | Correcciones de la auditoría del 12/09 (§14.2)                                            |
+| `20260919040657_endurecimiento_permisos_funciones.sql`       | `20260919040657`   | Endurecimiento de permisos sobre funciones (§14.3)                                        |
+| `20260925182524_guarda_permiso_funciones_partido.sql`        | `20260925182524`   | Guarda de permiso en `rebuild_match_stints` y `flag_duplicate_candidates` (T-105b)        |
+| `20260926150907_competiciones_categoria_y_campo_de_casa.sql` | `20260926150907`   | Categoría de la competición, nombre único, campo de casa y dos permisos (§14.4)           |
+| `20260926150926_guardas_convocatoria_y_estado_evento.sql`    | `20260926150926`   | `marcar_convocado()`, máximo de convocados y estado del evento en la base (§14.5 y §14.6) |
 
-Las seis están aplicadas al proyecto GavetaStats: las dos primeras desde el 11/09/2026, las dos del 12/09 en la T-100b, la del 19/09 fuera de tarea, como deuda arrastrada, y la del 25/09 en la T-105b. Las versiones registradas en el historial remoto coinciden con los prefijos de los archivos.
+Las ocho están aplicadas al proyecto GavetaStats: las dos primeras desde el 11/09/2026, las dos del 12/09 en la T-100b, la del 19/09 fuera de tarea, como deuda arrastrada, la del 25/09 en la T-105b y las dos del 26/09 en una sesión de Cowork (§14.7). Las versiones registradas en el historial remoto coinciden con los prefijos de los archivos.
 
 Las migraciones siguientes las crea el propio CLI con `supabase migration new <nombre>`, que pone la marca de tiempo sola. **Nunca renombres una migración ya aplicada**: el historial remoto dejaría de encontrarla.
 
@@ -666,13 +674,13 @@ No sale de ninguna tarea del DOC 08: son los puntos 3 y 4 de «lo que sigue abie
 
 **Lo que el aviso 0029 sigue marcando se queda a propósito.** Las once funciones que quedan —`can_read_club`, `can_read_team`, `has_club_permission`, `has_team_permission`, `is_club_member`, `is_platform_admin`, `is_team_follower`, `is_team_member`, `team_of_match`, `rebuild_match_stints` y `flag_duplicate_candidates`— necesitan ese `EXECUTE`: las llaman las políticas RLS y el cliente. Ahí el aviso es informativo.
 
-**Queda una línea pendiente.** `set_updated_at()` es la octava función de disparador y arrastra el mismo `EXECUTE` de `authenticated` que sobra. No entró aquí porque el auditor no la marca —es `SECURITY INVOKER`, así que llamarla a mano no salta la RLS— y porque el alcance eran los siete del DOC 13. Entra en la próxima migración que toque permisos.
+**Queda una línea pendiente.** `set_updated_at()` es la octava función de disparador y arrastra el mismo `EXECUTE` de `authenticated` que sobra. No entró aquí porque el auditor no la marca —es `SECURITY INVOKER`, así que llamarla a mano no salta la RLS— y porque el alcance eran los siete del DOC 13. **Cerrada el 26/09** con la pieza 4b del §14.4.
 
 **Si Supabase recrea `rls_auto_enable()` con `DROP` + `CREATE`, el permiso de PUBLIC vuelve** y el aviso 0028 con él. `CREATE OR REPLACE` conserva la ACL; un `DROP` no. Merece una mirada al auditor después de cada actualización de la plataforma.
 
-### 14.4 La próxima migración, para una sesión de Cowork
+### 14.4 Categoría, nombre único y campo de casa: aplicada el 26/09
 
-Decidida por Raúl el 26/09/2026, tras la T-203. **Todavía no está aplicada**: las sesiones en la nube no tienen acceso a la base, y esto lo hace una sesión de Cowork con el MCP de Supabase. Es una sola migración, `…_competiciones_categoria_y_campo_de_casa.sql`, con cuatro piezas y ninguna de ellas destructiva.
+Decidida por Raúl el 26/09/2026, tras la T-203. **Aplicada ese mismo día en una sesión de Cowork**, como `20260926150907_competiciones_categoria_y_campo_de_casa.sql`, con el borrador de abajo tal cual y dos retoques: comentarios en las seis columnas nuevas, y el `revoke` de la pieza 4b también de `public` y `anon` (regla del §14.1). El campo de casa del C.D. Unión Tejina ya está en su fila. Lo que se midió, en el §14.7. Cuatro piezas, ninguna destructiva.
 
 | Pieza                                                  | Qué hace                                                                                       | Origen                                |
 | :----------------------------------------------------- | :--------------------------------------------------------------------------------------------- | :------------------------------------ |
@@ -733,9 +741,9 @@ update public.clubs
 
 **Después de aplicarla:** `npm run db:types` para regenerar `src/types/database.types.ts` (con copia antes, punto 5 del DOC 13), relanzar el script de la T-105b y mirar el auditor. **El código que la aprovecha es la T-203b** del DOC 08: los cuatro campos de categoría en la A08 y el campo de casa propuesto desde `clubs` en la A10. Sin la migración, esa tarea no se puede empezar.
 
-### 14.5 Lo que deja pendiente la T-205, para la misma sesión de Cowork
+### 14.5 Lo que dejó pendiente la T-205: 5a y 5b aplicadas el 26/09
 
-Hallazgos al escribir la A11 (26/09/2026). **Ninguno está aplicado** y ninguno bloquea la pantalla: la A11 funciona sin ellos y dice lo que no puede hacer. Pueden ir en la misma migración del §14.4 o en una aparte.
+Hallazgos al escribir la A11 (26/09/2026). **La 5a y la 5b están aplicadas** desde el 26/09, en `20260926150926_guardas_convocatoria_y_estado_evento.sql`, junto con el §14.6. **La 5c queda fuera** (§14.7). Una diferencia con el borrador de abajo: `marcar_convocado()` devuelve `boolean` —`true` si cambió el partido— en vez de lanzar un error cuando ya ha empezado, para que `marcarComoConvocado` conserve su contrato (`SIN_FILAS`) sin distinguir errores por el texto. `check_squad_max()` lanza con el código `check_violation` (23514).
 
 | Pieza                                               | Qué pasa hoy                                                                                                                                                                              | Propuesta                                                                                                                                     |
 | :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -813,11 +821,11 @@ revoke execute on function public.check_squad_max() from public, anon, authentic
 
 Un `upsert` de PostgREST es un `insert … on conflict do update`: dispara el de `insert`, y también el de `update` si actualiza alguna fila. Hay que comprobar en la sesión que los dos ven sus filas en `nuevas`. **Después**, igual que el §14.4: `npm run db:types` con copia antes, el script de la T-105b y el auditor.
 
-### 14.6 Lo que deja pendiente la T-208: el estado del evento lo pone la base
+### 14.6 Lo que dejó pendiente la T-208: el estado del evento lo pone la base
 
-Hallazgo al escribir la botonera (26/09/2026). **No está aplicado.**
+Hallazgo al escribir la botonera (26/09/2026). **Aplicado el 26/09**, con el SQL de abajo tal cual, en la misma migración que la 5a y la 5b.
 
-El DOC 04 §8.3 dice que quien tiene `event.approve` registra eventos que nacen `approved` y todos los demás `pending`. **La base no lo impone**: `match_events_insert` solo comprueba `created_by = auth.uid()` y `match.live.write`, y `status` llega tal cual. Hoy la A12 manda `approved` solo a quien tiene el permiso, pero un cliente modificado, o un error en la pantalla, podría meter eventos aprobados sin tenerlo, y esos cuentan en las estadísticas sin pasar por nadie.
+El DOC 04 §8.3 dice que quien tiene `event.approve` registra eventos que nacen `approved` y todos los demás `pending`. **La base no lo imponía**: `match_events_insert` solo comprueba `created_by = auth.uid()` y `match.live.write`, y `status` llegaba tal cual. La A12 manda `approved` solo a quien tiene el permiso, pero un cliente modificado, o un error en la pantalla, podría meter eventos aprobados sin tenerlo, y esos cuentan en las estadísticas sin pasar por nadie.
 
 Propuesta: un disparador `before insert` que fije el estado según el permiso, sin mirar lo que llega.
 
@@ -851,6 +859,37 @@ revoke execute on function public.set_event_status() from public, anon, authenti
 ```
 
 La A12 no cambia: sigue mandando el mismo `status`, y la base pasa a ser la que manda. **Después**, igual que el §14.4: `npm run db:types`, el script de la T-105b y el auditor.
+
+### 14.7 Lo que se midió al aplicar el §14.4, el §14.5 y el §14.6
+
+Sesión de Cowork del 26/09/2026, sobre la base de producción, con el MCP de Supabase. Dos migraciones, cada una en su transacción: la del §14.4 y otra con el §14.5 y el §14.6.
+
+**Antes.** Ninguna competición con nombre repetido (la tabla estaba vacía: el Cadete A aún no tiene competiciones dadas de alta), una sola fila de club que casa con «tejina», y el auditor con los hallazgos de siempre: `btree_gist` en `public`, once 0029 y la protección de contraseñas filtradas apagada.
+
+**Pruebas funcionales, en una transacción que termina en error y lo deshace todo.** Tres usuarios sintéticos por la RLS (`set local role authenticated` y su `sub`): U con `lineup.manage` y `match.live.write`, V con `match.live.write` y `event.approve`, W con `team.manage`. Resultado, todo como se esperaba:
+
+| Comprobación                                                              | Resultado                             |
+| :------------------------------------------------------------------------ | :------------------------------------ |
+| Competición con el mismo nombre en otras mayúsculas                       | Rechazada, 23505                      |
+| Guardar la convocatoria como la A11 (dos `upsert`), 5 de 5 convocados     | Pasa                                  |
+| Sexto convocado por `upsert` de todas, por `upsert` de una y por `update` | Rechazado, 23514, en los tres caminos |
+| Cambiar uno por otro con la convocatoria llena, en un solo `upsert`       | Pasa                                  |
+| `marcar_convocado` de U, dos veces                                        | `true` y `true`; el partido, `called` |
+| `marcar_convocado` con el partido en juego                                | `false`, sin tocarlo                  |
+| `marcar_convocado` de V, sin `lineup.manage`                              | Rechazado, 42501                      |
+| Evento de U mandado `approved`                                            | Entra `pending`                       |
+| Evento de V mandado `pending`                                             | Entra `approved`                      |
+| Evento sin sesión mandado `approved`                                      | Se respeta                            |
+| Equipo nuevo de U, sin `team.manage`                                      | Rechazado, 42501                      |
+| Equipo nuevo de W, con `team.manage`                                      | Pasa                                  |
+
+Con esto queda comprobado lo que el §14.5 dejaba en el aire: **un `upsert` dispara los dos disparadores de sentencia y cada uno ve sus filas en `nuevas`**.
+
+**Después.** El script de la T-105b, con `marcar_convocado` añadido a las funciones que se llaman sobre un partido ajeno: **SUPERADA, 168 comprobaciones, 0 fallos y los mismos 14 avisos** de siempre (punto 20 del DOC 13). `clubs`, `teams`, `team_members` y `auth.users` cuentan lo mismo antes y después (1, 1, 1 y 2). `check_squad_max`, `set_event_status` y `set_updated_at` se quedan en `postgres=X | service_role=X`; `marcar_convocado`, además, en `authenticated`. Los tipos de `src/types/database.types.ts` coinciden byte a byte con los que genera el MCP.
+
+**El auditor suma un 0029, y es a propósito.** `marcar_convocado` es `SECURITY DEFINER` y la llama el cliente: necesita el `EXECUTE` de `authenticated`, como las once que ya lo marcaban (§14.3). Pasa de once a doce. Ningún hallazgo más.
+
+**La 5c se queda fuera.** Es opcional, la A11 ya lo impide, y una restricción de exclusión diferible cambia cuándo falla la escritura: con la A11 guardando en dos peticiones, cada una en su transacción, habría que probarla contra la pantalla de verdad, con un navegador, antes de meterla en producción. Si algún día se escribe en `match_squad` desde otro sitio, se retoma.
 
 ---
 
