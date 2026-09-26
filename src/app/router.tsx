@@ -181,7 +181,9 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'partidos/:id/convocatoria',
-                    element: <PantallaPendiente id="A11" titulo="Convocatoria" tarea="T-205" />,
+                    lazy: async () => ({
+                      Component: (await import('@modules/lineup')).ConvocatoriaPage,
+                    }),
                   },
                 ],
               },

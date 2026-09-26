@@ -43,10 +43,12 @@ export function useCompeticiones(clubId: string | null, temporadaId: string | nu
   });
 }
 
+/** Con `competicionId` vacío la consulta espera: la convocatoria no lo sabe hasta leer el partido. */
 export function useCompeticion(competicionId: string) {
   return useQuery({
     queryKey: rulesKeys.competicion(competicionId),
     queryFn: () => fetchCompeticion(competicionId),
+    enabled: competicionId !== '',
   });
 }
 

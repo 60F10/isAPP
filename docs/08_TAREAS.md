@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 2.3 — 26/09/2026 (T-204 cerrada; nace la T-203b) · 2.2 — 26/09/2026 (T-203 cerrada) · 2.1 — 26/09/2026 (T-202 cerrada) · 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
+> **Versión:** 2.4 — 26/09/2026 (T-205 cerrada) · 2.3 — 26/09/2026 (T-204 cerrada; nace la T-203b) · 2.2 — 26/09/2026 (T-203 cerrada) · 2.1 — 26/09/2026 (T-202 cerrada) · 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -106,7 +106,7 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 | **T-203**  | Competiciones y reglamento: duración de partes, jugadores en campo, `enabled_event_types`            | A08       | T-201      | 1        | `feat/rules-competiciones`     | ✅     |
 | **T-203b** | Categoría de la competición en columnas y campo de casa del club, tras la migración del DOC 05 §14.4 | A08, A10  | T-204      | 0,5      | `feat/rules-categoria-y-campo` | ⬜     |
 | **T-204**  | Calendario y alta de partido, incluido el partido a posteriori                                       | A09, A10  | T-203      | 1        | `feat/agenda-calendario`       | ✅     |
-| **T-205**  | Convocatoria y alineación inicial                                                                    | A11       | T-204      | 1        | `feat/lineup-convocatoria`     | ⬜     |
+| **T-205**  | Convocatoria y alineación inicial                                                                    | A11       | T-204      | 1        | `feat/lineup-convocatoria`     | ✅     |
 | **T-206**  | Capa offline: Dexie, precarga del partido y cola de salida con reintento e idempotencia              | C04       | T-205      | 2        | `feat/sync-cola-offline`       | ⬜     |
 | **T-207**  | Directo, esqueleto: reloj, partes, marcador, tramos y bloqueo de pantalla                            | A12       | T-206      | 2        | `feat/match-directo-reloj`     | ⬜     |
 | **T-208**  | Directo, registro: botonera de eventos, ficha de jugador, háptica y confirmación de 2 s              | A12       | T-207      | 2        | `feat/match-directo-botonera`  | ⬜     |
@@ -121,6 +121,8 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 **La T-203, cerrada el 26/09.** A08 lista las competiciones del club en la temporada en curso, las da de alta con el reglamento del cadete que Isaac confirmó ese día y edita el reglamento entero: partes, minutos, descanso, reloj, tipo y número de cambios, convocados, titulares, amarillas, roja y los once botones del directo. La duración se calcula a la vista. La categoría va en el nombre, porque `competitions` no tiene columna para ella. Detalle en el DOC 13.
 
 **La T-204, cerrada el 26/09.** A09 enseña el calendario del equipo activo en dos listas, por jugar y jugados, con el local delante, el estado en palabras y, según los permisos, «Editar» y «Convocatoria». A10 da de alta y edita partidos: competición, rival, en casa o fuera, fecha, hora, campo y la casilla del partido en diferido (D5). Borra solo si sigue programado. Detalle en el DOC 13.
+
+**La T-205, cerrada el 26/09.** A11 reparte la plantilla del equipo en titulares, suplentes y no convocados, con el dorsal y la posición de ese partido propuestos desde la inscripción. Quien no está disponible sale con el motivo y sin opciones. Guardar exige los titulares exactos y no pasar del máximo de la competición, y pasa el partido a convocado. Empezado el partido, la convocatoria se enseña y no se toca. **Pasar a convocado pide hoy `schedule.manage`**: la RLS de `matches` no admite `lineup.manage`, y la función que lo arregla espera en el DOC 05 §14.5. Detalle en el DOC 13.
 
 **La T-203b nace el 26/09**, de dos decisiones de Raúl: la categoría de la competición en columnas propias y el nombre único por temporada, más el campo de casa del club, que dio ese mismo día. Pide antes la migración del DOC 05 §14.4, que hace una sesión de Cowork.
 
