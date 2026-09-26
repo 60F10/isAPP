@@ -148,7 +148,13 @@ function Ficha({ competicion, otras }: FichaProps) {
           },
           onError: (error) => {
             const mensaje = mensajeDeErrorAlGuardar(error, NOMBRE_REPETIDO);
-            setFalloAlGuardar(mensaje);
+            // El nombre repetido que para la base va junto al campo, como el
+            // que para la pantalla; el resto, junto al botón.
+            if (mensaje === NOMBRE_REPETIDO) {
+              setErrores({ name: mensaje });
+            } else {
+              setFalloAlGuardar(mensaje);
+            }
             anunciar(mensaje);
           },
         });

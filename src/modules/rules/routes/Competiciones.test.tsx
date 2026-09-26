@@ -208,6 +208,8 @@ describe('A08 · Competiciones', () => {
     expect(
       await within(alta).findByText('Ya hay una competición con ese nombre esta temporada.'),
     ).toBeInTheDocument();
+    // Junto al campo, como cuando lo para la pantalla.
+    expect(within(alta).getByLabelText(/^Nombre/)).toHaveAttribute('aria-invalid', 'true');
     expect(anunciar).toHaveBeenCalledWith('Ya hay una competición con ese nombre esta temporada.');
   });
 });
