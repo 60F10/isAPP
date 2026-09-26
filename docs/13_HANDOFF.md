@@ -5,107 +5,118 @@
 
 ---
 
-## Sesión 26/09/2026 — T-203, competiciones y reglamento: ✅ cerrada
+## Sesión 26/09/2026 — T-204, calendario y alta de partido: ✅ cerrada. Y la migración para Cowork, escrita
 
-Sesión en la nube, sin acceso a Supabase, con Raúl respondiendo. **Raúl confirmó con Isaac el
-reglamento del cadete** del DOC 04 §4.2 —2 × 40, 15 de descanso, reloj corrido, 5 cambios fijos
-**sin reentrada**, 18 convocados, 11 titulares, 5 amarillas— y dio el nombre de la liga: **«Cadete
-Primera Tenerife G2»**, temporada 2026-27, club C.D. Unión Tejina, equipo Cadete A. Pidió que la
-liga especifique la categoría, y pasó el orden de la federación en Tenerife, de más a menos:
-Autonómico Canarias, Provincial Tenerife, Preferente G1 a G3 y Primera G1 a G7. Anotado en el DOC 04
-§4.2. En su lista, la Primera G7 aparece como 2025-26; es la temporada anterior y no se usa.
+Sesión en la nube, sin acceso a Supabase, con Raúl respondiendo. Antes de la tarea, Raúl decidió los
+dos puntos abiertos de la T-203 y dio dos datos:
+
+| Qué                                       | Decisión o dato                                                        | Dónde queda                                     |
+| :---------------------------------------- | :--------------------------------------------------------------------- | :---------------------------------------------- |
+| Categoría de la competición (punto 33)    | **Columnas propias**                                                   | Migración del DOC 05 §14.4 y T-203b del DOC 08  |
+| Nombre de competición repetido (punto 34) | **Se arregla** con un índice único                                     | Migración del DOC 05 §14.4                      |
+| Campo de casa del C.D. Unión Tejina       | Campo de Fútbol Izquierdo Rodríguez, Av. Milán, 27-29, 38260 La Laguna | Migración del DOC 05 §14.4, como dato; punto 37 |
+| Calendario de la federación               | `https://futboltenerife.com/1panel-cadete/?ruta=cadete`                | Bloqueado desde aquí; punto 38                  |
+
+**La migración no se ha aplicado**: esta sesión no tiene acceso a la base. Está escrita, con su
+borrador de SQL y lo que hay que comprobar antes y después, en el **DOC 05 §14.4**, para una sesión de
+Cowork. Suma de paso los puntos 4 y 27, dos líneas de permisos que ya esperaban una migración. El
+código que la aprovecha es una tarea nueva, la **T-203b**, que no se puede empezar sin ella.
 
 El entorno obliga a subir a una rama `claude/…`; la que toca por convención es
-`feat/rules-competiciones`, y con ese nombre se hizo el commit para que pasara el hook de
+`feat/agenda-calendario`, y con ese nombre se hizo el commit para que pasara el hook de
 `pre-commit`. La pull request lo dice.
 
 ---
 
 ## HECHO
 
-**El módulo `rules` nace con la A08**, en su propio trozo perezoso. Sustituye a las dos
-`PantallaPendiente` de `/competiciones` y `/competiciones/:id`.
+**El módulo `agenda` nace con A09 y A10**, en su propio trozo perezoso. Sustituye a las tres
+`PantallaPendiente` de `/calendario`, `/partidos/nuevo` y `/partidos/:id/editar`.
 
-| Pantalla                | Qué hace                                                                                                                                                                                                                                               |
-| :---------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A08 · Competiciones** | Las de la temporada en curso del club, cada una con su reglamento en una línea: «Liga · 2 × 40 min · 5 cambios fijos, sin reentrada · 18 convocados, 11 titulares». Debajo, «Crear competición», que nace con el reglamento del cadete y abre su ficha |
-| **A08 · Reglamento**    | Nombre, tipo y el reglamento entero del DOC 04 §4.1 en cinco bloques: partido, cambios, convocatoria, disciplina y botones del directo. La duración se calcula a la vista de lo escrito                                                                |
+| Pantalla                         | Qué hace                                                                                                                                                                                                                                                                                                         |
+| :------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A09 · Calendario**             | Los partidos del equipo activo en la temporada, en «Por jugar» y «Jugados». Cada uno: día y hora, «Cadete A – UD Orotava» con el local delante, competición y campo, y el estado en palabras. «Editar» con `schedule.manage` y «Convocatoria» con `lineup.manage`, solo antes de jugarse. «Nuevo partido» arriba |
+| **A10 · Nuevo y editar partido** | Competición (ya elegida si solo hay una), rival de los de referencia del club, en casa o fuera, fecha, hora, campo propuesto desde el último partido en casa y la casilla «Ya se jugó: lo meto en diferido». Si faltan competición o rivales, lo dice y enlaza a dónde darlos de alta                            |
+| **A10 · Borrar**                 | Solo si el partido sigue programado, en dos pasos en el mismo sitio                                                                                                                                                                                                                                              |
 
-| Pieza                                      | Qué hace                                                                                                                                      |
-| :----------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
-| `modules/rules/model/competicion.ts`       | Tipos, rangos iguales a los `check` de la base, `REGLAMENTO_CADETE`, nombres en español, `duracionDeJuego`, validación y resumen en una línea |
-| `modules/rules/api/competiciones.ts`       | Listar, leer, crear y actualizar, con `SIN_FILAS` en la actualización                                                                         |
-| `modules/rules/hooks/useCompeticiones.ts`  | Club y temporada del equipo activo, consultas y mutaciones                                                                                    |
-| `modules/rules/components/GrupoDeOpciones` | Radios nativos con `fieldset` y `legend`, genérico en el tipo del valor                                                                       |
-| `modules/rules/index.ts`                   | Las dos pantallas y el modelo que leerá el directo: `duracionDeJuego`, `TIPOS_DEL_MVP`, `NOMBRES_DE_EVENTO` y los tipos                       |
-| `shared/lib/guardado.ts`                   | `SIN_FILAS`, `mensajeDeErrorAlGuardar` y `limpiarTexto`, mudados desde `core` porque `rules` los necesita. Suma el 23514 (fuera de rango)     |
+| Pieza                                 | Qué hace                                                                                                                                       |
+| :------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| `modules/agenda/model/partido.ts`     | Fecha y hora locales a instante UTC y vuelta, validación, separar el calendario por estado, último campo de casa, «local – visitante», estados |
+| `modules/agenda/api/partidos.ts`      | Calendario, partido, alta, edición y borrado, con `SIN_FILAS`. Trae el nombre del rival y de la competición en la misma consulta               |
+| `modules/agenda/hooks/usePartidos.ts` | Equipo activo, consultas y mutaciones                                                                                                          |
+| `@modules/core` y `@modules/rules`    | Exportan ya `useEquipos`, `useClubActivo`, `useCompeticiones` y `useClubYTemporada`, para que `agenda` no entre en sus carpetas                |
+| `shared/ui/GrupoDeOpciones`           | Sube desde `rules`, con su hoja de estilos: lo usan ya dos módulos                                                                             |
+| **DOC 05 §14.4**                      | La próxima migración, para Cowork: categoría en cuatro columnas, nombre único, campo de casa y dos permisos                                    |
+| **DOC 08**                            | T-204 en ✅ y la T-203b nueva                                                                                                                  |
 
 **Sin comprobar en el navegador**, porque aquí no se puede entrar con Google. Las pruebas montan las
-dos pantallas enteras con la red simulada; el viaje real está en «Comandos para verificar».
+tres pantallas enteras con la red simulada; el viaje real está en «Comandos para verificar».
 
 ### Pruebas
 
-**142 en verde**, 21 nuevas. Cada una se vio fallar antes de darla por buena: trece contra un
-esbozo vacío y las demás con un mutante a mano sobre la línea que vigilan.
+**165 en verde**, 23 nuevas. Cada una se vio fallar antes de darla por buena: once contra un esbozo
+vacío y las demás con un mutante a mano sobre la línea que vigilan. Una de las mutaciones no falló, y
+eso destapó un hueco en la prueba: la comprobación de la hora la cubría ya la del día para las 25:00,
+pero no para los minutos. `10:60` se convertiría en `11:00` del mismo día sin quejarse. Hay caso nuevo
+para eso.
 
-| Archivo                               | Casos | Qué vigila                                                                                                                   |
-| :------------------------------------ | ----: | :--------------------------------------------------------------------------------------------------------------------------- |
-| `rules/model/competicion.test.ts`     |    13 | El cadete confirmado; los once del MVP; rangos iguales a la base; duración; nombre; repetido; rangos; titulares ≤ convocados |
-| `rules/routes/Competiciones.test.tsx` |     6 | Lista y resumen; alta con el cadete que abre la ficha; repetido; duración viva y guardado; fuera de rango; tipos conservados |
-| `shared/lib/guardado.test.ts`         |     2 | Duplicado en general y el 23514                                                                                              |
+| Archivo                         | Casos | Qué vigila                                                                                                                                                       |
+| :------------------------------ | ----: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agenda/model/partido.test.ts`  |    14 | Ida y vuelta de la hora, fechas imposibles, minutos de más, columnas del alta, obligatorios, diferido en el pasado, orden, campo de casa                         |
+| `agenda/routes/Agenda.test.tsx` |     9 | Las dos listas y los enlaces según permisos; alta con competición y campo propuestos; rival sin elegir; diferido futuro; sin rivales; edición; empezado; borrado |
 
 ---
 
 ## DECISIONES TOMADAS
 
-**La categoría va en el nombre de la competición.** `competitions` solo tiene `name` y `kind`: ni
-categoría, ni nivel, ni ámbito, ni grupo. Sin poder migrar, la ayuda del campo pide escribirla como
-la llama la federación, sin la temporada, que ya va aparte. Las salidas para tenerla en columnas,
-en el punto 33.
+**El calendario se parte por estado, no por fecha.** Por jugar: programado, convocado o en juego.
+Jugados: el resto. Un partido de ayer que nadie ha empezado sigue pendiente; uno suspendido ya no se
+va a jugar como estaba.
 
-**Una competición nueva nace con el reglamento del cadete, no con los valores por defecto de la
-base.** La base trae 2 × 45: nacer con eso obligaría a cambiarlo siempre, y el único equipo es un
-cadete. Al crearla se abre su ficha para revisarlo.
+**La hora es la del móvil** (punto 39). `<input type="date">` y `<input type="time">` dan la hora
+local, se guarda en UTC y se enseña en la hora de cada dispositivo. Para un club canario con
+anotadores canarios, es lo que se espera.
 
-**Los rangos de la pantalla son los mismos que los `check` de `competitions`**, y una prueba lo
-vigila: si se toca uno, se toca el otro.
+**Un partido en diferido tiene que ser del pasado.** Es el que ya se jugó y se mete después (D5). Uno
+normal puede tener cualquier fecha: el de ayer que se programó tarde también vale.
 
-**Titulares no más que convocados.** Con más titulares que convocados no se podrían cumplir a la vez
-la R-01 y la R-02 del DOC 04 §4.3. La base no lo impide; la pantalla sí.
+**Se edita antes de jugarse y se borra solo si sigue programado.** DOC 04 §8.1: fecha, rival y campo
+se cambian en `scheduled`. Se deja también en `called`, porque el partido aún no ha empezado. Borrar
+uno convocado se llevaría la convocatoria en cascada, así que solo se ofrece en `scheduled`.
 
-**El nombre no se repite en la temporada**, sin mirar mayúsculas. Esta vez solo lo comprueba la
-pantalla: la base no tiene restricción (punto 34).
+**El campo de casa se propone del último partido en casa**, hasta que la migración lo guarde en
+`clubs` (punto 37). Sin escribirlo en el código: la aplicación es multiclub.
 
-**Solo los once botones del MVP se encienden desde la A08.** Los otros ocho no tienen botón en el
-directo. Si alguien los encendió en la base, se conservan al guardar (punto 35).
+**Rivales y competiciones salen de `core` y `rules` por sus barriles** (DOC 06 §4.2). `agenda` no
+consulta sus tablas por su cuenta.
 
-**Sin borrado de competiciones** (punto 36).
+**Sin entrenamientos en el calendario.** La E4-01 es del MVP en el backlog, pero su pantalla y la de
+asistencia son de después del MVP (DOC 08 §7).
 
-**`rules` exporta el modelo por su barril.** El directo (T-207) leerá de ahí la duración, los tipos
-encendidos y los nombres de los eventos, sin entrar en las carpetas de `rules` (DOC 06 §4.1, regla 3).
-
-**Lo común de guardar sube a `shared/lib/guardado.ts`.** `rules` no puede importar el `model/` de
-`core`. `core` lo reexporta para no cambiar sus importaciones, y su mensaje de duplicado sigue
-hablando de equipos.
+**La categoría en cuatro columnas y no en una**, siguiendo a Raúl («columnas propias»): categoría,
+nivel, ámbito y grupo, que es como nombra la federación. `name` se queda como nombre visible. Texto
+libre y sin lista cerrada en la base. El detalle, en el DOC 05 §14.4.
 
 ---
 
 ## PENDIENTE DE LA TAREA
 
-Nada de lo que pide la fila del DOC 08. La categoría en columnas propias pide migración (punto 33).
+Nada de lo que pide la fila del DOC 08. Lo que Raúl decidió hoy necesita la migración del DOC 05
+§14.4 y la T-203b.
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-Los puntos 33 a 36 de abajo.
+Los puntos 37 a 39 de abajo.
 
 ---
 
 ## LO QUE SIGUE ABIERTO
 
-**No se cierra ningún punto de la lista anterior.** Se suman cuatro al final, del 33 al 36, y se
-actualizan el 11 (doce pantallas pendientes) y el 16 (el ayudante común empieza a existir). La
+**No se cierra ningún punto de la lista anterior.** Los puntos 33 y 34 pasan de «decidir» a
+«decidido, pendiente de migración», y el 4 y el 27 entran en esa misma migración. Se actualizan
+también el 11 (nueve pantallas pendientes) y el 20. Se suman tres al final, del 37 al 39. La
 numeración no cambia.
 
 Pendiente de decidir, que no lo decide el código:
@@ -129,8 +140,8 @@ Pendiente de hacer:
 3. **El aviso de versión nueva sale también en mitad de un partido**, contra la decisión D06-14. El
    punto de enganche está comentado en `ActualizacionDisponible.tsx`:
    `if (!hayVersionNueva || partidoEnCurso) return null;`. Lo cierra la T-207.
-4. **`set_updated_at()` arrastra el `EXECUTE` de `authenticated` que no necesita.** Una línea en la
-   próxima migración de permisos. DOC 05 §14.3.
+4. **`set_updated_at()` arrastra el `EXECUTE` de `authenticated` que no necesita.** **Va en la
+   migración del DOC 05 §14.4**, pieza 4b.
 5. **`npm run db:types` deja el archivo de tipos a cero bytes si el CLI falla.** Se restaura con
    `git checkout -- src/types/database.types.ts`. **Antes de tocar ese script, haz copia.**
 6. Marcar `event.approve` a quien lleve el registro, cuando exista la T-301.
@@ -142,7 +153,7 @@ Pendiente de hacer:
    Lo resuelve la T-303.
 10. Faltan tokens de anchura de maqueta en el DOC 07: el rail y la caja de `BareLayout` salen de
     `--tap-min`.
-11. **Doce rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
+11. **Nueve rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
 12. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
     índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
     comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones repetidas
@@ -170,10 +181,10 @@ Pendiente de hacer:
     junto a `profile` y `activeTeamId`. Decidir y unificar con el DOC 06 §5.5.
 20. **Un club puede enlazar objetos de otro club en sus propias filas** (los catorce avisos de la
     T-105b). Ninguna clave ajena exige que los dos lados sean del mismo club, y `team_of_match`
-    devuelve el equipo de cualquier partido. La T-201 y la T-202 no lo tocan: el alta de jugador
-    lo crea en el club del equipo y lo inscribe en ese mismo equipo, así que la pantalla no puede
-    mezclar clubes. **Decidir antes de la T-204**, que enlaza partido, competición y rival: ahí sí
-    se eligen identificadores de listas. Pide migración: sesión de Cowork.
+    devuelve el equipo de cualquier partido. Las pantallas de la T-201 a la T-204 no pueden mezclar clubes: el alta de jugador lo inscribe
+    en su propio equipo, y la A10 solo ofrece los rivales y las competiciones del propio club. Lo que
+    queda abierto es que **la base tampoco lo impida**, por si algún día escribe algo que no sea la
+    pantalla. No está en la migración del §14.4; decidir si entra. Pide migración: sesión de Cowork.
 21. **`noUncheckedIndexedAccess` apagado.** Saca siete errores, seis en `permissions.test.ts` y uno
     en `permissions.ts:120`. Salidas: encenderlo ya (media hora, recomendada: el coste crece con cada
     lista que pinte una pantalla), después del MVP, o nunca y revisar a mano.
@@ -197,9 +208,8 @@ Pendiente de hacer:
     | **B. Una función `crear_club()` `SECURITY DEFINER`** que, en una transacción, cree el club, su primer equipo, la temporada en curso y al que llama como entrenador con los doce permisos | No toca ninguna política: la lógica queda en un sitio y se prueba con el script de la T-105b. La A03 ganaría el alta. **Recomendada para cuando llegue un segundo club**. Pide migración: sesión de Cowork |
     | C. Aflojar políticas: que `created_by` baste para leer el club y crear el primer equipo                                                                                                  | Toca tres políticas y abre casos raros (¿y el segundo equipo?, ¿y los permisos del creador?). La cola pidió no tocar la RLS para esto                                                                      |
 
-27. **`teams_insert` pide menos que el DOC 05.** Solo `is_club_member`, no `team.manage`: por la API,
-    cualquier miembro del club puede crear equipos. Una línea en la próxima migración de permisos:
-    `with check (public.has_club_permission(club_id, 'team.manage'))`.
+27. **`teams_insert` pide menos que el DOC 05.** Solo `is_club_member`, no `team.manage`. **Va en la
+    migración del DOC 05 §14.4**, pieza 4a.
 28. **Un equipo propio nuevo nace sin personas.** Nadie tiene `roster.manage` ni ningún otro
     permiso en él hasta que existan las invitaciones (T-301), así que su plantilla y sus partidos
     no los puede llevar nadie. La pantalla lo avisa al marcar «Del club». Para el Cadete A no
@@ -221,35 +231,40 @@ Pendiente de hacer:
     guardar recibe «No tienes permiso» si no tiene `roster.manage` en ese equipo. No hay fuga, pero
     sí una pantalla que ofrece lo que no puede hacer. Salida: comprobar el permiso del equipo de la
     ruta con las membresías de `useAuth()`.
-33. **La categoría de la competición va en el nombre.** `competitions` solo tiene `name` y `kind`.
-    La federación nombra las ligas por categoría, nivel, ámbito y grupo («Cadete Primera Tenerife
-    G2»), y Raúl pidió que la liga especifique la categoría: hoy se cumple escribiéndola en el
-    nombre, con la ayuda del campo pidiéndolo. Salidas:
-
-    | Salida                                                                             | Consecuencia                                                                                                                                                                 |
-    | :--------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | **A. Dejarlo en el nombre**                                                        | Cero trabajo. Se lee bien y basta para elegir la competición al crear un partido. No se puede filtrar ni ordenar por nivel                                                   |
-    | **B. Una columna `category text`** en `competitions`, como la que ya tiene `teams` | Una línea de migración. Permite unir equipo y competición por categoría (el Cadete A solo ve ligas cadete). **Recomendada**                                                  |
-    | C. Cuatro columnas: categoría, nivel, ámbito y grupo                               | Recoge entera la jerarquía de la federación y permite ordenar de más a menos. Cuatro campos más en la A08 y una lista de niveles que mantener. Sale caro para un solo equipo |
-
-34. **El nombre de la competición no es único en la base.** La A08 no deja repetirlo en la
-    temporada, pero `competitions` no tiene restricción: por la API, o con dos móviles a la vez, se
-    pueden crear dos «Cadete Primera Tenerife G2». Una línea en la próxima migración:
-    `unique (club_id, season_id, name)`.
+33. **La categoría de la competición va en el nombre.** **Decidido por Raúl el 26/09: columnas
+    propias.** `competitions` ganará `category`, `level`, `scope` y `group_label` en la migración del
+    DOC 05 §14.4, y la **T-203b** las pondrá en la A08. Hasta entonces, sigue escrita en el nombre.
+34. **El nombre de la competición no es único en la base.** **Decidido por Raúl el 26/09: se
+    arregla.** Índice único sobre `(club_id, season_id, lower(name))`, en la migración del DOC 05
+    §14.4. Antes de crearlo, la consulta de duplicados que trae el propio §14.4.
 35. **Los ocho tipos de evento fuera del MVP no se encienden desde la A08.** No tienen botón en el
     directo, y encenderlos prometería algo que no existe. Si alguien los enciende en la base, la A08
     los conserva al guardar. Cuando se construya su botón, se añaden a la lista de la ficha.
 36. **No se borran competiciones.** La RLS lo permite, pero los partidos apuntan a su competición con
     `on delete restrict`, y una con partidos no se puede borrar. Una sin partidos mal creada se
     renombra. Si molesta, un «Borrar» que solo salga sin partidos.
+37. **El campo de casa del club no vive en la base.** Raúl dio el del C.D. Unión Tejina: **Campo de
+    Fútbol Izquierdo Rodríguez**, Av. Milán, 27-29, 38260 La Laguna, Santa Cruz de Tenerife. Va a
+    `clubs.home_venue` y `clubs.home_venue_address` con la migración del DOC 05 §14.4, y la T-203b lo
+    propondrá en la A10. Hasta entonces, la A10 propone el campo del último partido en casa: se
+    escribe la primera vez y a partir de ahí sale solo.
+38. **El calendario de la federación no se puede leer desde aquí.** Raúl pasó la página de la
+    Federación Interinsular: `https://futboltenerife.com/1panel-cadete/?ruta=cadete`. El proxy de red
+    de las sesiones en la nube la bloquea, así que los rivales y las jornadas de la Cadete Primera
+    Tenerife G2 se meten a mano: primero los rivales en Equipos y después cada partido en el
+    calendario. Leerla sola sería el _scraping_ de la fase 6, fuera del MVP.
+39. **La hora es la del móvil.** La fecha y la hora se escriben y se enseñan en la zona del
+    dispositivo y se guardan en UTC. En Canarias es la hora canaria; un partido en la península se
+    escribe con la hora canaria en la que empieza. Si algún día anotan dispositivos en zonas
+    distintas, hace falta fijar la zona del club.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
 `teams` del contexto devuelve membresías y no equipos pelados, a propósito; el club activo del
 registro vive en una variable de módulo de `logging`; `sasi.equipo-activo` sobrevive al cierre de
-sesión, a propósito; los rivales se duplican por club, como ya decía el DOC 05 §5.4 (E17-03); y
-«Sancionado» no se elige en la A06: lo pone y lo quita el cómputo de sanciones, que llega con la
-disciplina, después del MVP.
+sesión, a propósito; los rivales se duplican por club, como ya decía el DOC 05 §5.4 (E17-03);
+«Sancionado» no se elige en la A06, lo pone el cómputo de sanciones; y el calendario no enseña
+entrenamientos, que llegan con su pantalla después del MVP.
 
 ---
 
@@ -257,40 +272,34 @@ disciplina, después del MVP.
 
 | Momento                   | Inicial comprimido | Margen sobre 200 kB |
 | :------------------------ | -----------------: | ------------------: |
-| Tras la T-202, en Linux   |          179,77 kB |            20,23 kB |
-| **Esta sesión, en Linux** |      **179,85 kB** |        **20,15 kB** |
+| Tras la T-203, en Linux   |          179,85 kB |            20,15 kB |
+| **Esta sesión, en Linux** |      **179,92 kB** |        **20,08 kB** |
 
-**+0,08 kB, en `App-*.js`**: las dos entradas perezosas de la A08. La A08 vive en el trozo de
-`rules` (4,92 kB de JavaScript y 0,70 kB de estilos). Lo que comparten `core` y `rules` —`Field`, lo
-de guardar— sale a un trozo común, `guardado-*.js` (1,73 kB y 0,46 kB de estilos). Ninguno de los
-tres se descarga al arrancar.
+**+0,07 kB, en `App-*.js`**: las tres entradas perezosas nuevas. Las pantallas viven en el trozo de
+`agenda` (5,43 kB de JavaScript y 0,92 kB de estilos), que no se descarga al arrancar.
 
 | Trozo del arranque         |    Comprimido |
 | :------------------------- | ------------: |
 | `index-*.js`               |      72,21 kB |
-| `App-*.js`                 |     101,50 kB |
-| `QueryClientProvider-*.js` |       0,26 kB |
+| `App-*.js`                 |     101,56 kB |
+| `QueryClientProvider-*.js` |       0,27 kB |
 | `workbox-window`           |       2,20 kB |
 | Dos hojas de estilo        |       3,68 kB |
-| **Total**                  | **179,85 kB** |
+| **Total**                  | **179,92 kB** |
 
 La lista buena de trozos sale de `dist/index.html` y de las importaciones de `App-*.js`. En crudo,
-`precache 28 entries (719.43 KiB)`.
+`precache 30 entries (739.88 KiB)`.
 
 ---
 
-## SIGUIENTE TAREA SUGERIDA
+## SIGUIENTE
 
-**T-204**: calendario y alta de partido, incluido el partido a posteriori. Necesita la competición de
-esta tarea y los rivales de la A04. Lo que conviene tener antes:
+**Para una sesión de Cowork, antes que nada: la migración del DOC 05 §14.4.** Categoría en columnas,
+nombre único, campo de casa con el dato de Unión Tejina y dos líneas de permisos. Con la consulta de
+duplicados antes, y `npm run db:types`, el script de la T-105b y el auditor después.
 
-- **El calendario de la Cadete Primera Tenerife G2**: rivales, jornadas, fechas y si se juega en
-  casa o fuera. No bloquea —cada partido se da de alta a mano—, pero con la lista delante se meten
-  los rivales en la A04 de una vez.
-- **El nombre del campo de casa**, tal como quiere verlo Isaac. `matches.venue` es texto libre.
-- **El punto 20** (referencias cruzadas entre clubes). La pantalla solo ofrecerá los rivales y las
-  competiciones del propio club, así que no puede mezclar clubes; lo que queda abierto es que la
-  base tampoco lo impida.
+**Siguiente tarea de código: T-205**, convocatoria y alineación inicial. No necesita la migración. La
+**T-203b** va detrás de la migración, cuando esté.
 
 ---
 
@@ -309,18 +318,19 @@ npm run test -- --run
 npm run build
 ```
 
-`npm run test -- --run` tiene que decir `Test Files 16 passed (16)` y `Tests 142 passed (142)`. El
+`npm run test -- --run` tiene que decir `Test Files 18 passed (18)` y `Tests 165 passed (165)`. El
 build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 **En el navegador, con `npm run dev` y la cuenta de Isaac o la tuya:**
 
-1. Abre `/competiciones`. Sin ninguna todavía, lo dice.
-2. «Crear competición»: «Cadete Primera Tenerife G2», tipo «Liga». Se abre su ficha con «Duración: 80
-   minutos de juego» y los cambios fijos marcados.
-3. Cambia los minutos por parte a 35: la duración pasa a 70 al momento. Déjalo en 40 y guarda.
-4. Vuelve a Competiciones: sale con «Liga · 2 × 40 min · 5 cambios fijos, sin reentrada · 18
-   convocados, 11 titulares».
-5. Intenta crear otra con el mismo nombre en minúsculas: el aviso sale junto al campo.
+1. Da de alta en Equipos un rival de la G2, si no hay ninguno, y la liga en Competiciones.
+2. «Agenda» → «Nuevo partido». La competición ya viene elegida. Rival, en casa, una fecha y una hora,
+   y escribe «Campo de Fútbol Izquierdo Rodríguez». Vuelves al calendario y sale en «Por jugar», con
+   el Cadete A delante.
+3. «Nuevo partido» otra vez, en casa: el campo ya viene escrito.
+4. «Editar» el primero, cámbialo a «Fuera» y guarda: el rival pasa delante.
+5. «Nuevo partido» con «Ya se jugó» marcado y una fecha futura: no deja.
+6. «Editar» → «Borrar partido» → «Sí, borrar el partido»: desaparece.
 
 **`npm run db:types` NO se lanza a la ligera.** Esta sesión no tocó el esquema.
 
@@ -328,6 +338,8 @@ build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 ## AVISO DE SEGURIDAD
 
-Sin cambios de configuración esta sesión: ni variables de entorno, ni Netlify, ni migraciones. El
-aviso de Chrome autorrellenando el panel de Google en Supabase sigue vigente para el día que haga
-falta abrirlo: **vacía «Client IDs» y «Client Secret» antes de tocar nada.**
+Sin cambios de configuración esta sesión: ni variables de entorno, ni Netlify, ni migraciones. **La
+migración del §14.4 la aplica una sesión de Cowork contra la base de producción**: con la consulta de
+duplicados antes y el script de la T-105b después. El aviso de Chrome autorrellenando el panel de
+Google en Supabase sigue vigente para el día que haga falta abrirlo: **vacía «Client IDs» y «Client
+Secret» antes de tocar nada.**

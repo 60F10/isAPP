@@ -1,0 +1,116 @@
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-inline-size: 32rem;
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Fecha y hora juntas cuando caben; una debajo de otra a 320 px. */
+.fechaHora {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-4);
+}
+
+/* El selector copia el aspecto de `Field` (shared/ui): etiqueta arriba, 48 px
+   de alto y 16 px de texto, que por debajo Safari de iOS hace zoom. */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.etiqueta {
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.obligatorio {
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-secondary);
+}
+
+.selector {
+  min-block-size: var(--tap-min);
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-100);
+}
+
+.selector:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+  border-color: var(--color-accent);
+}
+
+/* Error con borde de 2 px además del color, como en `Field`. */
+.invalido {
+  border-color: var(--color-rejected);
+  border-width: 2px;
+}
+
+.error,
+.fallo {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--tap-min);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.marca {
+  flex: 0 0 auto;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+.volver {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.volver:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}

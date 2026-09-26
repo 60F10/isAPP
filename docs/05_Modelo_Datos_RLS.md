@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — cinco archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
@@ -669,6 +669,69 @@ No sale de ninguna tarea del DOC 08: son los puntos 3 y 4 de «lo que sigue abie
 **Queda una línea pendiente.** `set_updated_at()` es la octava función de disparador y arrastra el mismo `EXECUTE` de `authenticated` que sobra. No entró aquí porque el auditor no la marca —es `SECURITY INVOKER`, así que llamarla a mano no salta la RLS— y porque el alcance eran los siete del DOC 13. Entra en la próxima migración que toque permisos.
 
 **Si Supabase recrea `rls_auto_enable()` con `DROP` + `CREATE`, el permiso de PUBLIC vuelve** y el aviso 0028 con él. `CREATE OR REPLACE` conserva la ACL; un `DROP` no. Merece una mirada al auditor después de cada actualización de la plataforma.
+
+### 14.4 La próxima migración, para una sesión de Cowork
+
+Decidida por Raúl el 26/09/2026, tras la T-203. **Todavía no está aplicada**: las sesiones en la nube no tienen acceso a la base, y esto lo hace una sesión de Cowork con el MCP de Supabase. Es una sola migración, `…_competiciones_categoria_y_campo_de_casa.sql`, con cuatro piezas y ninguna de ellas destructiva.
+
+| Pieza                                                  | Qué hace                                                                                       | Origen                                |
+| :----------------------------------------------------- | :--------------------------------------------------------------------------------------------- | :------------------------------------ |
+| **1. Categoría de la competición en columnas propias** | `competitions` gana `category`, `level`, `scope` y `group_label`, las cuatro `text` y nulables | Decisión de Raúl, punto 33 del DOC 13 |
+| **2. Nombre único por club y temporada**               | Índice único sobre `(club_id, season_id, lower(name))`                                         | Decisión de Raúl, punto 34            |
+| **3. Campo de casa del club**                          | `clubs` gana `home_venue` y `home_venue_address`, `text` y nulables                            | Dato de Raúl, punto 37                |
+| **4. Dos líneas de permisos pendientes**               | `teams_insert` pide `team.manage`; `set_updated_at()` pierde el `EXECUTE` de `authenticated`   | Puntos 27 y 4 del DOC 13              |
+
+**Las cuatro columnas de la categoría siguen cómo nombra la federación sus ligas.** Para el Cadete A: `category = 'Cadete'`, `level = 'Primera'`, `scope = 'Tenerife'`, `group_label = 'G2'`. El orden de la federación en Tenerife, de más a menos, es Autonómico Canarias, Provincial Tenerife, Preferente (G1 a G3) y Primera (G1 a G7). `name` se queda como nombre visible y no se deriva de las columnas: una copa o un torneo de verano no tiene grupo, y obligar a componerlo rompería esos casos. Texto libre y sin `check` a propósito: los niveles cambian de una federación a otra y de un año a otro, y una lista cerrada en la base sería una migración cada vez.
+
+**El nombre único va con `lower()`**, igual que la comprobación de la A08: «Cadete Primera Tenerife G2» y «cadete primera tenerife g2» son la misma liga. **Antes de crear el índice hay que mirar si ya hay duplicados**, porque si los hay la migración falla entera:
+
+```sql
+select club_id, season_id, lower(name), count(*)
+  from public.competitions
+ group by 1, 2, 3
+having count(*) > 1;
+```
+
+**El campo de casa** es el que dio Raúl para el C.D. Unión Tejina: **Campo de Fútbol Izquierdo Rodríguez**, Av. Milán, 27-29, 38260 La Laguna, Santa Cruz de Tenerife. Va en `clubs` y no en el código: la aplicación es multiclub desde el MVP y cada club tiene el suyo. La migración deja las columnas; el valor se rellena con un `update` aparte, en la misma sesión, como dato y no como esquema.
+
+Borrador para revisar en la sesión, no para lanzar a ciegas:
+
+```sql
+-- 1. Categoría de la competición
+alter table public.competitions
+  add column category    text,
+  add column level       text,
+  add column scope       text,
+  add column group_label text;
+
+-- 2. Nombre único por club y temporada, sin distinguir mayúsculas
+create unique index competitions_name_unique
+  on public.competitions (club_id, season_id, lower(name));
+
+-- 3. Campo de casa del club
+alter table public.clubs
+  add column home_venue         text,
+  add column home_venue_address text;
+
+-- 4a. Crear equipos exige team.manage (hoy basta con ser miembro del club)
+drop policy teams_insert on public.teams;
+create policy teams_insert on public.teams for insert to authenticated
+  with check (public.has_club_permission(club_id, 'team.manage'));
+
+-- 4b. set_updated_at() no necesita EXECUTE para authenticated
+revoke execute on function public.set_updated_at() from authenticated;
+```
+
+Y el dato, aparte:
+
+```sql
+update public.clubs
+   set home_venue = 'Campo de Fútbol Izquierdo Rodríguez',
+       home_venue_address = 'Av. Milán, 27-29, 38260 La Laguna, Santa Cruz de Tenerife'
+ where name ilike '%tejina%';
+```
+
+**Después de aplicarla:** `npm run db:types` para regenerar `src/types/database.types.ts` (con copia antes, punto 5 del DOC 13), relanzar el script de la T-105b y mirar el auditor. **El código que la aprovecha es la T-203b** del DOC 08: los cuatro campos de categoría en la A08 y el campo de casa propuesto desde `clubs` en la A10. Sin la migración, esa tarea no se puede empezar.
 
 ---
 

@@ -1,11 +1,12 @@
-// Grupo de opciones excluyentes con `fieldset` y `legend` (T-203).
+// Grupo de opciones excluyentes con `fieldset` y `legend`. Nace en `rules`
+// con la T-203 y sube aquí en la T-204, cuando `agenda` lo necesita también.
 //
 // Radios nativos: nombre, estado y teclado de serie, y el cambio se dispara al
 // soltar el dedo (2.5.2). Toda la fila responde al toque.
 
 import { useId } from 'react';
 
-import styles from './Formulario.module.css';
+import styles from './GrupoDeOpciones.module.css';
 
 interface Opcion<T extends string> {
   valor: T;

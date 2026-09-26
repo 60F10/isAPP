@@ -13,6 +13,9 @@ export {
   TIPOS_DEL_MVP,
 } from './model/competicion';
 
+// Para `agenda`, que elige la competición de cada partido.
+export { useClubYTemporada, useCompeticiones } from './hooks/useCompeticiones';
+
 export type {
   Competicion,
   ModoDeReloj,

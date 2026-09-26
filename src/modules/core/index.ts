@@ -6,5 +6,8 @@ export { FichaJugadorPage } from './routes/FichaJugadorPage';
 export { HomePage } from './routes/HomePage';
 export { PlantillaPage } from './routes/PlantillaPage';
 
+// Para `agenda`, que elige rival entre los equipos de referencia del club.
+export { useClubActivo, useEquipos } from './hooks/useClubYEquipos';
+
 export type { Club, Equipo, TipoDeEquipo } from './model/clubYEquipos';
 export type { Disponibilidad, Inscripcion, Posicion } from './model/plantilla';

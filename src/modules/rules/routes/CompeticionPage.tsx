@@ -17,9 +17,9 @@ import { mensajeDeErrorAlGuardar } from '@shared/lib/guardado';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Field } from '@shared/ui/Field';
+import { GrupoDeOpciones } from '@shared/ui/GrupoDeOpciones';
 import { Pantalla } from '@shared/ui/Pantalla';
 
-import { GrupoDeOpciones } from '../components/GrupoDeOpciones';
 import {
   useActualizarCompeticion,
   useCompeticion,

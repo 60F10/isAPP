@@ -153,7 +153,7 @@ export const router = createBrowserRouter([
               // --- Calendario. Sin permiso: lo consulta cualquiera. ---------
               {
                 path: 'calendario',
-                element: <PantallaPendiente id="A09" titulo="Calendario" tarea="T-204" />,
+                lazy: async () => ({ Component: (await import('@modules/agenda')).CalendarioPage }),
               },
 
               // --- schedule.manage -----------------------------------------
@@ -162,11 +162,15 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'partidos/nuevo',
-                    element: <PantallaPendiente id="A10" titulo="Nuevo partido" tarea="T-204" />,
+                    lazy: async () => ({
+                      Component: (await import('@modules/agenda')).NuevoPartidoPage,
+                    }),
                   },
                   {
                     path: 'partidos/:id/editar',
-                    element: <PantallaPendiente id="A10" titulo="Editar partido" tarea="T-204" />,
+                    lazy: async () => ({
+                      Component: (await import('@modules/agenda')).EditarPartidoPage,
+                    }),
                   },
                 ],
               },
