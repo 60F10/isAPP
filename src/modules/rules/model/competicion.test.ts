@@ -8,13 +8,16 @@ import { describe, expect, it } from 'vitest';
 
 import {
   aFormulario,
+  CAMPOS_DE_CATEGORIA,
   duracionDeJuego,
+  LARGO_CATEGORIA,
   LARGO_NOMBRE_COMPETICION,
   LIMITES,
   NOMBRES_DE_EVENTO,
   NOMBRES_DE_TIPO,
   REGLAMENTO_CADETE,
   resumenDelReglamento,
+  SIN_CATEGORIA,
   TIPOS_DEL_MVP,
   validarCompeticion,
 } from './competicion';
@@ -25,6 +28,10 @@ const CADETE_G2 = {
   ...REGLAMENTO_CADETE,
   name: 'Cadete Primera Tenerife G2',
   kind: 'league' as const,
+  category: 'Cadete',
+  level: 'Primera',
+  scope: 'Tenerife',
+  group_label: 'G2',
 };
 
 function formulario(cambios: Partial<FormularioReglamento> = {}): FormularioReglamento {
@@ -145,6 +152,48 @@ describe('validarCompeticion', () => {
     expect(
       validarCompeticion(formulario({ enabled_event_types: [] }), []).errores.enabled_event_types,
     ).toBe('Deja al menos un botón encendido para el directo.');
+  });
+});
+
+describe('categoría (DOC 05 §14.4)', () => {
+  it('es opcional: lo vacío se guarda como nulo, no como texto vacío', () => {
+    const resultado = validarCompeticion(
+      formulario({ category: '', level: '  ', scope: '', group_label: '' }),
+      [],
+    );
+
+    expect(resultado.errores).toEqual({});
+    expect(resultado.valores).toMatchObject(SIN_CATEGORIA);
+  });
+
+  it('lo escrito se guarda limpio', () => {
+    expect(
+      validarCompeticion(formulario({ scope: '  Provincial   Tenerife ', group_label: ' G2 ' }), [])
+        .valores,
+    ).toMatchObject({ scope: 'Provincial Tenerife', group_label: 'G2' });
+  });
+
+  it('cada campo tiene su largo máximo y lo dice junto a él', () => {
+    const resultado = validarCompeticion(
+      formulario({ level: 'a'.repeat(LARGO_CATEGORIA + 1) }),
+      [],
+    );
+
+    expect(resultado.valores).toBeNull();
+    expect(resultado.errores).toEqual({ level: `Como mucho ${LARGO_CATEGORIA} caracteres.` });
+  });
+
+  it('del dato al formulario, los nulos se escriben como texto vacío', () => {
+    expect(aFormulario({ ...CADETE_G2, ...SIN_CATEGORIA })).toMatchObject({
+      category: '',
+      level: '',
+      scope: '',
+      group_label: '',
+    });
+  });
+
+  it('son las cuatro columnas de `competitions`, en el orden de la federación', () => {
+    expect(CAMPOS_DE_CATEGORIA).toEqual(['category', 'level', 'scope', 'group_label']);
   });
 });
 

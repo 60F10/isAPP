@@ -12,9 +12,9 @@ import {
 } from '../api/competiciones';
 import { rulesKeys } from '../api/queryKeys';
 
-import type { Reglamento, TipoDeCompeticion } from '../model/competicion';
+import type { DatosDeCompeticion } from '../model/competicion';
 
-type Datos = Reglamento & { name: string; kind: TipoDeCompeticion };
+type Datos = DatosDeCompeticion;
 
 /**
  * Club y temporada de trabajo: los del equipo activo. Una competición es del

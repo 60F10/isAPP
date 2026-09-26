@@ -50,12 +50,43 @@ export interface Reglamento {
   enabled_event_types: TipoDeEvento[];
 }
 
-export interface Competicion extends Reglamento {
+/**
+ * Cómo clasifica la federación la competición (DOC 05 §14.4). Para el Cadete
+ * A: `Cadete`, `Primera`, `Tenerife`, `G2`. Texto libre y opcional: una copa o
+ * un torneo de verano no tiene grupo, y los niveles cambian de un año a otro.
+ */
+export type CampoDeCategoria = 'category' | 'level' | 'scope' | 'group_label';
+
+export type Categoria = Record<CampoDeCategoria, string | null>;
+
+export const CAMPOS_DE_CATEGORIA: readonly CampoDeCategoria[] = [
+  'category',
+  'level',
+  'scope',
+  'group_label',
+];
+
+export const SIN_CATEGORIA: Categoria = {
+  category: null,
+  level: null,
+  scope: null,
+  group_label: null,
+};
+
+/** Largo de interfaz; el esquema no lo limita. «Autonómico Canarias» cabe de sobra. */
+export const LARGO_CATEGORIA = 40;
+
+/** Lo que se guarda: reglamento, categoría, nombre y tipo. */
+export type DatosDeCompeticion = Reglamento &
+  Categoria & {
+    name: string;
+    kind: TipoDeCompeticion;
+  };
+
+export interface Competicion extends DatosDeCompeticion {
   id: string;
   clubId: string;
   seasonId: string;
-  name: string;
-  kind: TipoDeCompeticion;
 }
 
 export type CampoNumerico =
@@ -154,6 +185,9 @@ export const REGLAMENTO_CADETE: Reglamento = {
 /** Largo de interfaz; el esquema no lo limita. «Cadete Primera Tenerife G2» cabe de sobra. */
 export const LARGO_NOMBRE_COMPETICION = 80;
 
+/** Lo que se dice si el nombre ya está, lo diga la pantalla o la base (23505). */
+export const NOMBRE_REPETIDO = 'Ya hay una competición con ese nombre esta temporada.';
+
 /** Minutos de juego del partido: partes por minutos. El descanso no cuenta. */
 export function duracionDeJuego(
   reglamento: Pick<Reglamento, 'periods_count' | 'period_minutes'>,
@@ -161,32 +195,37 @@ export function duracionDeJuego(
   return reglamento.periods_count * reglamento.period_minutes;
 }
 
-/** Lo que hay en pantalla: los números como texto, tal como se escriben. */
-export type FormularioReglamento = Record<CampoNumerico, string> & {
-  name: string;
-  kind: TipoDeCompeticion;
-  clock_mode: ModoDeReloj;
-  substitution_type: TipoDeCambios;
-  enabled_event_types: readonly TipoDeEvento[];
-};
+/** Lo que hay en pantalla: los números y la categoría como texto, tal como se escriben. */
+export type FormularioReglamento = Record<CampoNumerico, string> &
+  Record<CampoDeCategoria, string> & {
+    name: string;
+    kind: TipoDeCompeticion;
+    clock_mode: ModoDeReloj;
+    substitution_type: TipoDeCambios;
+    enabled_event_types: readonly TipoDeEvento[];
+  };
 
 export interface ResultadoCompeticion {
-  errores: Partial<Record<CampoNumerico | 'name' | 'enabled_event_types', string>>;
-  valores: (Reglamento & { name: string; kind: TipoDeCompeticion }) | null;
+  errores: Partial<
+    Record<CampoNumerico | CampoDeCategoria | 'name' | 'enabled_event_types', string>
+  >;
+  valores: DatosDeCompeticion | null;
 }
 
 const CAMPOS_NUMERICOS = Object.keys(LIMITES) as CampoNumerico[];
 
-/** Del dato guardado al formulario. */
-export function aFormulario(
-  competicion: Reglamento & { name: string; kind: TipoDeCompeticion },
-): FormularioReglamento {
+/** Del dato guardado al formulario. La categoría vacía se escribe como texto vacío. */
+export function aFormulario(competicion: DatosDeCompeticion): FormularioReglamento {
   const numeros = Object.fromEntries(
     CAMPOS_NUMERICOS.map((campo) => [campo, String(competicion[campo])]),
   ) as Record<CampoNumerico, string>;
 
   return {
     ...numeros,
+    category: competicion.category ?? '',
+    level: competicion.level ?? '',
+    scope: competicion.scope ?? '',
+    group_label: competicion.group_label ?? '',
     name: competicion.name,
     kind: competicion.kind,
     clock_mode: competicion.clock_mode,
@@ -199,8 +238,9 @@ export function aFormulario(
  * Valida el formulario entero.
  *
  * @param otras competiciones de la misma temporada, para no repetir nombre.
- *   Esta vez la base NO lo impide: `competitions` no tiene restricción de
- *   unicidad, así que la pantalla es la única que lo mira.
+ *   Desde el 26/09 la base también lo impide, con el índice único
+ *   `competitions_name_unique` sobre `lower(name)` (DOC 05 §14.4); la
+ *   pantalla lo mira antes para decirlo junto al campo, sin viajar.
  * @param idActual al editar, la propia competición, que no cuenta.
  */
 export function validarCompeticion(
@@ -222,7 +262,7 @@ export function validarCompeticion(
         limpiarTexto(otra.name).toLocaleLowerCase('es') === nombre.toLocaleLowerCase('es'),
     )
   ) {
-    errores.name = 'Ya hay una competición con ese nombre esta temporada.';
+    errores.name = NOMBRE_REPETIDO;
   }
 
   const numeros: Partial<Record<CampoNumerico, number>> = {};
@@ -254,6 +294,19 @@ export function validarCompeticion(
     errores.enabled_event_types = 'Deja al menos un botón encendido para el directo.';
   }
 
+  // La categoría es opcional: lo vacío se guarda como nulo, no como texto vacío.
+  const categoria: Categoria = { ...SIN_CATEGORIA };
+
+  for (const campo of CAMPOS_DE_CATEGORIA) {
+    const escrito = limpiarTexto(formulario[campo]);
+
+    if (escrito.length > LARGO_CATEGORIA) {
+      errores[campo] = `Como mucho ${LARGO_CATEGORIA} caracteres.`;
+    } else {
+      categoria[campo] = escrito === '' ? null : escrito;
+    }
+  }
+
   if (Object.keys(errores).length > 0) {
     return { errores, valores: null };
   }
@@ -266,6 +319,7 @@ export function validarCompeticion(
     valores: {
       name: nombre,
       kind: formulario.kind,
+      ...categoria,
       periods_count: leer('periods_count'),
       period_minutes: leer('period_minutes'),
       halftime_minutes: leer('halftime_minutes'),

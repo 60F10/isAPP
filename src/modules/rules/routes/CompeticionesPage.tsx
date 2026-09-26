@@ -2,11 +2,13 @@
 //
 // Las competiciones del club en la temporada en curso y el alta de una nueva.
 //
-// LA CATEGORÍA VA EN EL NOMBRE. `competitions` solo tiene `name` y `kind`: no
-// hay columnas de categoría, nivel, ámbito ni grupo. Hasta que las haya (DOC
-// 13), el nombre se escribe como lo llama la federación —«Cadete Primera
-// Tenerife G2»— y la temporada no se repite en él: la competición ya
-// pertenece a una.
+// EL NOMBRE Y LA CATEGORÍA. El nombre se escribe como lo llama la federación
+// —«Cadete Primera Tenerife G2»— y es lo que se ve en el resto de la
+// aplicación; la temporada no se repite en él, porque la competición ya
+// pertenece a una. Desde la T-203b, categoría, nivel, ámbito y grupo van
+// además en sus columnas (DOC 05 §14.4), opcionales y sin componer el nombre.
+// El nombre es único por club y temporada, sin mirar mayúsculas: lo mira la
+// pantalla y, desde el 26/09, también la base.
 //
 // Una competición nueva nace con el reglamento del cadete, que Isaac confirmó
 // el 26/09/2026, y se ajusta en su ficha. Es el único equipo que hay; nacer
@@ -23,6 +25,7 @@ import { Field } from '@shared/ui/Field';
 import { GrupoDeOpciones } from '@shared/ui/GrupoDeOpciones';
 import { Pantalla } from '@shared/ui/Pantalla';
 
+import { CamposDeCategoria } from '../components/CamposDeCategoria';
 import {
   useClubYTemporada,
   useCompeticiones,
@@ -31,16 +34,30 @@ import {
 import {
   aFormulario,
   LARGO_NOMBRE_COMPETICION,
+  NOMBRE_REPETIDO,
   NOMBRES_DE_TIPO,
   REGLAMENTO_CADETE,
   resumenDelReglamento,
+  SIN_CATEGORIA,
   validarCompeticion,
 } from '../model/competicion';
 
 import formulario from '../components/Formulario.module.css';
 import styles from './CompeticionesPage.module.css';
 
-import type { Competicion, TipoDeCompeticion } from '../model/competicion';
+import type {
+  CampoDeCategoria,
+  Competicion,
+  ResultadoCompeticion,
+  TipoDeCompeticion,
+} from '../model/competicion';
+
+const CATEGORIA_VACIA: Record<CampoDeCategoria, string> = {
+  category: '',
+  level: '',
+  scope: '',
+  group_label: '',
+};
 
 const TIPOS: readonly { valor: TipoDeCompeticion; etiqueta: string }[] = [
   { valor: 'league', etiqueta: NOMBRES_DE_TIPO.league },
@@ -60,7 +77,8 @@ function NuevaCompeticion({ clubId, temporadaId, existentes }: NuevaCompeticionP
   const crear = useCrearCompeticion(clubId, temporadaId);
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState<TipoDeCompeticion>('league');
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [categoria, setCategoria] = useState<Record<CampoDeCategoria, string>>(CATEGORIA_VACIA);
+  const [errores, setErrores] = useState<ResultadoCompeticion['errores']>({});
   const [falloAlGuardar, setFalloAlGuardar] = useState<string | null>(null);
 
   return (
@@ -72,10 +90,13 @@ function NuevaCompeticion({ clubId, temporadaId, existentes }: NuevaCompeticionP
         setFalloAlGuardar(null);
 
         const resultado = validarCompeticion(
-          { ...aFormulario({ ...REGLAMENTO_CADETE, name: nombre, kind: tipo }) },
+          {
+            ...aFormulario({ ...REGLAMENTO_CADETE, ...SIN_CATEGORIA, name: nombre, kind: tipo }),
+            ...categoria,
+          },
           existentes,
         );
-        setError(resultado.errores.name);
+        setErrores(resultado.errores);
 
         if (resultado.valores === null) {
           anunciar('Revisa los campos marcados');
@@ -88,7 +109,7 @@ function NuevaCompeticion({ clubId, temporadaId, existentes }: NuevaCompeticionP
             void navigate(`/competiciones/${creada.id}`);
           },
           onError: (fallo) => {
-            const mensaje = mensajeDeErrorAlGuardar(fallo);
+            const mensaje = mensajeDeErrorAlGuardar(fallo, NOMBRE_REPETIDO);
             setFalloAlGuardar(mensaje);
             anunciar(mensaje);
           },
@@ -97,17 +118,24 @@ function NuevaCompeticion({ clubId, temporadaId, existentes }: NuevaCompeticionP
     >
       <Field
         label="Nombre"
-        hint="Categoría, nivel, ámbito y grupo, como la llama la federación: «Cadete Primera Tenerife G2». La temporada no hace falta, va aparte."
+        hint="Como la llama la federación: «Cadete Primera Tenerife G2». La temporada no hace falta, va aparte."
         required
         maxLength={LARGO_NOMBRE_COMPETICION}
         autoComplete="off"
         value={nombre}
-        error={error}
+        error={errores.name}
         onChange={(evento) => {
           setNombre(evento.target.value);
         }}
       />
       <GrupoDeOpciones leyenda="Tipo" opciones={TIPOS} valor={tipo} alCambiar={setTipo} />
+      <CamposDeCategoria
+        valores={categoria}
+        errores={errores}
+        alCambiar={(campo, valor) => {
+          setCategoria((anterior) => ({ ...anterior, [campo]: valor }));
+        }}
+      />
       <p className={formulario.nota}>
         Empieza con el reglamento del cadete: {resumenDelReglamento(REGLAMENTO_CADETE)}. Se cambia
         después en su ficha.
