@@ -20,7 +20,7 @@ migración del DOC 05 §14.4 ya estaba aplicada (PR #52).
 | :--------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `rules/model/competicion.ts`             | `Categoria`, `CAMPOS_DE_CATEGORIA`, `SIN_CATEGORIA`, `LARGO_CATEGORIA` (40), `DatosDeCompeticion` y `NOMBRE_REPETIDO`. La validación limpia cada campo y guarda lo vacío como nulo     |
 | `rules/components/CamposDeCategoria.tsx` | Los cuatro campos —Categoría, Nivel, Ámbito y Grupo— en un `fieldset` con su leyenda, «Clasificación de la federación». Opcionales, con un ejemplo en la ayuda de cada uno             |
-| **A08, alta y ficha**                    | Los cuatro campos en las dos. Si la base rechaza un nombre repetido (23505, índice `competitions_name_unique`), el aviso es el mismo que el de la pantalla                             |
+| **A08, alta y ficha**                    | Los cuatro campos en las dos. Si la base rechaza un nombre repetido (23505, índice `competitions_name_unique`), el aviso es el de la pantalla y sale junto al campo «Nombre»           |
 | `rules/api/competiciones.ts` y su hook   | Leen y escriben `category`, `level`, `scope` y `group_label`. La `Fila` ya no las deja fuera                                                                                           |
 | `core`                                   | `Club` trae `homeVenue` y `homeVenueAddress`; `useClub` sale por el barril para `agenda`                                                                                               |
 | `agenda/model/partido.ts`                | `campoDeCasaPropuesto`: el campo de casa del club, limpio, y si no hay, el del último partido en casa                                                                                  |
@@ -304,13 +304,14 @@ no enseña la categoría, porque el nombre ya la dice.
 | :------------------------------------------ | -----------------: | ------------------: |
 | Tras la T-208, en Linux                     |          180,97 kB |            19,03 kB |
 | Migración del 26/09, en Windows             |          180,27 kB |            19,73 kB |
-| **Esta sesión, en Windows, cifras de Vite** |      **180,27 kB** |        **19,73 kB** |
+| **Esta sesión, en Windows, cifras de Vite** |      **180,29 kB** |        **19,71 kB** |
 
-**Sin cambios en el arranque.** Lo nuevo vive en los trozos perezosos `rules-*.js` (5,47 kB) y
-`agenda-*.js` (5,58 kB). La cifra suma lo que carga `index.html` —`index-*.js`, `App-*.js`,
+**Sin cambios de código en el arranque**: los 0,02 kB de más son de los nombres con _hash_ que se
+citan unos a otros. Lo nuevo vive en los trozos perezosos `rules-*.js` y `agenda-*.js`, de unos
+5,5 kB cada uno. La cifra suma lo que carga `index.html` —`index-*.js`, `App-*.js`,
 `announceContext-*.js`, `QueryClientProvider-*.js`, `workbox-window` e `index-*.css`— con los
 tamaños que da Vite en Windows. El CI da la cifra de referencia. En crudo, `precache 35 entries
-(911.72 KiB)`.
+(911.86 KiB)`.
 
 ---
 
