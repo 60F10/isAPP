@@ -1,21 +1,522 @@
-// Pantalla A12 — Partido en directo
+// Pantalla A12 — Partido en directo, esqueleto (T-207, DOC 02 §4).
+//
+// Reloj, parte, marcador, quién está en el campo y el banquillo, y los
+// controles del partido: empezar y terminar partes, pausar y finalizar. La
+// botonera de eventos es de la T-208.
+//
+// LEE DE LOCAL, NO DE LA RED (D06-11). Al abrir intenta refrescar la precarga;
+// sin cobertura, usa la que haya. Cada transición guarda el estado del
+// reductor y encola sus filas en una sola transacción: una recarga, un
+// bloqueo o un cierre accidental recuperan el partido donde estaba.
+//
+// Se usa de pie, a una mano y al sol: controles de 72 px, texto a 7:1
+// (DOC 07 §2) y confirmación en el mismo sitio para lo que no tiene vuelta
+// atrás, terminar una parte y finalizar. Salir es una acción explícita, y
+// con anotaciones sin enviar lo dice antes (D06-10b).
 
-import { Link } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
 
+import { useAuth } from '@modules/auth';
+import { contarPendientes } from '@modules/sync';
+import { useAnnounce } from '@shared/hooks/announceContext';
+import { marcarPartidoEnCurso, quitarPartidoEnCurso } from '@shared/lib/partidoEnCurso';
+import { Button } from '@shared/ui/Button';
 import { Pantalla } from '@shared/ui/Pantalla';
 
-export function LiveMatchPage() {
+import { aplicarTransicion, cargarDirecto, SIN_PRECARGA } from '../api/directo';
+import { useAhora } from '../hooks/useAhora';
+import { useBloqueoDePantalla } from '../hooks/useBloqueoDePantalla';
+import { enCurso, marcador, reducir } from '../model/directo';
+import { formatoReloj, minutoDePresentacion, segundosDeParte } from '../model/reloj';
+
+import styles from './LiveMatchPage.module.css';
+
+import type { DirectoCargado } from '../api/directo';
+import type { Accion, EstadoDirecto } from '../model/directo';
+import type { LineaGuardada } from '@modules/lineup';
+
+const directoKey = (partidoId: string) => ['match', 'directo', partidoId] as const;
+
+function ordinal(numero: number): string {
+  return `${numero}ª`;
+}
+
+function porDorsal(a: LineaGuardada, b: LineaGuardada): number {
   return (
-    <Pantalla id="A12" titulo="Partido en directo">
-      <p>
-        El panel de registro se construye en la T-207 y la T-208. De momento esta pantalla reserva
-        su sitio: el marco a pantalla completa, sin barra ni rail, y su propia salida.
+    (a.shirtNumber ?? 100) - (b.shirtNumber ?? 100) || a.nickname.localeCompare(b.nickname, 'es')
+  );
+}
+
+function nombre(linea: LineaGuardada): string {
+  return linea.shirtNumber === null ? linea.nickname : `${linea.shirtNumber} · ${linea.nickname}`;
+}
+
+/** Lo que dice la cabecera bajo el reloj. */
+function textoDeFase(estado: EstadoDirecto): string {
+  const ultima = estado.partes[estado.partes.length - 1];
+
+  switch (estado.fase) {
+    case 'inactivo':
+      return 'Sin empezar';
+    case 'en_juego':
+      return `${ordinal(ultima?.numero ?? 1)} parte`;
+    case 'pausado':
+      return `${ordinal(ultima?.numero ?? 1)} parte · en pausa`;
+    case 'descanso':
+      return estado.partes.length < estado.periodos ? 'Descanso' : 'Partes terminadas';
+    case 'finalizado':
+      return 'Partido terminado';
+  }
+}
+
+interface ConfirmarProps {
+  pregunta: string;
+  si: string;
+  alConfirmar: () => void;
+  alCancelar: () => void;
+}
+
+/** Confirmación en el mismo sitio, sin ventana emergente. El foco va a la pregunta. */
+function Confirmar({ pregunta, si, alConfirmar, alCancelar }: ConfirmarProps) {
+  const refPregunta = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    refPregunta.current?.focus();
+  }, []);
+
+  return (
+    <div className={styles.confirmar}>
+      <p ref={refPregunta} className={styles.pregunta} tabIndex={-1}>
+        {pregunta}
       </p>
-      <p>
-        {/* Salir del directo es una acción explícita de la pantalla, nunca un
-            gesto ni un destino de la navegación (DOC 02 §3.1). */}
-        <Link to="/calendario">Salir del partido</Link>
-      </p>
+      <div className={styles.controles}>
+        <Button variant="primary" className={styles.grande} onClick={alConfirmar}>
+          {si}
+        </Button>
+        <Button variant="secondary" className={styles.grande} onClick={alCancelar}>
+          Seguir jugando
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string }) {
+  const { paquete } = cargado;
+  const rival = paquete.partido.opponentName;
+  const local = paquete.partido.isHome;
+  const titulo = local ? `${nuestro} – ${rival}` : `${rival} – ${nuestro}`;
+  const { session } = useAuth();
+  const anunciar = useAnnounce();
+  const navigate = useNavigate();
+  const [estado, setEstado] = useState(cargado.estado);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [confirmando, setConfirmando] = useState<'terminar' | 'finalizar' | null>(null);
+  const [pendientesAlSalir, setPendientesAlSalir] = useState<number | null>(null);
+  const guardando = useRef(false);
+  // Las confirmaciones sustituyen al botón que las abre. Al aparecer, el foco
+  // va a la pregunta; al cerrarse, vuelve a los controles (2.4.3), para que no
+  // se quede en `body` cuando se desmonta lo que lo tenía.
+  const zonaControles = useRef<HTMLDivElement>(null);
+  const zonaSalida = useRef<HTMLDivElement>(null);
+  const avisoSalida = useRef<HTMLParagraphElement>(null);
+  const confirmoAntes = useRef(false);
+  const avisoAntes = useRef(false);
+
+  useEffect(() => {
+    if (confirmando !== null) {
+      confirmoAntes.current = true;
+    } else if (confirmoAntes.current) {
+      confirmoAntes.current = false;
+      zonaControles.current?.querySelector('button')?.focus();
+    }
+  }, [confirmando]);
+
+  useEffect(() => {
+    if (pendientesAlSalir !== null) {
+      avisoAntes.current = true;
+      avisoSalida.current?.focus();
+    } else if (avisoAntes.current) {
+      avisoAntes.current = false;
+      zonaSalida.current?.querySelector('button')?.focus();
+    }
+  }, [pendientesAlSalir]);
+
+  const corriendo = estado.fase === 'en_juego';
+  const ahora = useAhora(corriendo);
+  const bloqueo = useBloqueoDePantalla(enCurso(estado));
+
+  // La marca que calla el aviso de versión nueva mientras dure el partido.
+  useEffect(() => {
+    if (enCurso(estado)) {
+      marcarPartidoEnCurso(estado.partidoId, Date.now());
+    } else {
+      quitarPartidoEnCurso(estado.partidoId);
+    }
+  }, [estado]);
+
+  const hacer = async (accion: Accion, anuncio: string) => {
+    if (guardando.current) {
+      return;
+    }
+
+    const resultado = reducir(estado, accion);
+
+    if (resultado.error !== null) {
+      setAviso(resultado.error);
+      anunciar(resultado.error);
+      return;
+    }
+
+    guardando.current = true;
+    setAviso(null);
+
+    try {
+      await aplicarTransicion(resultado.estado, resultado.trabajos);
+      setEstado(resultado.estado);
+      anunciar(anuncio);
+    } catch {
+      const mensaje =
+        'No se ha podido guardar en este dispositivo. No ha cambiado nada: vuelve a intentarlo.';
+      setAviso(mensaje);
+      anunciar(mensaje);
+    } finally {
+      guardando.current = false;
+    }
+  };
+
+  const ultima = estado.partes[estado.partes.length - 1];
+  const segundos = ultima === undefined ? 0 : segundosDeParte(ultima, ahora);
+  const siguiente = estado.partes.length + 1;
+  const goles = marcador(paquete.eventos);
+  const convocados = paquete.convocatoria.filter((linea) => linea.callStatus !== 'not_called');
+  const enCampo = convocados
+    .filter((linea) => estado.enCampo.includes(linea.playerId))
+    .sort(porDorsal);
+  const banquillo = convocados
+    .filter((linea) => !estado.enCampo.includes(linea.playerId))
+    .sort(porDorsal);
+  const faltanTitulares =
+    estado.fase === 'inactivo' && estado.enCampo.length !== estado.titularesPedidos;
+
+  const salir = async () => {
+    const userId = session === null ? null : session.user.id;
+
+    if (userId !== null && pendientesAlSalir === null) {
+      try {
+        const cuantos = await contarPendientes(userId);
+
+        if (cuantos > 0) {
+          setPendientesAlSalir(cuantos);
+          anunciar(
+            `Hay ${cuantos === 1 ? '1 anotación' : `${cuantos} anotaciones`} sin enviar en este dispositivo`,
+          );
+          return;
+        }
+      } catch {
+        // Sin cola legible se sale sin preguntar: bloquear la salida sería peor.
+      }
+    }
+
+    void navigate('/calendario');
+  };
+
+  const controles = () => {
+    if (confirmando === 'terminar') {
+      return (
+        <Confirmar
+          pregunta={`¿Terminar la ${ordinal(ultima?.numero ?? 1)} parte en el ${formatoReloj(segundos)}?`}
+          si="Sí, terminar la parte"
+          alConfirmar={() => {
+            setConfirmando(null);
+            void hacer(
+              { tipo: 'terminar_parte', ahora: Date.now() },
+              `${ordinal(ultima?.numero ?? 1)} parte terminada`,
+            );
+          }}
+          alCancelar={() => {
+            setConfirmando(null);
+          }}
+        />
+      );
+    }
+
+    if (confirmando === 'finalizar') {
+      return (
+        <Confirmar
+          pregunta="¿Finalizar el partido? Después solo se puede corregir desde el cierre."
+          si="Sí, finalizar"
+          alConfirmar={() => {
+            setConfirmando(null);
+            void hacer({ tipo: 'finalizar', ahora: Date.now() }, 'Partido finalizado');
+          }}
+          alCancelar={() => {
+            setConfirmando(null);
+          }}
+        />
+      );
+    }
+
+    switch (estado.fase) {
+      case 'inactivo':
+      case 'descanso':
+        if (estado.partes.length >= estado.periodos) {
+          return (
+            <div className={styles.controles}>
+              <Button
+                variant="primary"
+                className={styles.grande}
+                onClick={() => {
+                  setConfirmando('finalizar');
+                }}
+              >
+                Finalizar el partido
+              </Button>
+            </div>
+          );
+        }
+
+        return (
+          <div className={styles.controles}>
+            <Button
+              variant="primary"
+              className={styles.grande}
+              disabled={faltanTitulares}
+              onClick={() => {
+                void hacer(
+                  { tipo: 'empezar_parte', ahora: Date.now(), parteId: crypto.randomUUID() },
+                  `${ordinal(siguiente)} parte en juego`,
+                );
+              }}
+            >
+              Empezar la {ordinal(siguiente)} parte
+            </Button>
+          </div>
+        );
+      case 'en_juego':
+      case 'pausado':
+        return (
+          <div className={styles.controles}>
+            {estado.fase === 'en_juego' ? (
+              <Button
+                variant="secondary"
+                className={styles.grande}
+                onClick={() => {
+                  void hacer({ tipo: 'pausar', ahora: Date.now() }, 'Reloj en pausa');
+                }}
+              >
+                Pausar el reloj
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                className={styles.grande}
+                onClick={() => {
+                  void hacer({ tipo: 'reanudar', ahora: Date.now() }, 'Reloj en marcha');
+                }}
+              >
+                Reanudar el reloj
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              className={styles.grande}
+              onClick={() => {
+                setConfirmando('terminar');
+              }}
+            >
+              Terminar la {ordinal(ultima?.numero ?? 1)} parte
+            </Button>
+          </div>
+        );
+      case 'finalizado':
+        return (
+          <p className={styles.nota}>
+            El partido ha terminado. Los datos entran en las estadísticas cuando se cierre.
+          </p>
+        );
+    }
+  };
+
+  return (
+    <Pantalla id="A12" titulo={titulo}>
+      <div ref={zonaSalida} className={styles.salida}>
+        {/* 48 px y no 72 a propósito: salir es la acción secundaria de la
+            pantalla y conviene que no se roce sin querer (DOC 02 §3.1). */}
+        {pendientesAlSalir === null ? (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              void salir();
+            }}
+          >
+            Salir del directo
+          </Button>
+        ) : (
+          <div className={styles.confirmar}>
+            <p ref={avisoSalida} className={styles.pregunta} tabIndex={-1}>
+              Hay{' '}
+              {pendientesAlSalir === 1
+                ? '1 anotación sin enviar'
+                : `${pendientesAlSalir} anotaciones sin enviar`}
+              . Se quedan en este dispositivo y se envían solas con cobertura, también si sales.
+            </p>
+            <div className={styles.controles}>
+              <Button
+                variant="primary"
+                className={styles.grande}
+                onClick={() => {
+                  setPendientesAlSalir(null);
+                }}
+              >
+                Seguir en el directo
+              </Button>
+              <Button
+                variant="secondary"
+                className={styles.grande}
+                onClick={() => {
+                  void navigate('/calendario');
+                }}
+              >
+                Salir igualmente
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <section className={styles.cabecera} aria-label="Reloj y marcador">
+        {/* Sin región viva: el reloj cambia cuatro veces por segundo. Los
+            cambios de fase se anuncian por la región única del marco. */}
+        <p className={styles.reloj}>
+          <span className={styles.cifras}>{formatoReloj(segundos)}</span>
+          <span className={styles.fase}>
+            {textoDeFase(estado)}
+            {ultima !== undefined && (estado.fase === 'en_juego' || estado.fase === 'pausado')
+              ? ` · minuto ${minutoDePresentacion(segundos, ultima.numero, estado.minutosDeParte)}`
+              : ''}
+          </span>
+        </p>
+        <p className={styles.marcador}>
+          {local ? nuestro : rival}{' '}
+          <span className={styles.cifras}>
+            {local ? goles.aFavor : goles.enContra} – {local ? goles.enContra : goles.aFavor}
+          </span>{' '}
+          {local ? rival : nuestro}
+        </p>
+        {goles.pendientes > 0 ? (
+          <p className={styles.nota}>
+            Incluye{' '}
+            {goles.pendientes === 1 ? '1 gol sin aprobar' : `${goles.pendientes} goles sin aprobar`}
+            .
+          </p>
+        ) : null}
+      </section>
+
+      {aviso === null ? null : <p className={styles.aviso}>{aviso}</p>}
+      {faltanTitulares ? (
+        <p className={styles.aviso}>
+          Tienen que salir {estado.titularesPedidos} titulares y la convocatoria tiene{' '}
+          {estado.enCampo.length}.{' '}
+          <Link to={`/partidos/${estado.partidoId}/convocatoria`}>Revisa la convocatoria</Link>.
+        </p>
+      ) : null}
+
+      <div ref={zonaControles}>{controles()}</div>
+
+      {bloqueo === 'activo' ? (
+        <p className={styles.nota}>Pantalla encendida mientras dure el partido. Gasta batería.</p>
+      ) : null}
+      {bloqueo === 'no_disponible' || bloqueo === 'denegado' ? (
+        <p className={styles.nota}>
+          Este navegador no puede mantener la pantalla encendida: se apagará sola como siempre.
+        </p>
+      ) : null}
+      {cargado.refrescado ? null : (
+        <p className={styles.nota}>
+          Sin conexión: el partido sale de lo guardado en este dispositivo. Lo que hagas se envía al
+          volver la cobertura.
+        </p>
+      )}
+
+      <div className={styles.listas}>
+        <section className={styles.lista} aria-labelledby="en-campo">
+          <h2 id="en-campo" className={styles.subtitulo}>
+            En el campo ({enCampo.length})
+          </h2>
+          <ul>
+            {enCampo.map((linea) => (
+              <li key={linea.playerId}>{nombre(linea)}</li>
+            ))}
+          </ul>
+        </section>
+        <section className={styles.lista} aria-labelledby="banquillo">
+          <h2 id="banquillo" className={styles.subtitulo}>
+            Banquillo ({banquillo.length})
+          </h2>
+          {banquillo.length === 0 ? (
+            <p className={styles.nota}>Nadie.</p>
+          ) : (
+            <ul>
+              {banquillo.map((linea) => (
+                <li key={linea.playerId}>{nombre(linea)}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </Pantalla>
+  );
+}
+
+export function LiveMatchPage() {
+  const { id: partidoId = '' } = useParams();
+  const { teams } = useAuth();
+  const carga = useQuery({
+    queryKey: directoKey(partidoId),
+    queryFn: () => cargarDirecto(partidoId),
+    // El directo manda sobre lo que tiene en memoria: no se vuelve a cargar
+    // solo, ni al volver a la pestaña. Se carga al entrar y ya.
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  if (carga.isPending) {
+    return (
+      <Pantalla id="A12" titulo="Partido en directo">
+        <p className={styles.nota}>Cargando el partido…</p>
+      </Pantalla>
+    );
+  }
+
+  if (carga.isError) {
+    return (
+      <Pantalla id="A12" titulo="Partido en directo">
+        <p className={styles.aviso}>
+          {carga.error.message === SIN_PRECARGA
+            ? 'Este partido no está preparado para jugar sin conexión, y ahora no hay cobertura. Ábrelo con cobertura antes de ir al campo: basta con entrar en su convocatoria.'
+            : 'No se ha podido abrir el partido en este dispositivo.'}
+        </p>
+        <p>
+          <Link to="/calendario">Volver al calendario</Link>
+        </p>
+      </Pantalla>
+    );
+  }
+
+  const { teamId } = carga.data.paquete.partido;
+  const equipo =
+    teams === null ? undefined : teams.find((membresia) => membresia.team.id === teamId);
+
+  return (
+    <Panel
+      key={partidoId}
+      cargado={carga.data}
+      nuestro={equipo === undefined ? 'Nosotros' : equipo.team.name}
+    />
   );
 }

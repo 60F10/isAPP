@@ -1,0 +1,112 @@
+/* A12. Pantalla de directo: se lee al sol, así que todo el texto va a 7:1
+   (DOC 07 §2). `--color-text` y `--color-text-secondary` (`--gray-600`, 7.84)
+   cumplen; `--gray-500` está prohibido aquí. Controles de 72 px de alto
+   (`--tap-event`) y 8 px de separación como mínimo. La excepción es «Salir
+   del directo», de 48 px a propósito: es la acción que no conviene rozar. */
+
+.salida {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cabecera {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-block: 2px solid var(--color-border);
+  text-align: center;
+}
+
+.reloj {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.reloj .cifras {
+  font-size: var(--font-size-600);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+/* Cifras tabulares: sin ellas el reloj baila a cada segundo (DOC 07 §5). */
+.cifras {
+  font-variant-numeric: tabular-nums;
+}
+
+.fase {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.marcador {
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+.controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+/* Los controles del partido, grandes y a todo lo ancho a 320 px. */
+.grande {
+  flex: 1 1 12rem;
+  min-block-size: var(--tap-event);
+  font-size: var(--font-size-200);
+}
+
+.confirmar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pregunta {
+  max-inline-size: 60ch;
+  font-weight: var(--font-weight-semibold);
+}
+
+.pregunta:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.aviso {
+  max-inline-size: 60ch;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+.listas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-4);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lista ul {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  font-variant-numeric: tabular-nums;
+}
+
+.subtitulo {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+}

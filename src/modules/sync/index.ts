@@ -10,6 +10,6 @@ export { BandaDeSincronizacion } from './components/BandaDeSincronizacion';
 
 export { contarPendientes, purgarPartido } from './api/almacen';
 export { arrancarSincronizacion, sincronizarAhora } from './api/arranque';
-export { encolar } from './api/encolar';
+export { encolar, encolarJunto } from './api/encolar';
 
 export type { EntradaDeTrabajo, EstadoDeCola } from './model/cola';

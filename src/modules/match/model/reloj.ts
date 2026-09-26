@@ -1,0 +1,54 @@
+// El reloj del directo: lógica pura (DOC 04 §5, D06-15, T-207).
+//
+// POR ANCLAJE, NUNCA POR ACUMULACIÓN. El tiempo de una parte sale de
+// `ahora − arranque − pausado`. El temporizador de la pantalla solo repinta:
+// los navegadores móviles frenan los temporizadores con la pantalla
+// bloqueada, y un reloj que suma en cada vuelta se retrasaría minutos.
+//
+// Lo que se guarda son segundos dentro de la parte; el minuto «34'» o
+// «40+2'» se calcula para enseñarlo y nunca se guarda (DOC 04 §5.1).
+
+import type { ParteLocal } from './directo';
+
+/** Segundos jugados de una parte. Cerrada, su duración real. */
+export function segundosDeParte(parte: ParteLocal, ahora: number): number {
+  if (parte.segundosReales !== null) {
+    return parte.segundosReales;
+  }
+
+  // En pausa, el reloj se queda en el instante en que se paró.
+  const hasta = parte.pausaDesde ?? ahora;
+  const jugados = hasta - parte.inicio - parte.pausadoMs;
+
+  // El reloj de pared de un móvil puede ir un poco por detrás del de quien
+  // abrió la parte. Mejor 00:00 que un reloj negativo.
+  return Math.max(0, Math.floor(jugados / 1000));
+}
+
+function dosCifras(numero: number): string {
+  return String(numero).padStart(2, '0');
+}
+
+/** `34:12`. Los minutos siguen contando pasados los sesenta: `62:05`. */
+export function formatoReloj(segundos: number): string {
+  return `${dosCifras(Math.floor(segundos / 60))}:${dosCifras(segundos % 60)}`;
+}
+
+/**
+ * El minuto que se enseña (DOC 04 §5.3): el que está en curso, contando las
+ * partes anteriores por su duración prevista, y en el descuento `40+2'`.
+ */
+export function minutoDePresentacion(
+  segundos: number,
+  numeroDeParte: number,
+  minutosDeParte: number,
+): string {
+  const previo = (numeroDeParte - 1) * minutosDeParte;
+  const minuto = Math.floor(segundos / 60);
+
+  if (minuto < minutosDeParte) {
+    return `${previo + minuto + 1}'`;
+  }
+
+  return `${previo + minutosDeParte}+${minuto - minutosDeParte + 1}'`;
+}
