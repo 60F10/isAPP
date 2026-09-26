@@ -1,6 +1,6 @@
 # DOC 06 — Arquitectura frontend y convenciones
 
-> **Versión:** 2.0 — 26/09/2026 (T-201: §10.1, las actualizaciones que la RLS rechaza sin error) · 1.9 — 25/09/2026 (T-107: §5.5 con `reintentarContexto` y el cierre de sesión, §9.3 con D06-25, preferencias en el dispositivo) · 1.8 — 25/09/2026 (T-106: §10.1 con las tres capas montadas, D06-23 y §10.3 al día) · 1.7 — 25/09/2026 (§11: D06-24 —publicada como D06-22 por error—, TypeScript estricto explícito y tres reglas de `oxlint` contra `any`, `!` y comentarios `@ts-`) · 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 2.1 — 26/09/2026 (T-206: §8.3 a §8.5 con D06-26, D06-27 y D06-28, transporte de la cola y presupuesto tras Dexie) · 2.0 — 26/09/2026 (T-201: §10.1, las actualizaciones que la RLS rechaza sin error) · 1.9 — 25/09/2026 (T-107: §5.5 con `reintentarContexto` y el cierre de sesión, §9.3 con D06-25, preferencias en el dispositivo) · 1.8 — 25/09/2026 (T-106: §10.1 con las tres capas montadas, D06-23 y §10.3 al día) · 1.7 — 25/09/2026 (§11: D06-24 —publicada como D06-22 por error—, TypeScript estricto explícito y tres reglas de `oxlint` contra `any`, `!` y comentarios `@ts-`) · 1.6 — 20/09/2026 (T-105: §2.2, §5.5 y §10.3 al día; el acceso con Google, enchufado) · 1.5 — 19/09/2026 (§11: el arnés de pruebas montado y corriendo en el CI, con `env.ts` como primera prueba; §2.2 y §3.1 al día) · 1.4 — 19/09/2026 (§3.4: el MVP son 19 pantallas, no 21) · 1.3 — 18/09/2026 (§10.3: el presupuesto, resuelto con la medición real) · 1.2 — 12/09/2026 (T-101: alias corregidos, peso del paquete medido) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 02 (pantallas y rutas), DOC 03 (decisiones cerradas), DOC 04 (reglas de negocio), DOC 05 (modelo de datos), DOC 15 (convenciones de Git)
 > **Alimenta a:** DOC 07 (sistema de diseño), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 
@@ -33,7 +33,7 @@ Columna de estado al cerrar la **T-102**. Las decisiones de este documento no ca
 | Enrutador            | **Hecho** en la T-104: `src/app/router.tsx`. Se decide en §6                          |
 | Cliente de Supabase  | **Hecho**: `src/shared/lib/supabase.ts`. Se decide en §7                              |
 | Caché de lectura     | **Hecha** en la T-104: `app/providers/QueryProvider.tsx`. Se decide en §5             |
-| Almacén local y cola | Dexie instalado, sin esquema local. Es la T-206. Se decide en §8                      |
+| Almacén local y cola | **Hecho** en la T-206: `shared/lib/db.ts` y `modules/sync`. Se decide en §8           |
 | `vite-plugin-pwa`    | **Hecho** en la T-102: manifiesto, iconos y service worker. Se decide en §8.7         |
 | Pruebas              | **Hecho** el 19/09: bloque `test` en `vite.config.ts` y paso de CI. Se decide en §11  |
 | Esquema de la base   | **Aplicado** a GavetaStats: cuatro migraciones (DOC 05 §14)                           |
@@ -456,6 +456,8 @@ El identificador de dispositivo se genera una vez con `crypto.randomUUID()` y se
 
 ### 8.3 Precarga del partido
 
+**D06-28 · La precarga vive en `match` y la dispara el enrutador (T-206, decisión de Raúl del 26/09).** Precargar al entrar en la convocatoria obligaría a `lineup` a importar de la capa offline, y el §4.2 no lo deja. La ruta `/partidos/:id/convocatoria` carga `match/routes/ConvocatoriaConPrecarga`, que es la A11 de `lineup` con el estado de la precarga encima y una segunda precarga al guardar. `app/router.tsx` la importa **por ruta directa** y en perezoso, no por el barril de `match`: ese barril va en el paquete inicial con la A12 y arrastraría Dexie. `lineup` solo expone dos enganches, `aviso` y `alGuardar`, y no sabe nada de la capa offline.
+
 **D06-11 · Al entrar en la convocatoria o en el directo, el partido se descarga entero a IndexedDB.**
 Se guardan el partido, la competición con su reglamento, la plantilla, la convocatoria y los eventos ya registrados. A partir de ahí, la pantalla de directo **lee de local**, no de la red. La red solo aporta lo que llega en tiempo real.
 
@@ -480,6 +482,8 @@ Una fila de `outbox` es un trabajo pendiente:
 | `nextAttemptAt` | número                                                                    | Cuándo toca el siguiente intento                 |
 | `status`        | `pending` \| `sending` \| `sent` \| `failed`                              | Estado del transporte                            |
 | `lastError`     | texto                                                                     | Qué dijo el servidor la última vez               |
+| `userId`        | uuid                                                                      | Quién lo encoló. Añadido en la T-206 (D06-27)    |
+| `sentAt`        | número                                                                    | Cuándo lo confirmó el servidor. Para la purga    |
 
 ### 8.5 Reglas de la cola
 
@@ -499,6 +503,12 @@ Una fila de `outbox` es un trabajo pendiente:
 
 **D06-13 · El vaciado vive en la aplicación, no en el service worker.**
 Se descartó la Background Sync API: no existe en Safari de iOS, y la mitad de quienes anotan llevan iPhone. Una capa de sincronización que solo funciona en Android es media capa. Consecuencia asumida y escrita: **si se cierra la aplicación con eventos pendientes, se envían al volver a abrirla**, no antes. La pantalla avisa antes de salir con trabajos en cola (DOC 02 §3.3, regla 5).
+
+**Tres reglas del transporte, fijadas en la T-206.** El duplicado de una inserción (23505) es éxito en cualquier tabla, no solo en `match_events`: toda fila que viaja por la cola lleva una clave que genera el dispositivo, así que si ya está es que el primer envío llegó. Un `update` que no toca ninguna fila es `SIN_FILAS` y definitivo (§10.1). Un `delete` que no toca ninguna es éxito: lo borrado ya no está, que es lo que se quería. Se reintentan el estado 0, los 5xx, el 401 (la sesión se renueva sola), el 408 y el 429.
+
+**D06-26 · `sync` y Dexie no van en el arranque (T-206).** Dexie pesa 31 kB comprimidos y el margen era de 20 kB. `app/components/Sincronizacion.tsx` carga `@modules/sync` con `import()` en cuanto hay sesión, arranca el vaciado y pinta la banda C04. Con `import()` en un efecto y no con `lazy`: si el trozo no baja en una primera visita sin red, `lazy` lanzaría y el Error Boundary pintaría la C03 entera por una banda. Coste: el vaciado del arranque sale unos milisegundos después de pintar, lo que tarda en bajar el trozo, y desde la segunda visita lo sirve la precaché.
+
+**D06-27 · Cada trabajo lleva quién lo encoló, y solo se envía con su sesión (T-206).** Dos cuentas en el mismo móvil —Isaac le deja el suyo a Raúl— no se mandan lo de la otra con la sesión equivocada, que es la misma clase de fallo que D06-09 evita en la caché. Cerrar sesión no borra la cola: lo pendiente se queda y sale cuando vuelve a entrar esa cuenta. La C01 lo avisa antes de salir, con el número por delante.
 
 ### 8.6 Dos ejes que se confunden a menudo
 
@@ -650,7 +660,7 @@ La pantalla que importa es A12 y su enemigo es el render en cascada. Tres reglas
 2. La lista de eventos se renderiza por clave estable (`clientEventId`), nunca por índice.
 3. Presupuesto del paquete inicial: **por debajo de 200 kB comprimidos**. Se mide con `vite build` en cada entrega. Sin herramienta automática todavía (§13).
 
-**El presupuesto se resolvió en la T-104, y no hizo falta ninguna de las tres salidas.** Medido con el enrutado montado de verdad, el paquete inicial fue de **167,83 kB comprimidos**, con la PWA de la T-102 encima pasó a **171,58 kB** y con el acceso de la T-105 está en **175,19 kB** y con la captura de errores de la T-106 en **179,50 kB**: quedan unos 20 kB de margen. La T-106 parte el arranque en dos trozos (D06-23), así que desde ahí el paquete inicial es la suma de `index-*.js`, `preload-helper-*.js`, `App-*.js`, `workbox-window` y sus tres hojas de estilo. La proyección que sigue abajo se quedaba corta por un motivo concreto: aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie hasta la T-206**.
+**El presupuesto se resolvió en la T-104, y no hizo falta ninguna de las tres salidas.** Medido con el enrutado montado de verdad, el paquete inicial fue de **167,83 kB comprimidos**, con la PWA de la T-102 encima pasó a **171,58 kB** y con el acceso de la T-105 está en **175,19 kB** y con la captura de errores de la T-106 en **179,50 kB**: quedan unos 20 kB de margen. **Tras la T-206, 180,61 kB**: Rollup saca a un trozo común (`announceContext-*.js`, con `supabase-js` dentro) lo que comparten el arranque y los trozos perezosos, y el paquete inicial pasa a contarse recorriendo las importaciones estáticas desde `index.html` y desde `App-*.js`, no por nombre de archivo. Dexie queda en `db-*.js`, fuera. La T-106 parte el arranque en dos trozos (D06-23), así que desde ahí el paquete inicial es la suma de `index-*.js`, `preload-helper-*.js`, `App-*.js`, `workbox-window` y sus tres hojas de estilo. La proyección que sigue abajo se quedaba corta por un motivo concreto: aquella medición metió las cuatro dependencias de producción en el grafo a la fuerza, y **a Dexie no lo importa nadie hasta la T-206**.
 
 **Y una trampa que la T-105 encontró midiendo, porque el aviso es fácil de pasar por alto.** Si un archivo del paquete inicial importa de forma estática el mismo `index.ts` que el enrutador carga en perezoso, el empaquetador renuncia a separarlo y avisa con `INEFFECTIVE_DYNAMIC_IMPORT`: las pantallas del módulo se caen al arranque sin que nadie toque una línea de `router.tsx`. Por eso `app/providers/AuthProvider.tsx` importa `@modules/auth/api/...` y `@modules/auth/model/...` por ruta directa, y no el barril. La regla 3 del §4.1 rige entre módulos; `app/` es la composición.
 

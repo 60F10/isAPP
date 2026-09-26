@@ -55,3 +55,21 @@
   color: var(--color-danger);
   font-weight: var(--font-weight-semibold);
 }
+
+/* Confirmación de salida con anotaciones sin enviar (T-206). */
+.confirmar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.aviso {
+  max-inline-size: 60ch;
+  font-weight: var(--font-weight-semibold);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}

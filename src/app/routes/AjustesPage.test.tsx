@@ -1,5 +1,6 @@
 // C01, Ajustes (T-107): los interruptores cambian `<html>` y se guardan, y
-// «Cerrar sesión» sale o avisa si no puede.
+// «Cerrar sesión» sale o avisa si no puede. Desde la T-206, antes de salir
+// avisa de las anotaciones sin enviar de la cola.
 //
 // La red se sustituye en la frontera de `api/` (DOC 06 §11).
 
@@ -16,10 +17,14 @@ import { CLAVE_PREFERENCIAS } from '@shared/lib/preferencias';
 import { AjustesPage } from './AjustesPage';
 
 import type { AuthState } from '@modules/auth/hooks/authContext';
+import type { Session } from '@supabase/supabase-js';
 
 const cerrarSesion = vi.hoisted(() => vi.fn<() => Promise<void>>());
 
+const contarPendientes = vi.hoisted(() => vi.fn<(userId: string) => Promise<number>>());
+
 vi.mock('@modules/auth/api/session', () => ({ cerrarSesion }));
+vi.mock('@modules/sync', () => ({ contarPendientes }));
 
 const AUTH: AuthState = {
   session: null,
@@ -34,7 +39,7 @@ const AUTH: AuthState = {
   reintentarContexto: () => undefined,
 };
 
-function montar() {
+function montar(conSesion = false) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
@@ -46,7 +51,13 @@ function montar() {
 
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <AuthContext value={{ ...AUTH, profile: perfil('Isaac') }}>
+      <AuthContext
+        value={{
+          ...AUTH,
+          profile: perfil('Isaac'),
+          session: conSesion ? ({ user: { id: 'usuario-1' } } as Session) : null,
+        }}
+      >
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
         </AnnounceContext>
@@ -72,6 +83,7 @@ describe('AjustesPage', () => {
   beforeEach(() => {
     window.localStorage.clear();
     cerrarSesion.mockReset();
+    contarPendientes.mockReset();
   });
 
   afterEach(() => {
@@ -128,5 +140,44 @@ describe('AjustesPage', () => {
     ).toBeInTheDocument();
     expect(anunciar).toHaveBeenCalledWith('No se pudo cerrar la sesión');
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled();
+  });
+
+  it('con anotaciones sin enviar, avisa antes de salir y deja quedarse', async () => {
+    contarPendientes.mockResolvedValue(3);
+    const { anunciar } = montar(true);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+    expect(contarPendientes).toHaveBeenCalledWith('usuario-1');
+    expect(await screen.findByText(/Hay 3 anotaciones sin enviar/)).toHaveFocus();
+    expect(anunciar).toHaveBeenCalledWith('Hay 3 anotaciones sin enviar en este dispositivo');
+    expect(cerrarSesion).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Seguir dentro' }));
+
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toHaveFocus();
+    expect(cerrarSesion).not.toHaveBeenCalled();
+  });
+
+  it('con anotaciones sin enviar, sale si se confirma', async () => {
+    contarPendientes.mockResolvedValue(1);
+    cerrarSesion.mockResolvedValue(undefined);
+    montar(true);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Cerrar sesión igualmente' }));
+
+    expect(cerrarSesion).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('Pantalla de acceso')).toBeInTheDocument();
+  });
+
+  it('con la cola vacía, sale sin preguntar', async () => {
+    contarPendientes.mockResolvedValue(0);
+    cerrarSesion.mockResolvedValue(undefined);
+    montar(true);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+    expect(await screen.findByText('Pantalla de acceso')).toBeInTheDocument();
   });
 });

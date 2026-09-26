@@ -1,0 +1,28 @@
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lista,
+.fallo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+}
+
+.lista {
+  color: var(--color-success);
+}
+
+.fallo {
+  color: var(--color-danger);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}

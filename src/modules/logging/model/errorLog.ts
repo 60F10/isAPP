@@ -20,7 +20,7 @@ export const LARGO_TRAZA = 4000;
 export type Dispositivo = Record<string, string | number | boolean>;
 
 /** De dónde viene el error. Va delante del mensaje, entre corchetes. */
-export type OrigenDeError = 'boundary' | 'ruta' | 'global' | 'promesa' | 'contexto';
+export type OrigenDeError = 'boundary' | 'ruta' | 'global' | 'promesa' | 'contexto' | 'sync';
 
 export interface EntradaDeError {
   origen: OrigenDeError;

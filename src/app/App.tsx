@@ -9,7 +9,8 @@
 // anunciarse— y por encima del enrutador, para que salga en cualquier ruta.
 // Comparte marco con la ruta en vez de superponerse: el porqué está en
 // `ActualizacionDisponible.module.css`. El aviso de sesión a punto de caducar
-// comparte ese mismo marco y por el mismo motivo.
+// comparte ese mismo marco y por el mismo motivo, y la banda de la C04 (sin
+// conexión y cola de salida, T-206) también.
 //
 // El Error Boundary (T-106) va por fuera de todo: si revienta un proveedor,
 // también tiene que salir la C03. Por eso su pantalla no usa ningún contexto.
@@ -24,6 +25,7 @@ import { ErrorBoundary } from '@modules/logging/components/ErrorBoundary';
 
 import { ActualizacionDisponible } from './components/ActualizacionDisponible';
 import { AvisoSesion } from './components/AvisoSesion';
+import { Sincronizacion } from './components/Sincronizacion';
 import { AnnounceProvider } from './providers/AnnounceProvider';
 import { AuthProvider } from './providers/AuthProvider';
 import { QueryProvider } from './providers/QueryProvider';
@@ -44,6 +46,7 @@ export function App() {
             <div className={styles.marco}>
               <ActualizacionDisponible />
               <AvisoSesion />
+              <Sincronizacion />
               <div className={styles.ruta}>
                 <RouterProvider router={router} />
               </div>
