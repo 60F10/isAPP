@@ -163,24 +163,22 @@ export async function borrarPartido(partidoId: string): Promise<void> {
  * Pasa el partido a convocado al guardar su convocatoria (DOC 04 §11, L-07).
  * Solo desde programado o convocado: uno empezado no vuelve atrás por aquí.
  *
- * Lanza `SIN_FILAS` si no toca ninguna fila: o el partido ya empezó, o la RLS
- * no deja. `matches_update` pide `schedule.manage`, `match.live.write` o
- * `match.close`, y no `lineup.manage` (DOC 05 §14.5).
+ * Va por la función `marcar_convocado` de la base (DOC 05 §14.5, pieza 5a),
+ * que pide `lineup.manage` y no toca más que el estado: `matches_update` pide
+ * `schedule.manage`, `match.live.write` o `match.close`, y abrirla a quien
+ * solo convoca le dejaría cambiar el resto del partido.
+ *
+ * Sin el permiso, la base responde con el código `42501`. Lanza `SIN_FILAS` si
+ * la función no cambió nada: el partido ya empezó o no existe.
  */
 export async function marcarComoConvocado(partidoId: string): Promise<void> {
-  const { data, error } = await supabase
-    .from('matches')
-    .update({ status: 'called' })
-    .eq('id', partidoId)
-    .in('status', ['scheduled', 'called'])
-    .select('id')
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('marcar_convocado', { p_match_id: partidoId });
 
   if (error) {
     throw error;
   }
 
-  if (data === null) {
+  if (!data) {
     throw new Error(SIN_FILAS);
   }
 }

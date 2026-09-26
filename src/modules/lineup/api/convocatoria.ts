@@ -15,8 +15,9 @@
 // de cada cambio lo lleva `audit_log`.
 //
 // Las líneas nuevas nacen sin convocar a propósito: entre las dos peticiones
-// la base nunca ve más convocados que antes ni que después. Si algún día
-// comprueba el máximo (R-01, DOC 05 §14.5), un cambio de uno por otro con la
+// la base nunca ve más convocados que antes ni que después. La base comprueba
+// el máximo (R-01) al terminar cada sentencia, con el disparador
+// `check_squad_max` (DOC 05 §14.5), así que un cambio de uno por otro con la
 // convocatoria llena no la rechaza a medias.
 
 import { SIN_FILAS } from '@shared/lib/guardado';

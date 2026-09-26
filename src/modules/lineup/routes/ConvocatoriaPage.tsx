@@ -281,8 +281,8 @@ function Editor({ partidoId, inicial, reglamento, alGuardar }: EditorProps) {
       {falloAlGuardar === null ? null : <p className={styles.fallo}>{falloAlGuardar}</p>}
       {sinMarcar ? (
         <p className={styles.aviso}>
-          Convocatoria guardada. El partido sigue como «Programado»: pasarlo a «Convocado» pide el
-          permiso de programar partidos.
+          Convocatoria guardada. El partido no ha pasado a «Convocado»: o ya ha empezado, o no
+          tienes permiso para convocar en su equipo.
         </p>
       ) : null}
 

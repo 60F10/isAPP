@@ -289,7 +289,9 @@ describe('A11 · Convocatoria', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Guardar convocatoria' }));
 
     expect(
-      await screen.findByText(/El partido sigue como «Programado»: pasarlo a «Convocado» pide/),
+      await screen.findByText(
+        /El partido no ha pasado a «Convocado»: o ya ha empezado, o no tienes/,
+      ),
     ).toBeInTheDocument();
     expect(api.guardarConvocatoria).toHaveBeenCalledTimes(1);
     expect(anunciar).toHaveBeenCalledWith(
