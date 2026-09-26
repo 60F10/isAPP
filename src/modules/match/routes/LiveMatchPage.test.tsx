@@ -20,7 +20,7 @@ import { LiveMatchPage } from './LiveMatchPage';
 import type { DirectoCargado } from '../api/directo';
 import type { EstadoDirecto } from '../model/directo';
 import type { PaqueteDePartido } from '../model/paquete';
-import type { AuthState } from '@modules/auth';
+import type { AppPermission, AuthState } from '@modules/auth';
 import type { Session } from '@supabase/supabase-js';
 
 const api = vi.hoisted(() => ({
@@ -57,7 +57,19 @@ const PAQUETE: PaqueteDePartido = {
     players_on_pitch: 2,
     yellow_cards_for_ban: 5,
     red_card_default_bans: 1,
-    enabled_event_types: ['goal'],
+    enabled_event_types: [
+      'goal',
+      'own_goal',
+      'yellow_card',
+      'second_yellow',
+      'red_card',
+      'foul_committed',
+      'foul_received',
+      'corner',
+      'substitution',
+      'position_change',
+      'note',
+    ],
   },
   convocatoria: [
     { playerId: 'p7', nickname: 'Juanito', callStatus: 'starter', shirtNumber: 7, position: null },
@@ -78,11 +90,11 @@ function cargado(estado: Partial<EstadoDirecto> = {}, refrescado = true): Direct
   };
 }
 
-function auth(): AuthState {
+function auth(permisos: AppPermission[] = ['match.live.write']): AuthState {
   return {
     session: { user: { id: 'usuario-1' } } as Session,
     cargando: false,
-    permisos: new Set(['match.live.write']),
+    permisos: new Set(permisos),
     profile: null,
     teams: [
       {
@@ -96,7 +108,7 @@ function auth(): AuthState {
           crestUrl: null,
           primaryColor: null,
         },
-        permissions: new Set(['match.live.write']),
+        permissions: new Set(permisos),
       },
     ],
     activeTeamId: 'eq-1',
@@ -107,7 +119,7 @@ function auth(): AuthState {
   };
 }
 
-function montar() {
+function montar(permisos?: AppPermission[]) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
@@ -120,7 +132,7 @@ function montar() {
 
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <AuthContext value={auth()}>
+      <AuthContext value={auth(permisos)}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
         </AnnounceContext>
@@ -237,7 +249,7 @@ describe('A12 · Directo, esqueleto', () => {
   });
 
   it('sin los titulares exactos no deja empezar y lleva a la convocatoria', async () => {
-    api.cargarDirecto.mockResolvedValue(cargado({ enCampo: ['p1'] }));
+    api.cargarDirecto.mockResolvedValue(cargado({ titulares: ['p1'] }));
     montar();
 
     expect(await screen.findByRole('button', { name: 'Empezar la 1ª parte' })).toBeDisabled();
@@ -307,5 +319,233 @@ describe('A12 · Directo, esqueleto', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salir igualmente' }));
 
     expect(await screen.findByText('Calendario')).toBeInTheDocument();
+  });
+
+  describe('registro (T-208)', () => {
+    const INICIO = Date.now() - 60_000;
+    const enJuego = () =>
+      cargado({
+        fase: 'en_juego',
+        partes: [
+          {
+            id: 'parte-1',
+            numero: 1,
+            inicio: INICIO,
+            pausadoMs: 0,
+            pausaDesde: null,
+            segundosReales: null,
+          },
+        ],
+        eventos: [],
+      });
+
+    function ultimaTransicion() {
+      const llamada = api.aplicarTransicion.mock.calls.at(-1) as
+        | [
+            EstadoDirecto,
+            { entity: string; op: string; payload: { valores: Record<string, unknown> } }[],
+          ]
+        | undefined;
+
+      if (llamada === undefined) {
+        throw new Error('No se ha guardado nada.');
+      }
+
+      return { estado: llamada[0], trabajos: llamada[1] };
+    }
+
+    it('gol: de quién, quién marca y sin asistencia; se guarda pendiente, se confirma y vibra', async () => {
+      const vibrar = vi.fn();
+      Object.defineProperty(navigator, 'vibrate', { value: vibrar, configurable: true });
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Gol' }));
+
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'Gol: ¿De quién es el gol?' }),
+      ).toHaveFocus();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Nuestro' }));
+      await userEvent.click(screen.getByRole('button', { name: '7 · Juanito' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sin asistencia' }));
+
+      const { trabajos } = ultimaTransicion();
+      expect(trabajos[0]?.payload.valores).toMatchObject({
+        event_type: 'goal',
+        player_id: 'p7',
+        secondary_player_id: null,
+        status: 'pending',
+        created_by: 'usuario-1',
+      });
+      // La confirmación de 2 s y la línea de «Últimos eventos».
+      expect(await screen.findAllByText("Gol · 7 · Juanito · 2'")).toHaveLength(2);
+      expect(screen.getByRole('region', { name: 'Últimos eventos' })).toHaveTextContent(
+        "Gol · 7 · Juanito · 2' · Pendiente",
+      );
+      expect(vibrar).toHaveBeenCalledWith(40);
+      expect(screen.getByText('0 – 1')).toBeInTheDocument();
+    });
+
+    it('con event.approve el evento nace aprobado', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      montar(['match.live.write', 'event.approve']);
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+      await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+      expect(ultimaTransicion().trabajos[0]?.payload.valores.status).toBe('approved');
+    });
+
+    it('la ficha de un jugador abre sus acciones y salta el jugador', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Ficha de 7 · Juanito' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Tarjeta' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Amarilla' }));
+
+      expect(ultimaTransicion().trabajos[0]?.payload.valores).toMatchObject({
+        event_type: 'yellow_card',
+        player_id: 'p7',
+      });
+    });
+
+    it('en el cambio solo ofrece a quien puede entrar, y lo mueve del banquillo al campo', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Cambio' }));
+      await userEvent.click(screen.getByRole('button', { name: '7 · Juanito' }));
+
+      expect(
+        screen.getAllByRole('button', { name: /· / }).map((b) => b.getAttribute('aria-label')),
+      ).toEqual(['8 · Luis']);
+
+      await userEvent.click(screen.getByRole('button', { name: '8 · Luis' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Cansancio' }));
+
+      expect(ultimaTransicion().estado.enCampo).toEqual(['p1', 'p8']);
+      expect(await screen.findByRole('region', { name: 'Banquillo (1)' })).toHaveTextContent(
+        '7 · Juanito',
+      );
+    });
+
+    it('«Atrás» deshace la última respuesta y «Cancelar» tira el evento', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Gol' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Nuestro' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Atrás' }));
+
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'Gol: ¿De quién es el gol?' }),
+      ).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+      expect(screen.getByRole('button', { name: 'Gol' })).toBeInTheDocument();
+      expect(api.aplicarTransicion).not.toHaveBeenCalled();
+    });
+
+    it('lo apuntado aquí se deshace: encola el borrado y lo quita de la lista', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+      await userEvent.click(screen.getByRole('button', { name: 'En contra' }));
+      await userEvent.click(
+        await screen.findByRole('button', { name: "Deshacer: Córner en contra · 2'" }),
+      );
+
+      const { estado, trabajos } = ultimaTransicion();
+      expect(trabajos[0]).toMatchObject({ entity: 'match_event', op: 'delete' });
+      expect(estado.eventos).toEqual([]);
+      expect(await screen.findByText('Todavía no hay nada apuntado.')).toBeInTheDocument();
+    });
+
+    it('con los cambios agotados, el botón de cambio se desactiva y dice por qué (R-04)', async () => {
+      api.cargarDirecto.mockResolvedValue({
+        ...enJuego(),
+        estado: { ...enJuego().estado, cambiosMax: 0 },
+      });
+      montar();
+
+      const cambio = await screen.findByRole('button', { name: 'Cambio' });
+
+      expect(cambio).toBeDisabled();
+      expect(cambio).toHaveAccessibleDescription('Cambios agotados: 0 de 0.');
+    });
+
+    it('si no se puede guardar, el flujo sigue en su último paso y lo dice', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      api.aplicarTransicion.mockRejectedValue(new Error('QuotaExceededError'));
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+      await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+      expect(await screen.findByText(/No se ha guardado\. Corrige/)).toHaveAttribute(
+        'aria-live',
+        'polite',
+      );
+      expect(screen.getByRole('button', { name: 'A favor' })).toBeInTheDocument();
+    });
+
+    it('la ficha de un jugador se abre con el foco en su título', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Ficha de 7 · Juanito' }));
+
+      expect(
+        screen.getByRole('heading', { level: 2, name: '7 · Juanito: ¿qué ha hecho?' }),
+      ).toHaveFocus();
+    });
+
+    it('sin empezar el partido no hay botonera', async () => {
+      api.cargarDirecto.mockResolvedValue(cargado());
+      montar();
+
+      await screen.findByText('Sin empezar');
+
+      expect(screen.queryByRole('list', { name: 'Apuntar' })).toBeNull();
+    });
+
+    it('en diferido no hay reloj, y cada evento pide su parte y su minuto', async () => {
+      const diferido = {
+        ...PAQUETE,
+        partido: { ...PAQUETE.partido, isRetroactive: true },
+      };
+      api.cargarDirecto.mockResolvedValue({
+        ...cargado(),
+        paquete: diferido,
+        estado: desdePaquete(diferido),
+      });
+      montar();
+
+      expect(await screen.findByText(/Partido en diferido: sin reloj/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Empezar la 1ª parte' })).toBeNull();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Córner' }));
+      await userEvent.type(screen.getByLabelText(/Minuto/), '50');
+      await userEvent.click(screen.getByRole('button', { name: 'Seguir' }));
+
+      expect(screen.getByText(/Ese minuto no es de esa parte/)).toBeInTheDocument();
+
+      await userEvent.clear(screen.getByLabelText(/Minuto/));
+      await userEvent.type(screen.getByLabelText(/Minuto/), '35');
+      await userEvent.click(screen.getByRole('button', { name: 'Seguir' }));
+      await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+      const { trabajos } = ultimaTransicion();
+      expect(trabajos.map((t) => t.entity)).toEqual(['match_period', 'match_event']);
+      expect(trabajos[1]?.payload.valores).toMatchObject({
+        period: 1,
+        seconds: 2_040,
+        occurred_at: null,
+      });
+    });
   });
 });

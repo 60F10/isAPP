@@ -103,7 +103,44 @@ describe('cargarDirecto', () => {
       estado: local,
     });
 
-    expect((await cargarDirecto('par-1')).estado).toBe(local);
+    expect((await cargarDirecto('par-1')).estado).toEqual(local);
+  });
+
+  it('descarta un estado guardado con la forma de antes de la T-208', async () => {
+    const viejo = { partidoId: 'par-1', fase: 'pausado', partes: [], enCampo: ['p1'] };
+    precarga.precargarPartido.mockResolvedValue({});
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: PAQUETE,
+      descargadoEn: 5,
+      estado: viejo,
+    });
+
+    expect((await cargarDirecto('par-1')).estado).toEqual(desdePaquete(PAQUETE));
+  });
+
+  it('suma los eventos del servidor que el estado del aparato no conocía', async () => {
+    const local: EstadoDirecto = { ...desdePaquete(PAQUETE), fase: 'pausado' };
+    const conGol = {
+      ...PAQUETE,
+      eventos: [
+        {
+          client_event_id: 'ajeno',
+          event_type: 'goal',
+          period: 1,
+          seconds: 5,
+          is_opponent: true,
+          player_id: null,
+          status: 'approved',
+        },
+      ],
+    };
+    precarga.precargarPartido.mockResolvedValue({});
+    precarga.leerInstantanea.mockResolvedValue({ paquete: conGol, descargadoEn: 5, estado: local });
+
+    const { estado } = await cargarDirecto('par-1');
+
+    expect(estado.fase).toBe('pausado');
+    expect(estado.eventos.map((e) => e.clientEventId)).toEqual(['ajeno']);
   });
 });
 

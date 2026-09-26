@@ -39,7 +39,7 @@ Desde la **T-203** está la A08 en `modules/rules`: competiciones de la temporad
 
 Desde la **T-204** están A09 (Calendario) y A10 (Alta y edición de partido) en `modules/agenda`. **La fecha y la hora se escriben y se enseñan en la hora del móvil** y se guardan en UTC en `kickoff_at`. El rival y la competición salen de `@modules/core` y `@modules/rules` por sus barriles. `GrupoDeOpciones` vive ya en `shared/ui`.
 
-**Pendiente de una sesión de Cowork: la migración del DOC 05 §14.4** —categoría de la competición en columnas, nombre único por temporada, campo de casa del club y dos líneas de permisos—, y con ella, o aparte, **el §14.5** de la T-205: `marcar_convocado()` y el máximo de convocados en la base. Tras ella, la **T-203b** conecta esas columnas en la A08 y la A10.
+**Pendiente de una sesión de Cowork: la migración del DOC 05 §14.4** —categoría de la competición en columnas, nombre único por temporada, campo de casa del club y dos líneas de permisos—, y con ella, o aparte, **el §14.5** de la T-205: `marcar_convocado()` y el máximo de convocados en la base, y **el §14.6** de la T-208: que la base fije el estado del evento según `event.approve`. Tras ella, la **T-203b** conecta esas columnas en la A08 y la A10.
 
 Desde la **T-205** está la A11 en `modules/lineup`: titulares, suplentes y no convocados sobre la plantilla, con el dorsal y la posición de cada partido en `match_squad`. **Guardar son dos `upsert` repetibles**: el primero crea las líneas que faltan sin convocar y con `created_by`, el segundo escribe todas sin tocar `created_by`. Las líneas nuevas nacen sin convocar para que la base nunca vea más convocados de la cuenta a medio guardar. **Pasar el partido a `called` pide hoy `schedule.manage`**: la RLS de `matches` no admite `lineup.manage`, y la función que lo arregla espera en el DOC 05 §14.5. El directo leerá la convocatoria de `@modules/lineup`.
 
@@ -47,7 +47,9 @@ Desde la **T-206** está la capa offline. `shared/lib/db.ts` es el almacén de D
 
 Desde la **T-207** está el esqueleto de la A12, **perezosa como el resto** (D06-29): el service worker precachea todos los `.js`. `match/model/directo.ts` es el reductor puro del partido —`(estado, acción) → { estado, trabajos, error }`, la hora entra como argumento— y `match/model/reloj.ts` el reloj por anclaje. **Cada transición se guarda con sus filas en una sola transacción** con `encolarJunto` de `@modules/sync` (D06-30), y la pantalla solo cambia cuando eso ha salido bien. La pausa es local y el servidor no la conoce. `shared/lib/partidoEnCurso.ts` es la marca que calla el aviso de versión nueva durante el partido (D06-32).
 
-Siguiente tarea de código: **T-208**, botonera de eventos del directo. La T-203b espera a la migración.
+Desde la **T-208** la A12 registra eventos. `match/model/eventos.ts` deriva quién está en el campo y el marcador de los eventos que conoce el aparato; `registro.ts` valida y convierte cada evento en una fila tipada contra `TablesInsert<'match_events'>`; `flujo.ts` son los pasos de cada botón (D06-33). **El aparato manda los segundos** (la pausa es local) y el estado `approved` solo con `event.approve`, que la base todavía no impone (DOC 05 §14.6, para Cowork). **Los `model/` no importan barriles en tiempo de ejecución**: arrastran pantallas y el cliente de Supabase.
+
+Siguiente tarea de código: **T-209**, varios anotadores: cobertura declarada, tiempo real y duplicados. La T-203b espera a la migración.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 

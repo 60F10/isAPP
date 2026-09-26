@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — cinco archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
@@ -812,6 +812,45 @@ revoke execute on function public.check_squad_max() from public, anon, authentic
 ```
 
 Un `upsert` de PostgREST es un `insert … on conflict do update`: dispara el de `insert`, y también el de `update` si actualiza alguna fila. Hay que comprobar en la sesión que los dos ven sus filas en `nuevas`. **Después**, igual que el §14.4: `npm run db:types` con copia antes, el script de la T-105b y el auditor.
+
+### 14.6 Lo que deja pendiente la T-208: el estado del evento lo pone la base
+
+Hallazgo al escribir la botonera (26/09/2026). **No está aplicado.**
+
+El DOC 04 §8.3 dice que quien tiene `event.approve` registra eventos que nacen `approved` y todos los demás `pending`. **La base no lo impone**: `match_events_insert` solo comprueba `created_by = auth.uid()` y `match.live.write`, y `status` llega tal cual. Hoy la A12 manda `approved` solo a quien tiene el permiso, pero un cliente modificado, o un error en la pantalla, podría meter eventos aprobados sin tenerlo, y esos cuentan en las estadísticas sin pasar por nadie.
+
+Propuesta: un disparador `before insert` que fije el estado según el permiso, sin mirar lo que llega.
+
+```sql
+create or replace function public.set_event_status()
+returns trigger language plpgsql security definer set search_path = public
+as $$
+begin
+  -- Sin sesión es el servidor: se respeta lo que llega.
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  new.status := case
+    when public.has_team_permission(public.team_of_match(new.match_id), 'event.approve')
+      then 'approved'::event_status
+    else 'pending'::event_status
+  end;
+
+  return new;
+end;
+$$;
+
+-- Nombre con «a» delante para que corra antes que set_seconds y validate
+-- (los disparadores de un mismo evento van en orden alfabético).
+create trigger match_events_a_set_status
+  before insert on public.match_events
+  for each row execute function public.set_event_status();
+
+revoke execute on function public.set_event_status() from public, anon, authenticated;
+```
+
+La A12 no cambia: sigue mandando el mismo `status`, y la base pasa a ser la que manda. **Después**, igual que el §14.4: `npm run db:types`, el script de la T-105b y el auditor.
 
 ---
 

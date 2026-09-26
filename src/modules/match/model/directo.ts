@@ -12,16 +12,24 @@
 // LA HORA ENTRA COMO ARGUMENTO. El reductor no llama a `Date.now()` ni genera
 // identificadores: así se prueba entero y una acción repetida da lo mismo.
 //
-// «QUIÉN ESTÁ EN EL CAMPO» es estado de pantalla (DOC 04 §6.5): aquí, los
-// titulares. Los cambios y las expulsiones lo mueven desde la T-208. Los
-// tramos oficiales los recalcula el servidor con los eventos aprobados.
+// «QUIÉN ESTÁ EN EL CAMPO» es estado de pantalla (DOC 04 §6.5): los
+// titulares, movidos por los cambios y las expulsiones que conoce el aparato
+// (T-208, `registro.ts`). Los tramos oficiales los recalcula el servidor con
+// los eventos aprobados.
 //
 // LA PAUSA ES LOCAL. Descuenta del reloj de este aparato y de la duración
 // real de la parte, pero el servidor no la conoce: otro dispositivo que
 // derive los segundos de `started_at` no la verá. Con reloj corrido, como el
 // cadete, solo se pausa por un parón largo (DOC 13).
 
+import { calcularEnCampo, desdeFilas, unirEventos } from './eventos';
+import { conEventos, deshacer, registrar } from './registro';
+
+import type { EventoDelDirecto } from './eventos';
 import type { PaqueteDePartido } from './paquete';
+import type { AccionRegistrar } from './registro';
+import type { Posicion } from '@modules/core';
+import type { TipoDeEvento } from '@modules/rules';
 import type { EntradaDeTrabajo } from '@modules/sync';
 
 export type Fase = 'inactivo' | 'en_juego' | 'pausado' | 'descanso' | 'finalizado';
@@ -43,16 +51,32 @@ export interface EstadoDirecto {
   partidoId: string;
   fase: Fase;
   partes: ParteLocal[];
-  /** Quién está en el campo según este aparato. */
+  /** Quién está en el campo según este aparato. Se deriva de `titulares` y `eventos`. */
   enCampo: string[];
+  titulares: string[];
+  /** Titulares y suplentes: los que pueden aparecer en un evento. */
+  convocados: string[];
+  /** Posición de cada convocado en la convocatoria. Los cambios de posición la mueven. */
+  posicionesIniciales: Record<string, Posicion | null>;
+  /** Los eventos que conoce el aparato: precargados y apuntados aquí. */
+  eventos: EventoDelDirecto[];
   periodos: number;
   minutosDeParte: number;
   titularesPedidos: number;
+  cambiosMax: number;
+  /** Cambios fijos: quien sale no vuelve (R-05). */
+  cambiosFijos: boolean;
+  /** Los botones que salen: `enabled_event_types` de la competición (R-09). */
+  tiposActivos: TipoDeEvento[];
+  /** Partido en diferido: sin reloj, con el minuto a mano (DOC 04 §5.4). */
+  diferido: boolean;
 }
 
 export type Accion =
   | { tipo: 'empezar_parte'; ahora: number; parteId: string }
-  | { tipo: 'pausar' | 'reanudar' | 'terminar_parte' | 'finalizar'; ahora: number };
+  | { tipo: 'pausar' | 'reanudar' | 'terminar_parte' | 'finalizar'; ahora: number }
+  | AccionRegistrar
+  | { tipo: 'deshacer'; clientEventId: string };
 
 export interface Resultado {
   estado: EstadoDirecto;
@@ -62,16 +86,19 @@ export interface Resultado {
 
 /** El estado a partir de lo precargado del servidor. */
 export function desdePaquete(paquete: PaqueteDePartido): EstadoDirecto {
+  const diferido = paquete.partido.isRetroactive;
   const partes = paquete.partes
-    .filter((parte) => parte.startedAt !== null)
+    // En diferido las partes no tienen arranque: se crean con su duración.
+    .filter((parte) => diferido || parte.startedAt !== null)
     .sort((a, b) => a.periodNumber - b.periodNumber)
     .map((parte): ParteLocal => ({
       id: parte.id,
       numero: parte.periodNumber,
-      inicio: Date.parse(parte.startedAt ?? ''),
+      inicio: parte.startedAt === null ? 0 : Date.parse(parte.startedAt),
       pausadoMs: 0,
       pausaDesde: null,
-      segundosReales: parte.endedAt === null ? null : (parte.actualSeconds ?? parte.plannedSeconds),
+      segundosReales:
+        diferido || parte.endedAt !== null ? (parte.actualSeconds ?? parte.plannedSeconds) : null,
     }));
 
   const ultima = partes[partes.length - 1];
@@ -80,20 +107,35 @@ export function desdePaquete(paquete: PaqueteDePartido): EstadoDirecto {
 
   if (status === 'finished' || status === 'closed' || status === 'suspended') {
     fase = 'finalizado';
-  } else if (ultima !== undefined) {
+  } else if (ultima !== undefined && !diferido) {
     fase = ultima.segundosReales === null ? 'en_juego' : 'descanso';
   }
+
+  const convocados = paquete.convocatoria.filter((linea) => linea.callStatus !== 'not_called');
+  const titulares = convocados
+    .filter((linea) => linea.callStatus === 'starter')
+    .map((linea) => linea.playerId);
+  const eventos = desdeFilas(paquete.eventos);
+  const { reglamento } = paquete;
 
   return {
     partidoId: paquete.partido.id,
     fase,
     partes,
-    enCampo: paquete.convocatoria
-      .filter((linea) => linea.callStatus === 'starter')
-      .map((linea) => linea.playerId),
-    periodos: paquete.reglamento.periods_count,
-    minutosDeParte: paquete.reglamento.period_minutes,
-    titularesPedidos: paquete.reglamento.players_on_pitch,
+    enCampo: calcularEnCampo(titulares, eventos),
+    titulares,
+    convocados: convocados.map((linea) => linea.playerId),
+    posicionesIniciales: Object.fromEntries(
+      convocados.map((linea) => [linea.playerId, linea.position]),
+    ),
+    eventos,
+    periodos: reglamento.periods_count,
+    minutosDeParte: reglamento.period_minutes,
+    titularesPedidos: reglamento.players_on_pitch,
+    cambiosMax: reglamento.substitutions_max,
+    cambiosFijos: reglamento.substitution_type === 'fixed',
+    tiposActivos: reglamento.enabled_event_types,
+    diferido,
   };
 }
 
@@ -134,12 +176,16 @@ export function reducir(estado: EstadoDirecto, accion: Accion): Resultado {
         return ilegal(estado, `Esta competición tiene ${estado.periodos} partes.`);
       }
 
+      if (estado.diferido) {
+        return ilegal(estado, 'En diferido no hay reloj: cada evento lleva su minuto.');
+      }
+
       // R-02: se comprueba antes de empezar, que es cuando todavía se puede
       // volver a la convocatoria.
-      if (numero === 1 && estado.enCampo.length !== estado.titularesPedidos) {
+      if (numero === 1 && estado.titulares.length !== estado.titularesPedidos) {
         return ilegal(
           estado,
-          `Tienen que salir ${estado.titularesPedidos} titulares y la convocatoria tiene ${estado.enCampo.length}.`,
+          `Tienen que salir ${estado.titularesPedidos} titulares y la convocatoria tiene ${estado.titulares.length}.`,
         );
       }
 
@@ -264,6 +310,12 @@ export function reducir(estado: EstadoDirecto, accion: Accion): Resultado {
         error: null,
       };
     }
+
+    case 'registrar':
+      return registrar(estado, accion);
+
+    case 'deshacer':
+      return deshacer(estado, accion.clientEventId);
   }
 }
 
@@ -295,41 +347,14 @@ export function elegirEstado(
   return avance(servidor) > avance(local) ? servidor : local;
 }
 
-export interface Marcador {
-  aFavor: number;
-  enContra: number;
-  /** Goles sin aprobar que ya cuentan: el marcador lo avisa (DOC 04 §7.3). */
-  pendientes: number;
-}
-
 /**
- * El marcador del directo (DOC 04 §7.3): goles propios más goles en propia
- * del rival, y al revés. Cuenta los pendientes, porque en directo es lo que
- * se sabe, y no los rechazados.
+ * Suma a un estado los eventos del servidor que no conocía: los de otros
+ * aparatos que llegaron con la precarga. Al abrir el directo, después de
+ * `elegirEstado`, para que el estado local no los pierda.
  */
-export function marcador(eventos: readonly Record<string, unknown>[]): Marcador {
-  const resultado: Marcador = { aFavor: 0, enContra: 0, pendientes: 0 };
-
-  for (const evento of eventos) {
-    const tipo = evento.event_type;
-
-    if ((tipo !== 'goal' && tipo !== 'own_goal') || evento.status === 'rejected') {
-      continue;
-    }
-
-    const delRival = evento.is_opponent === true;
-    const suma = tipo === 'goal' ? !delRival : delRival;
-
-    if (suma) {
-      resultado.aFavor += 1;
-    } else {
-      resultado.enContra += 1;
-    }
-
-    if (evento.status === 'pending') {
-      resultado.pendientes += 1;
-    }
-  }
-
-  return resultado;
+export function conEventosDelServidor(
+  estado: EstadoDirecto,
+  servidor: readonly EventoDelDirecto[],
+): EstadoDirecto {
+  return conEventos(estado, unirEventos(estado.eventos, servidor));
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatoReloj, minutoDePresentacion, segundosDeParte } from './reloj';
+import { formatoReloj, minutoDePresentacion, segundosDeMinuto, segundosDeParte } from './reloj';
 
 import type { ParteLocal } from './directo';
 
@@ -61,5 +61,35 @@ describe('minutoDePresentacion', () => {
     expect(minutoDePresentacion(2_400, 1, 40)).toBe("40+1'");
     expect(minutoDePresentacion(2_530, 1, 40)).toBe("40+3'");
     expect(minutoDePresentacion(2_460, 2, 40)).toBe("80+2'");
+  });
+});
+
+describe('segundosDeMinuto', () => {
+  it('convierte el minuto de presentación en segundos dentro de su parte', () => {
+    expect(segundosDeMinuto('1', 1, 40)).toBe(0);
+    expect(segundosDeMinuto('35', 1, 40)).toBe(2_040);
+    expect(segundosDeMinuto(' 41 ', 2, 40)).toBe(0);
+    expect(segundosDeMinuto('80', 2, 40)).toBe(2_340);
+  });
+
+  it('entiende el descuento escrito como 40+2', () => {
+    expect(segundosDeMinuto('40+1', 1, 40)).toBe(2_400);
+    expect(segundosDeMinuto('40+2', 1, 40)).toBe(2_460);
+    expect(segundosDeMinuto('80 + 3', 2, 40)).toBe(2_520);
+  });
+
+  it('rechaza lo que no es de esa parte o no es un minuto', () => {
+    for (const [texto, parte] of [
+      ['0', 1],
+      ['41', 1],
+      ['40', 2],
+      ['35+1', 1],
+      ['40+0', 1],
+      ['treinta', 1],
+      ['', 1],
+      ['3.5', 1],
+    ] as const) {
+      expect(segundosDeMinuto(texto, parte, 40)).toBeNull();
+    }
   });
 });
