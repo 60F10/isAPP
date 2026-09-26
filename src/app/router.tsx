@@ -105,11 +105,15 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'equipos/:id/plantilla',
-                    element: <PantallaPendiente id="A05" titulo="Plantilla" tarea="T-202" />,
+                    lazy: async () => ({
+                      Component: (await import('@modules/core')).PlantillaPage,
+                    }),
                   },
                   {
                     path: 'jugadores/:id/editar',
-                    element: <PantallaPendiente id="A06" titulo="Ficha de jugador" tarea="T-202" />,
+                    lazy: async () => ({
+                      Component: (await import('@modules/core')).FichaJugadorPage,
+                    }),
                   },
                 ],
               },

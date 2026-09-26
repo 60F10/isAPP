@@ -149,6 +149,12 @@ describe('mensajeDeErrorAlGuardar', () => {
     );
   });
 
+  it('el duplicado lo nombra cada pantalla', () => {
+    expect(mensajeDeErrorAlGuardar({ code: '23505' }, 'Ese dorsal ya lo lleva otro jugador.')).toBe(
+      'Ese dorsal ya lo lleva otro jugador.',
+    );
+  });
+
   it('la RLS dice que no, con error o sin tocar ninguna fila', () => {
     const esperado = 'No tienes permiso para cambiar esto.';
 

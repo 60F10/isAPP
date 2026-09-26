@@ -160,14 +160,21 @@ function codigoDe(error: unknown): string | null {
   return null;
 }
 
-/** Frase para quien está delante cuando guardar no sale bien. */
-export function mensajeDeErrorAlGuardar(error: unknown): string {
+/**
+ * Frase para quien está delante cuando guardar no sale bien.
+ *
+ * @param repetido qué decir si la base rechaza un duplicado (23505). Cada
+ *   pantalla sabe qué es lo que no se puede repetir: el nombre del equipo en
+ *   la A04, el dorsal en la plantilla.
+ */
+export function mensajeDeErrorAlGuardar(
+  error: unknown,
+  repetido = 'Ya hay un equipo con ese nombre en el club.',
+): string {
   const codigo = codigoDe(error);
 
-  // 23505: violación de unicidad. En estas pantallas solo la hay en el nombre
-  // del equipo dentro del club.
   if (codigo === '23505') {
-    return 'Ya hay un equipo con ese nombre en el club.';
+    return repetido;
   }
 
   // 42501: la RLS rechazó la escritura.

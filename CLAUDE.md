@@ -23,7 +23,7 @@ Desde la **T-102** es una PWA instalable: `vite-plugin-pwa` con `registerType: '
 
 Desde la **T-105** se entra con Google de verdad. `AuthProvider` trae sesión, perfil, equipos, equipo activo, temporada activa y permisos; `src/modules/auth/` tiene ya sus carpetas `api/` y `model/`, y la vuelta de Google aterriza en `/auth/callback`. **Dos reglas que no se pueden romper al tocar esto:** `permisos` vale `null` mientras la consulta no conteste y un conjunto —vacío incluido— a partir de ahí, porque rellenarlo antes manda a `/403` a quien sí tiene el permiso; y los permisos salen solo de `team_member_permissions` del equipo activo, sin regalarle ninguno al administrador de plataforma, que en la base tampoco los tiene.
 
-**Ojo con dos cosas al escribir pantallas ahora mismo:** el paquete inicial mide **179,42 kB comprimidos** de los 200 kB del presupuesto, así que quedan unos 20 kB para A12 de verdad y Dexie. Y `app/providers/AuthProvider.tsx` importa de `@modules/auth` **por ruta directa y no por el barril**: hacerlo por el barril arrastra las pantallas de `auth` al paquete inicial y el build avisa con `INEFFECTIVE_DYNAMIC_IMPORT`.
+**Ojo con dos cosas al escribir pantallas ahora mismo:** el paquete inicial mide **179,77 kB comprimidos** de los 200 kB del presupuesto, así que quedan unos 20 kB para A12 de verdad y Dexie. Y `app/providers/AuthProvider.tsx` importa de `@modules/auth` **por ruta directa y no por el barril**: hacerlo por el barril arrastra las pantallas de `auth` al paquete inicial y el build avisa con `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 **Los datos hay que sembrarlos.** El esquema no deja arrancar solo: crear un club lo permite la RLS, pero leerlo y crear el equipo dentro exigen ser miembro del club, y nadie lo es hasta que hay `team_members`. `supabase/seed.sql` rompe ese ciclo y se lanza a mano desde el panel de Supabase. Sin él, se entra y las veinte rutas mandan a `/403`.
 
@@ -33,7 +33,9 @@ Desde la **T-107** está la C01, Ajustes (`app/routes/AjustesPage.tsx`, perezosa
 
 Desde la **T-201** están A03 (Club) y A04 (Equipos) en `modules/core`, con su `api/`, `model/` y `hooks/`: se edita el club del equipo activo y se dan de alta y se editan equipos propios y rivales. **No hay alta de club**: con la RLS actual el club nacería invisible hasta para quien lo crea, y `seed.sql` sigue siendo la única puerta (DOC 13). **Las actualizaciones piden la fila de vuelta**: si la RLS dice que no, PostgREST no da error, devuelve cero filas, y `api/` lo convierte en `SIN_FILAS`. Repite el patrón en cada `update` nuevo.
 
-Siguiente tarea de código: **T-202**, plantilla y ficha de jugador. Solo apodo y dorsal: ningún nombre real, ninguna foto.
+Desde la **T-202** están A05 (Plantilla) y A06 (Ficha de jugador), también en `modules/core`. **De `players` solo se lee y se escribe `nickname`**: ninguna consulta de `api/plantilla.ts` nombra las columnas del nombre real ni de su consentimiento, y así tiene que seguir. El dorsal, la posición y la disponibilidad viven en `squad_memberships`, por equipo y temporada. El alta son dos inserciones sin transacción: si falla la segunda, se borra el jugador recién creado.
+
+Siguiente tarea de código: **T-203**, competiciones y reglamento. Los valores del cadete están en el DOC 04 §4.2.
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 

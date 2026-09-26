@@ -5,118 +5,111 @@
 
 ---
 
-## Sesión 26/09/2026 — T-201, club y equipos: ✅ cerrada, con el alta de club y el escudo fuera
+## Sesión 26/09/2026 — T-202, plantilla y ficha de jugador: ✅ cerrada
 
-Primera tarea de la fase 2. Sesión en la nube, sin acceso a Supabase. Raúl pasó el único logo que
-encontró del C.D. Unión Tejina, que se guarda para cuando exista el cubo de escudos.
+Sesión en la nube, sin acceso a Supabase. Raúl preguntó qué tenía que decidir antes de la tarea y
+pidió hacerla: la respuesta es que **nada la bloqueaba**. El punto 20 (referencias cruzadas entre
+clubes) no le afecta, porque el alta crea el jugador en el club del equipo y lo inscribe en ese mismo
+equipo; pasa a decidirse antes de la T-204.
 
 El entorno obliga a subir a una rama `claude/…`; la que toca por convención es
-`feat/core-club-y-equipos`, y con ese nombre se hizo el commit para que pasara el hook de
-`pre-commit`. La pull request lo dice.
+`feat/core-plantilla`, y con ese nombre se hizo el commit para que pasara el hook de `pre-commit`.
+La pull request lo dice.
 
 ---
 
 ## HECHO
 
-**A03 y A04 sustituyen a sus `PantallaPendiente`**, las dos en el trozo perezoso de `core`.
+**A05 y A06 sustituyen a sus `PantallaPendiente`**, las dos en el trozo perezoso de `core`.
 
-| Pantalla          | Qué hace                                                                                                                                                                                                                                     |
-| :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A03 · Club**    | Enseña y edita el club del equipo activo: nombre y nombre corto. La tarjeta «Escudo» dice que todavía no se puede subir                                                                                                                      |
-| **A04 · Equipos** | Dos listas, «Equipos del club» y «Rivales». Cada equipo se edita en su sitio (nombre y categoría) y devuelve el foco al botón al cerrar. Los propios llevan enlace a su plantilla. Debajo, «Añadir equipo», con el rival marcado por defecto |
+| Pantalla                   | Qué hace                                                                                                                                                                                                                            |
+| :------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A05 · Plantilla**        | Los jugadores del equipo de la ruta en la temporada en curso, por dorsal: dorsal, apodo, posición y, solo si no puede jugar, «No disponible» o «Sancionado» escrito. Debajo, «Añadir jugador». Un rival dice que no tiene plantilla |
+| **A06 · Ficha de jugador** | Apodo, dorsal, posición habitual y disponibilidad. «Dar de baja» en dos pasos en el mismo sitio, sin ventana emergente, y vuelta a la plantilla                                                                                     |
 
-| Pieza                                      | Qué hace                                                                                                                 |
-| :----------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
-| `modules/core/model/clubYEquipos.ts`       | Valida club y equipo, limpia espacios, detecta nombres repetidos, ordena la lista y traduce los «no» de la base a frases |
-| `modules/core/api/clubYEquipos.ts`         | Leer club, editarlo, listar equipos, crear y editar equipo. Las actualizaciones piden la fila de vuelta                  |
-| `modules/core/api/queryKeys.ts`            | `coreKeys`, mismo patrón que `authKeys`                                                                                  |
-| `modules/core/hooks/useClubYEquipos.ts`    | Club activo, consultas y mutaciones. Al guardar invalida también el contexto de acceso, que lleva el nombre del equipo   |
-| `modules/core/components/EstadoDeCarga`    | «Cargando…» y el error dentro de la pantalla con «Reintentar» (DOC 06 §10.1, capa 2)                                     |
-| `docs/recursos/escudo-cd-union-tejina.png` | El logo que pasó Raúl, 100×111 px, a la espera del cubo `crests`                                                         |
+| Pieza                                      | Qué hace                                                                                                                          |
+| :----------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
+| `modules/core/model/plantilla.ts`          | Valida apodo, dorsal (1–99, solo cifras, sin repetir) y posición; ordena por dorsal; nombres de posiciones y estados; fecha local |
+| `modules/core/api/plantilla.ts`            | Leer plantilla, ficha y equipo; alta con borrado compensatorio; cambiar apodo e inscripción                                       |
+| `modules/core/hooks/usePlantilla.ts`       | Consultas y mutaciones. Guardar invalida la plantilla entera del equipo                                                           |
+| `modules/core/components/SelectorPosicion` | `<select>` nativo con el aspecto de `Field`, compartido por A05 y A06                                                             |
+| `mensajeDeErrorAlGuardar`                  | Acepta ya qué decir ante un duplicado: el nombre del equipo en la A04, el dorsal en la plantilla                                  |
 
 **Sin comprobar en el navegador**, porque aquí no se puede entrar con Google. Las pruebas montan las
 dos pantallas enteras con la red simulada; el viaje real está en «Comandos para verificar».
 
 ### Pruebas
 
-**97 en verde**, 23 nuevas. Cada una se vio fallar antes de darla por buena: quince contra un
-esbozo vacío y las demás con un mutante a mano sobre la línea que vigilan.
+**121 en verde**, 24 nuevas. Cada una se vio fallar antes de darla por buena: diez contra un esbozo
+vacío y las demás con un mutante a mano sobre la línea que vigilan. Una destapó un fallo de verdad:
+la A05 pedía la plantilla aunque el equipo fuera un rival. Arreglado: la consulta espera a saber que
+el equipo es propio.
 
-| Archivo                             | Casos | Qué vigila                                                                                                   |
-| :---------------------------------- | ----: | :----------------------------------------------------------------------------------------------------------- |
-| `core/model/clubYEquipos.test.ts`   |    16 | Obligatorios, largos, repetidos sin mayúsculas ni espacios, el propio al editar, orden con «ñ», mensajes     |
-| `core/routes/ClubYEquipos.test.tsx` |     7 | Guardar el club limpio; «sin permiso» con palabras; reintentar; las dos listas; alta; repetido sin red; foco |
+| Archivo                           | Casos | Qué vigila                                                                                                                          |
+| :-------------------------------- | ----: | :---------------------------------------------------------------------------------------------------------------------------------- |
+| `core/model/plantilla.test.ts`    |    11 | Que solo salgan las tres columnas permitidas; apodo; dorsal fuera de rango, con decimales o repetido; orden con «ñ»; fecha          |
+| `core/model/clubYEquipos.test.ts` |    +1 | El mensaje de duplicado lo elige cada pantalla                                                                                      |
+| `core/api/plantilla.test.ts`      |     3 | A `players` solo viaja el apodo; si la inscripción falla, el jugador se borra; si el jugador no se crea, no se inscribe             |
+| `core/routes/Plantilla.test.tsx`  |     9 | Orden y avisos de la lista; alta limpia; dorsal repetido sin red; rechazo de la base; rival; sin temporada; ficha; sancionado; baja |
 
 ---
 
 ## DECISIONES TOMADAS
 
-**No hay alta de club.** Es la pieza que la fila del DOC 08 pedía y que la RLS actual no permite
-hacer bien. `clubs_insert` deja insertar, pero `clubs_select` pide ser miembro de algún equipo del
-club, y `teams_insert`, también. En un club recién creado no hay equipos ni miembros: el club nacería
-**invisible hasta para quien lo crea** y no se le podría crear ningún equipo. Construir el formulario
-sería fabricar clubes huérfanos. No se toca la RLS, como pedía la cola. El ciclo y sus salidas, en el
-punto 26.
+**Del jugador solo viajan apodo, dorsal y posición.** Ninguna consulta de `api/plantilla.ts` nombra
+`full_name`, `name_consent_at` ni `name_consent_note`: ni al leer, ni al escribir. Aunque alguien las
+rellenara a mano en la base, la aplicación no las pasearía. `validarJugador` solo produce las tres
+columnas permitidas, y una prueba lo vigila. La ayuda del campo lo pide con palabras: «Solo el apodo.
+Nada de nombre ni apellidos».
 
-**No hay escudo.** El cubo `crests` no existe (punto 7). El logo que pasó Raúl se guarda en
-`docs/recursos/` para subirlo cuando exista. Con 100×111 px basta para enseñarlo a 48 px; si aparece
-uno de más resolución, mejor.
+**El alta son dos inserciones con borrado compensatorio.** PostgREST no junta dos tablas en una
+transacción. Si la inscripción falla —un dorsal que otra persona acaba de coger—, se borra el jugador
+recién creado y el error que sale es el de la inscripción, que es el que explica qué pasó. El borrado
+lo permite `players_write`, que es `for all` con `roster.manage`.
 
-**No hay borrado.** Ni `clubs` ni `teams` tienen política de borrado. Un rival mal escrito se corrige
-editándolo.
+**El dorsal es opcional.** La base lo admite nulo, y un chico que llega a mitad de semana puede no
+tenerlo todavía. Si se escribe, solo cifras del 1 al 99 y sin repetir entre los activos: la base lo
+impide igual con `squad_shirt_unique`, pero así el aviso sale junto al campo.
 
-**El tipo de equipo se elige al crear y no se cambia después.** Un equipo propio con plantilla,
-personas y partidos que pasara a rival dejaría todo eso colgando de un equipo que, por definición,
-no tiene jugadores.
+**Disponibilidad: «Disponible» o «No disponible», sin motivo.** DOC 04 §12.4: la app no trata datos
+de salud. **«Sancionado» no se elige**: lo pone y lo quita el cómputo de sanciones. La ficha lo
+enseña y no manda la disponibilidad al guardar, para no pisarlo.
 
-**El rival va marcado por defecto en el alta.** Es lo que más se da de alta: uno por cada partido
-nuevo. Al marcar «Del club», la pantalla avisa de que el equipo empieza sin personas (punto 28).
+**La lista solo escribe la disponibilidad cuando es la excepción.** Diecinueve «Disponible»
+seguidos son ruido; el que no puede jugar tiene que saltar a la vista. Va en palabras, en la tinta
+del estado pendiente (7,27:1).
 
-**Las actualizaciones piden la fila de vuelta.** Si la RLS no deja cambiar una fila, PostgREST no da
-error: devuelve cero filas. `api/` lo convierte en `SIN_FILAS`, que la pantalla traduce a «No tienes
-permiso para cambiar esto». Anotado en el DOC 06 §10.1 y en el `CLAUDE.md`, porque cada `update`
-nuevo tiene que repetirlo.
+**La baja rellena `left_on` con la fecha local y nada más.** El jugador sigue en el club y sus
+partidos siguen contando. Fecha local y no UTC: `toISOString()` daría el día anterior pasada la
+medianoche en Canarias en horario de verano.
 
-**Los largos máximos son de interfaz**, porque el esquema no los pone: 80 caracteres el nombre del
-club, 20 el corto, 60 el del equipo y 40 la categoría. Caben en una cabecera de móvil.
+**La ficha recibe el equipo en `?equipo=`.** Un jugador puede estar inscrito en dos equipos del club
+la misma temporada, y dorsal y disponibilidad son de cada inscripción. Sin el parámetro, se usa el
+equipo activo.
 
-**El nombre repetido se comprueba antes de enviar**, sin distinguir mayúsculas ni espacios de más.
-La base lo impide igual (`teams_name_unique`), y ese error también se traduce, pero así el aviso sale
-junto al campo y sin gastar red.
-
-**Color del equipo y temporadas, fuera.** `primary_color` es la E2-08, de la V1.1, y la fila de la
-T-201 no pide temporadas.
-
-**`core` importa `useAuth` y `authKeys` por el barril de `auth`.** Es lo que manda la regla 3 del
-DOC 06 §4.1, y aquí no cuesta nada: `core` ya va en perezoso. El build no avisa de
-`INEFFECTIVE_DYNAMIC_IMPORT`.
-
-**Hallazgo: `teams_insert` pide menos de lo que dice el DOC 05.** La tabla del §12 pide
-`team.manage`; la política solo pide ser miembro del club. La interfaz enseña el alta solo a quien
-tiene `team.manage`, pero la API se la deja a cualquier miembro. Anotado en el DOC 05 §12 y en el
-punto 27.
+**Guardar la ficha manda primero la inscripción y después el apodo, y el apodo solo si cambia.** El
+choque de dorsal es lo más probable, así que va primero.
 
 ---
 
 ## PENDIENTE DE LA TAREA
 
-El alta de club (punto 26) y el escudo (punto 7). Las dos piden una sesión de Cowork.
+Nada de lo que pide la fila del DOC 08. Lo que se queda corto está en los puntos 29 a 32.
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-| Deuda                                                                     | Cuándo se paga                                                    |
-| :------------------------------------------------------------------------ | :---------------------------------------------------------------- |
-| `Card` no le pone nombre accesible a su `<section>`, así que no es región | Si se quiere navegar por regiones. Un `aria-labelledby` en `Card` |
-| `SIN_FILAS` vive en `core` y no en `shared/lib`                           | Con el ayudante común del punto 16                                |
+Los puntos 29 a 32 de abajo: jugador compartido entre equipos, bajas sin reincorporación,
+operaciones de dos peticiones y permiso mirado en el equipo activo.
 
 ---
 
 ## LO QUE SIGUE ABIERTO
 
-**No se cierra ningún punto de la lista anterior**: la T-201 no era la tarea de ninguno. Se suman tres
-al final, del 26 al 28. La numeración de antes no cambia.
+**No se cierra ningún punto de la lista anterior.** Se suman cuatro al final, del 29 al 32, y se
+actualizan el 11 (catorce pantallas pendientes) y el 20 (se decide antes de la T-204). La numeración
+no cambia.
 
 Pendiente de decidir, que no lo decide el código:
 
@@ -152,7 +145,7 @@ Pendiente de hacer:
    Lo resuelve la T-303.
 10. Faltan tokens de anchura de maqueta en el DOC 07: el rail y la caja de `BareLayout` salen de
     `--tap-min`.
-11. **Dieciséis rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
+11. **Catorce rutas comparten la misma `PantallaPendiente`.** Cada una la sustituye su tarea.
 12. Deudas de base de datos abiertas: `btree_gist` en `public`, veintisiete claves ajenas sin
     índice, trece tablas con dos políticas permisivas de `SELECT`, `rebuild_match_stints` sin
     comprobar que el jugador que sale esté en el campo, y el descarte de sustituciones repetidas
@@ -179,9 +172,10 @@ Pendiente de hacer:
     junto a `profile` y `activeTeamId`. Decidir y unificar con el DOC 06 §5.5.
 20. **Un club puede enlazar objetos de otro club en sus propias filas** (los catorce avisos de la
     T-105b). Ninguna clave ajena exige que los dos lados sean del mismo club, y `team_of_match`
-    devuelve el equipo de cualquier partido. La T-201 no lo toca: sus filas llevan siempre el club
-    del equipo activo. **Decidir antes de la T-202**, que mete jugadores en plantillas. Pide
-    migración: sesión de Cowork.
+    devuelve el equipo de cualquier partido. La T-201 y la T-202 no lo tocan: el alta de jugador
+    lo crea en el club del equipo y lo inscribe en ese mismo equipo, así que la pantalla no puede
+    mezclar clubes. **Decidir antes de la T-204**, que enlaza partido, competición y rival: ahí sí
+    se eligen identificadores de listas. Pide migración: sesión de Cowork.
 21. **`noUncheckedIndexedAccess` apagado.** Saca siete errores, seis en `permissions.test.ts` y uno
     en `permissions.ts:120`. Salidas: encenderlo ya (media hora, recomendada: el coste crece con cada
     lista que pinte una pantalla), después del MVP, o nunca y revisar a mano.
@@ -212,12 +206,31 @@ Pendiente de hacer:
     permiso en él hasta que existan las invitaciones (T-301), así que su plantilla y sus partidos
     no los puede llevar nadie. La pantalla lo avisa al marcar «Del club». Para el Cadete A no
     importa: ya está sembrado.
+29. **Un jugador del club no se puede inscribir en un segundo equipo.** El alta de la A05 siempre
+    crea un jugador nuevo. Si el mismo chico juega en el Cadete A y en el Cadete B, quedan dos
+    jugadores con el mismo apodo y sus estadísticas separadas. Salida: en la A05, un «Inscribir a
+    alguien del club» que liste los jugadores del club sin inscripción en este equipo. Solo
+    frontend, sin migración. Con un solo equipo gestionado no molesta.
+30. **No hay lista de bajas ni reincorporación.** La baja rellena `left_on` y el jugador
+    desaparece de la A05. Volver a darlo de alta crea otro jugador (punto 29). Salida: una lista
+    plegada de «Bajas de esta temporada» con «Reincorporar», que vacía `left_on`.
+31. **La ficha guarda en dos peticiones** (inscripción y apodo), y el alta en dos más un borrado
+    compensatorio. Si falla la segunda, la primera ya está guardada; si falla también el borrado,
+    queda un jugador sin inscribir en el club, invisible en toda plantilla. Salida: una función
+    `SECURITY DEFINER` por operación, que es trabajo de migración.
+32. **El permiso de la A05 y la A06 lo mira la guardia en el equipo activo, no en el de la
+    dirección.** Quien abra la plantilla de otro equipo del club ve lo que la RLS le deje leer, y al
+    guardar recibe «No tienes permiso» si no tiene `roster.manage` en ese equipo. No hay fuga, pero
+    sí una pantalla que ofrece lo que no puede hacer. Salida: comprobar el permiso del equipo de la
+    ruta con las membresías de `useAuth()`.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
 `teams` del contexto devuelve membresías y no equipos pelados, a propósito; el club activo del
 registro vive en una variable de módulo de `logging`; `sasi.equipo-activo` sobrevive al cierre de
-sesión, a propósito; y los rivales se duplican por club, como ya decía el DOC 05 §5.4 (E17-03).
+sesión, a propósito; los rivales se duplican por club, como ya decía el DOC 05 §5.4 (E17-03); y
+«Sancionado» no se elige en la A06: lo pone y lo quita el cómputo de sanciones, que llega con la
+disciplina, después del MVP.
 
 ---
 
@@ -225,36 +238,44 @@ sesión, a propósito; y los rivales se duplican por club, como ya decía el DOC
 
 | Momento                   | Inicial comprimido | Margen sobre 200 kB |
 | :------------------------ | -----------------: | ------------------: |
-| Tras la T-107, en Linux   |          179,92 kB |            20,08 kB |
-| **Esta sesión, en Linux** |      **179,42 kB** |        **20,58 kB** |
+| Tras la T-201, en Linux   |          179,44 kB |            20,56 kB |
+| **Esta sesión, en Linux** |      **179,77 kB** |        **20,23 kB** |
 
-**Baja medio kilobyte, y no por nada de lo que hace la T-201.** Las dos pantallas nuevas viven en el
-trozo perezoso de `core` (5,22 kB de JavaScript y 0,98 kB de estilos), que no se descarga al
-arrancar. Lo que cambia es el reparto: con `Field` y el resto de piezas compartidas repartidas de otra
-forma, el empaquetador deja de crear el trozo `preload-helper` y mete lo necesario en `index`. Sale
-algo más barato.
+**+0,33 kB, todo en `App-*.js`**: las dos entradas perezosas nuevas del enrutador. Las pantallas
+viven en el trozo de `core`, que crece a 8,41 kB de JavaScript y 1,38 kB de estilos y no se
+descarga al arrancar.
 
 | Trozo del arranque         |    Comprimido |
 | :------------------------- | ------------: |
-| `index-*.js`               |      72,20 kB |
-| `App-*.js`                 |     101,08 kB |
+| `index-*.js`               |      72,21 kB |
+| `App-*.js`                 |     101,42 kB |
 | `QueryClientProvider-*.js` |       0,26 kB |
 | `workbox-window`           |       2,20 kB |
 | Dos hojas de estilo        |       3,68 kB |
-| **Total**                  | **179,42 kB** |
+| **Total**                  | **179,77 kB** |
 
-**Ojo al medir a partir de ahora**: los nombres de los trozos del arranque cambian de una tarea a
-otra según cómo reparta el empaquetador. La lista buena sale de `dist/index.html` (lo que carga) y
-de las importaciones de `App-*.js` (lo que carga `App`). En crudo, `precache 24 entries
-(684.72 KiB)`.
+La lista buena de trozos sale de `dist/index.html` y de las importaciones de `App-*.js`. En crudo,
+`precache 24 entries (702.21 KiB)`.
 
 ---
 
 ## SIGUIENTE TAREA SUGERIDA
 
-**T-202**: plantilla y ficha de jugador. Solo apodo y dorsal: ningún nombre real, ninguna foto,
-ningún dato de salud. Antes, Raúl decide el punto 20 (referencias cruzadas entre clubes), porque la
-T-202 es la primera que mete jugadores en plantillas, y conviene el 21 (`noUncheckedIndexedAccess`).
+**T-203**: competiciones y reglamento. **Antes, que Isaac confirme los valores del cadete** del DOC
+04 §4.2, porque de ellos sale la duración del partido y la validación de cambios del directo:
+
+| Valor                  | Hoy en el DOC 04 | Qué confirmar                                                           |
+| :--------------------- | :--------------- | :---------------------------------------------------------------------- |
+| Partes × minutos       | 2 × 40           | Que siga siendo así esta temporada                                      |
+| Descanso               | 15 min           | —                                                                       |
+| Tipo de cambios        | Fijos            | Si son fijos o volantes, y si un jugador cambiado puede volver a entrar |
+| Cambios máximos        | 5                | El número de la federación para cadete                                  |
+| Convocados máximos     | 18               | —                                                                       |
+| Jugadores en el campo  | 11               | —                                                                       |
+| Amarillas para sanción | 5                | —                                                                       |
+
+Y el nombre de la liga tal como quiere verlo. Si no llega la respuesta, la T-203 arranca con estos
+valores, que se pueden cambiar en la A08 sin tocar código.
 
 ---
 
@@ -273,17 +294,19 @@ npm run test -- --run
 npm run build
 ```
 
-`npm run test -- --run` tiene que decir `Test Files 10 passed (10)` y `Tests 97 passed (97)`. El
+`npm run test -- --run` tiene que decir `Test Files 13 passed (13)` y `Tests 121 passed (121)`. El
 build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
 **En el navegador, con `npm run dev` y la cuenta de Isaac o la tuya:**
 
-1. «Equipo» abre la A04: el Cadete A en «Equipos del club» y los rivales que haya.
-2. Añade un rival, por ejemplo «UD Orotava». Sale en «Rivales» y el campo se vacía.
-3. Añade otro con el mismo nombre en minúsculas: el aviso sale junto al campo y no se envía nada.
-4. «Editar» en el rival, cambia el nombre y «Guardar». El foco vuelve al botón «Editar».
-5. Abre `/club`: cambia el nombre corto y «Guardar cambios». Recarga: se ha quedado.
-6. Con la segunda cuenta de Google de la T-105b, sin equipo, abre `/club`: cae en `/403`.
+1. «Equipo» → «Plantilla» del Cadete A. Si el club no tiene temporada en curso, la pantalla lo dice:
+   entonces hay que crearla en la base antes de seguir.
+2. Añade «El Rubio» con el 7 y «Centrocampista». Sale en la lista en su sitio por dorsal.
+3. Añade otro con el 7: el aviso sale junto al dorsal y no se envía nada.
+4. «Editar» en El Rubio: márcalo «No disponible» y guarda. En la plantilla sale «No disponible».
+5. «Dar de baja» → «Sí, dar de baja a El Rubio». Vuelves a la plantilla y ya no está.
+6. En Supabase, `players`: la fila de El Rubio tiene `full_name`, `name_consent_at` y
+   `name_consent_note` vacíos.
 
 **`npm run db:types` NO se lanza a la ligera.** Esta sesión no tocó el esquema.
 
