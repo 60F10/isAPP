@@ -70,6 +70,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           crest_url: string | null
+          home_venue: string | null
+          home_venue_address: string | null
           id: string
           name: string
           short_name: string | null
@@ -79,6 +81,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           crest_url?: string | null
+          home_venue?: string | null
+          home_venue_address?: string | null
           id?: string
           name: string
           short_name?: string | null
@@ -88,6 +92,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           crest_url?: string | null
+          home_venue?: string | null
+          home_venue_address?: string | null
           id?: string
           name?: string
           short_name?: string | null
@@ -105,19 +111,23 @@ export type Database = {
       }
       competitions: {
         Row: {
+          category: string | null
           clock_mode: Database["public"]["Enums"]["clock_mode"]
           club_id: string
           created_at: string
           created_by: string | null
           enabled_event_types: Database["public"]["Enums"]["event_type"][]
+          group_label: string | null
           halftime_minutes: number
           id: string
           kind: Database["public"]["Enums"]["competition_kind"]
+          level: string | null
           name: string
           period_minutes: number
           periods_count: number
           players_on_pitch: number
           red_card_default_bans: number
+          scope: string | null
           season_id: string
           squad_max: number
           substitution_type: Database["public"]["Enums"]["substitution_type"]
@@ -126,19 +136,23 @@ export type Database = {
           yellow_cards_for_ban: number
         }
         Insert: {
+          category?: string | null
           clock_mode?: Database["public"]["Enums"]["clock_mode"]
           club_id: string
           created_at?: string
           created_by?: string | null
           enabled_event_types?: Database["public"]["Enums"]["event_type"][]
+          group_label?: string | null
           halftime_minutes?: number
           id?: string
           kind?: Database["public"]["Enums"]["competition_kind"]
+          level?: string | null
           name: string
           period_minutes?: number
           periods_count?: number
           players_on_pitch?: number
           red_card_default_bans?: number
+          scope?: string | null
           season_id: string
           squad_max?: number
           substitution_type?: Database["public"]["Enums"]["substitution_type"]
@@ -147,19 +161,23 @@ export type Database = {
           yellow_cards_for_ban?: number
         }
         Update: {
+          category?: string | null
           clock_mode?: Database["public"]["Enums"]["clock_mode"]
           club_id?: string
           created_at?: string
           created_by?: string | null
           enabled_event_types?: Database["public"]["Enums"]["event_type"][]
+          group_label?: string | null
           halftime_minutes?: number
           id?: string
           kind?: Database["public"]["Enums"]["competition_kind"]
+          level?: string | null
           name?: string
           period_minutes?: number
           periods_count?: number
           players_on_pitch?: number
           red_card_default_bans?: number
+          scope?: string | null
           season_id?: string
           squad_max?: number
           substitution_type?: Database["public"]["Enums"]["substitution_type"]
@@ -1684,6 +1702,7 @@ export type Database = {
       is_platform_admin: { Args: never; Returns: boolean }
       is_team_follower: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
+      marcar_convocado: { Args: { p_match_id: string }; Returns: boolean }
       metric_reliability: {
         Args: {
           p_event_type: Database["public"]["Enums"]["event_type"]
