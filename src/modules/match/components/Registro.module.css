@@ -1,0 +1,218 @@
+/* Botonera, flujo de registro y últimos eventos de la A12 (T-208).
+
+   Pantalla de directo: texto a 7:1 con `--color-text` y `--color-text-secondary`
+   (DOC 07 §2), objetivos de 72 px (`--tap-event`) con 8 px de separación, y
+   cifras tabulares en dorsales y minutos. */
+
+.botonera {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--tap-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Botón de evento: icono, nombre y la definición escrita debajo (DOC 04 §7.6).
+   Nativo: la acción salta al soltar el dedo (2.5.2). */
+.evento {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  inline-size: 100%;
+  min-block-size: var(--tap-event);
+  padding: var(--space-3);
+
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.evento:disabled {
+  background-color: var(--color-disabled-bg);
+  border-color: var(--color-disabled-border);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+.evento:focus-visible,
+.opcion:focus-visible,
+.jugador:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.evento:active,
+.opcion:active,
+.jugador:active {
+  background-color: var(--color-surface-pressed);
+}
+
+.nombre {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+.definicion {
+  font-size: var(--font-size-75);
+  color: var(--color-text-secondary);
+}
+
+.flujo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.pregunta {
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pregunta:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.opciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--tap-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.opcion,
+.jugador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: var(--tap-event);
+  padding: var(--space-2) var(--space-3);
+
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* El dorsal, grande: es lo que se busca con la vista en el campo. */
+.dorsal {
+  font-size: var(--font-size-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+.grande {
+  flex: 1 1 10rem;
+  min-block-size: var(--tap-event);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.etiqueta {
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+}
+
+.selector,
+.area {
+  min-block-size: var(--tap-min);
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-100);
+}
+
+.area {
+  min-block-size: 6rem;
+  resize: vertical;
+}
+
+.selector:focus-visible,
+.area:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+  border-color: var(--color-accent);
+}
+
+.error {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.nota {
+  color: var(--color-text-secondary);
+}
+
+.ultimos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.linea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tap-gap);
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--color-border-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.linea:last-child {
+  border-block-end: 0;
+}
+
+/* El estado en palabras, no solo en color (1.4.1). */
+.estado {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-75);
+}
+
+.subtitulo {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+}

@@ -1,8 +1,13 @@
 // Pantalla A12 — Partido en directo, esqueleto (T-207, DOC 02 §4).
 //
 // Reloj, parte, marcador, quién está en el campo y el banquillo, y los
-// controles del partido: empezar y terminar partes, pausar y finalizar. La
-// botonera de eventos es de la T-208.
+// controles del partido: empezar y terminar partes, pausar y finalizar.
+//
+// DESDE LA T-208, EL REGISTRO. La botonera abre el flujo `Acción → Jugador →
+// Detalle opcional → Guardado`; tocar a alguien del campo abre su ficha, con
+// las acciones que le caben. Lo guardado se confirma en 2 s con vibración y
+// sale en «Últimos eventos», donde lo apuntado aquí se puede deshacer. En un
+// partido en diferido no hay reloj: cada evento pide su parte y su minuto.
 //
 // LEE DE LOCAL, NO DE LA RED (D06-11). Al abrir intenta refrescar la precarga;
 // sin cobertura, usa la que haya. Cada transición guarda el estado del
@@ -18,23 +23,40 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { useAuth } from '@modules/auth';
+import { useAuth, useHasPermission } from '@modules/auth';
+import { NOMBRES_DE_EVENTO } from '@modules/rules';
 import { contarPendientes } from '@modules/sync';
 import { useAnnounce } from '@shared/hooks/announceContext';
 import { marcarPartidoEnCurso, quitarPartidoEnCurso } from '@shared/lib/partidoEnCurso';
 import { Button } from '@shared/ui/Button';
 import { Pantalla } from '@shared/ui/Pantalla';
+import { Toast } from '@shared/ui/Toast';
 
 import { aplicarTransicion, cargarDirecto, SIN_PRECARGA } from '../api/directo';
 import { useAhora } from '../hooks/useAhora';
+import { Botonera } from '../components/Botonera';
+import { FlujoDeRegistro } from '../components/FlujoDeRegistro';
+import { UltimosEventos } from '../components/UltimosEventos';
 import { useBloqueoDePantalla } from '../hooks/useBloqueoDePantalla';
-import { enCurso, marcador, reducir } from '../model/directo';
+import { describirEvento } from '../model/describir';
+import { enCurso, reducir } from '../model/directo';
+import { cambiosHechos, marcador } from '../model/eventos';
+import {
+  aBorrador,
+  botonesActivos,
+  botonesDeFicha,
+  contextoDe,
+  minutoDelFlujo,
+  siguientePaso,
+} from '../model/flujo';
 import { formatoReloj, minutoDePresentacion, segundosDeParte } from '../model/reloj';
 
 import styles from './LiveMatchPage.module.css';
 
 import type { DirectoCargado } from '../api/directo';
-import type { Accion, EstadoDirecto } from '../model/directo';
+import type { Accion, EstadoDirecto, Resultado } from '../model/directo';
+import type { EventoDelDirecto } from '../model/eventos';
+import type { Boton, Flujo } from '../model/flujo';
 import type { LineaGuardada } from '@modules/lineup';
 
 const directoKey = (partidoId: string) => ['match', 'directo', partidoId] as const;
@@ -69,6 +91,25 @@ function textoDeFase(estado: EstadoDirecto): string {
     case 'finalizado':
       return 'Partido terminado';
   }
+}
+
+/** La acción de registrar un flujo terminado, con su hora e identificadores. */
+function accionDeRegistro(
+  terminado: Flujo,
+  userId: string,
+  aprobado: boolean,
+  minuto: { periodo: number; segundos: number } | null,
+): Accion {
+  return {
+    tipo: 'registrar',
+    ahora: Date.now(),
+    clientEventId: crypto.randomUUID(),
+    parteId: crypto.randomUUID(),
+    userId,
+    aprobado,
+    borrador: aBorrador(terminado),
+    ...(minuto === null ? {} : { minuto }),
+  };
 }
 
 interface ConfirmarProps {
@@ -115,6 +156,19 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const [aviso, setAviso] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<'terminar' | 'finalizar' | null>(null);
   const [pendientesAlSalir, setPendientesAlSalir] = useState<number | null>(null);
+  const [flujo, setFlujo] = useState<Flujo | null>(null);
+  const [fichaDe, setFichaDe] = useState<string | null>(null);
+  const [errorDeFlujo, setErrorDeFlujo] = useState<string | null>(null);
+  const [confirmacion, setConfirmacion] = useState<string | null>(null);
+  const puedeAprobar = useHasPermission('event.approve') === true;
+  const tituloFicha = useRef<HTMLHeadingElement>(null);
+
+  // La ficha sustituye a la botonera: el foco va a su título (2.4.3).
+  useEffect(() => {
+    if (fichaDe !== null) {
+      tituloFicha.current?.focus();
+    }
+  }, [fichaDe]);
   const guardando = useRef(false);
   // Las confirmaciones sustituyen al botón que las abre. Al aparecer, el foco
   // va a la pregunta; al cerrarse, vuelve a los controles (2.4.3), para que no
@@ -157,9 +211,19 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     }
   }, [estado]);
 
-  const hacer = async (accion: Accion, anuncio: string) => {
+  /**
+   * Aplica una acción: la pasa por el reductor, guarda el estado con sus
+   * filas y, solo si eso sale bien, cambia la pantalla. Devuelve si salió bien.
+   *
+   * @param anuncio lo que se anuncia al salir bien, o `null` para no anunciar
+   *   nada (la confirmación del registro ya lleva su región viva).
+   */
+  const hacer = async (
+    accion: Accion,
+    anuncio: string | null | ((resultado: Resultado) => string | null),
+  ): Promise<Resultado | null> => {
     if (guardando.current) {
-      return;
+      return null;
     }
 
     const resultado = reducir(estado, accion);
@@ -167,7 +231,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     if (resultado.error !== null) {
       setAviso(resultado.error);
       anunciar(resultado.error);
-      return;
+      return null;
     }
 
     guardando.current = true;
@@ -176,21 +240,132 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     try {
       await aplicarTransicion(resultado.estado, resultado.trabajos);
       setEstado(resultado.estado);
-      anunciar(anuncio);
+      const texto = typeof anuncio === 'function' ? anuncio(resultado) : anuncio;
+
+      if (texto !== null) {
+        anunciar(texto);
+      }
+
+      return resultado;
     } catch {
       const mensaje =
         'No se ha podido guardar en este dispositivo. No ha cambiado nada: vuelve a intentarlo.';
       setAviso(mensaje);
       anunciar(mensaje);
+      return null;
     } finally {
       guardando.current = false;
     }
   };
 
+  const porId = new Map(paquete.convocatoria.map((linea) => [linea.playerId, linea]));
+  const nombreDe = (id: string) => {
+    const linea = porId.get(id);
+
+    return linea === undefined ? '—' : nombre(linea);
+  };
+  const dorsalDe = (id: string) => {
+    const numero = porId.get(id)?.shirtNumber;
+
+    return numero === undefined || numero === null ? null : String(numero);
+  };
+  const describir = (evento: EventoDelDirecto) =>
+    describirEvento(evento, nombreDe, estado.minutosDeParte, NOMBRES_DE_EVENTO);
+
+  const contexto = contextoDe(estado);
+  // R-04: con los cambios agotados, el botón se desactiva y dice por qué.
+  const cambiosAgotados = cambiosHechos(estado.eventos) >= estado.cambiosMax;
+  const desactivados = cambiosAgotados
+    ? { cambio: `Cambios agotados: ${estado.cambiosMax} de ${estado.cambiosMax}.` }
+    : {};
+  const paso = flujo === null ? null : siguientePaso(flujo, contexto);
+  const puedeApuntar =
+    estado.fase !== 'finalizado' && (estado.diferido || estado.fase !== 'inactivo');
+
+  const empezarFlujo = (boton: Boton, respuestas: Flujo['respuestas'] = {}) => {
+    setFichaDe(null);
+    setErrorDeFlujo(null);
+    setFlujo({ boton, respuestas });
+  };
+
+  /** Guarda el evento del flujo terminado: confirmación de 2 s y vibración. */
+  const guardarFlujo = async (terminado: Flujo) => {
+    const userId = session === null ? null : session.user.id;
+
+    if (userId === null) {
+      setErrorDeFlujo('Sin sesión no se puede apuntar.');
+      return;
+    }
+
+    const minuto = estado.diferido ? minutoDelFlujo(terminado, estado.minutosDeParte) : null;
+
+    if (estado.diferido && minuto === null) {
+      setErrorDeFlujo('Ese minuto no es de esa parte. Escribe, por ejemplo, 35 o 40+2.');
+      setFlujo({ boton: terminado.boton, respuestas: {} });
+      return;
+    }
+
+    const resultado = await hacer(accionDeRegistro(terminado, userId, puedeAprobar, minuto), null);
+
+    // Si no se ha guardado, el flujo se queda en su último paso con lo
+    // respondido: se reintenta sin volver a empezar.
+    if (resultado === null) {
+      setErrorDeFlujo('No se ha guardado. Corrige lo que falte o vuelve a intentarlo.');
+      return;
+    }
+
+    setFlujo(null);
+
+    const nuevo = resultado.estado.eventos[resultado.estado.eventos.length - 1];
+
+    if (nuevo !== undefined) {
+      setConfirmacion(describir(nuevo));
+    }
+
+    // Háptica al registrar (DOC 02 §5). iOS no la tiene: la confirmación basta.
+    if ('vibrate' in navigator) {
+      navigator.vibrate(40);
+    }
+  };
+
+  const responder = (clave: string, valor: string | null) => {
+    if (flujo === null) {
+      return;
+    }
+
+    setErrorDeFlujo(null);
+    const siguiente: Flujo = { ...flujo, respuestas: { ...flujo.respuestas, [clave]: valor } };
+
+    if (siguientePaso(siguiente, contexto) === null) {
+      void guardarFlujo(siguiente);
+    } else {
+      setFlujo(siguiente);
+    }
+  };
+
+  const atras = () => {
+    if (flujo === null) {
+      return;
+    }
+
+    const claves = Object.keys(flujo.respuestas);
+    const ultimaClave = claves[claves.length - 1];
+
+    if (ultimaClave === undefined) {
+      setFlujo(null);
+      return;
+    }
+
+    const respuestas = { ...flujo.respuestas };
+    delete respuestas[ultimaClave as keyof Flujo['respuestas']];
+    setErrorDeFlujo(null);
+    setFlujo({ ...flujo, respuestas });
+  };
+
   const ultima = estado.partes[estado.partes.length - 1];
   const segundos = ultima === undefined ? 0 : segundosDeParte(ultima, ahora);
   const siguiente = estado.partes.length + 1;
-  const goles = marcador(paquete.eventos);
+  const goles = marcador(estado.eventos);
   const convocados = paquete.convocatoria.filter((linea) => linea.callStatus !== 'not_called');
   const enCampo = convocados
     .filter((linea) => estado.enCampo.includes(linea.playerId))
@@ -199,7 +374,9 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     .filter((linea) => !estado.enCampo.includes(linea.playerId))
     .sort(porDorsal);
   const faltanTitulares =
-    estado.fase === 'inactivo' && estado.enCampo.length !== estado.titularesPedidos;
+    !estado.diferido &&
+    estado.fase === 'inactivo' &&
+    estado.titulares.length !== estado.titularesPedidos;
 
   const salir = async () => {
     const userId = session === null ? null : session.user.id;
@@ -224,6 +401,15 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   };
 
   const controles = () => {
+    if (estado.diferido && estado.fase !== 'finalizado') {
+      return (
+        <p className={styles.nota}>
+          Partido en diferido: sin reloj. Cada evento pide su parte y su minuto. Se termina desde el
+          cierre del partido.
+        </p>
+      );
+    }
+
     if (confirmando === 'terminar') {
       return (
         <Confirmar
@@ -419,12 +605,114 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
       {faltanTitulares ? (
         <p className={styles.aviso}>
           Tienen que salir {estado.titularesPedidos} titulares y la convocatoria tiene{' '}
-          {estado.enCampo.length}.{' '}
+          {estado.titulares.length}.{' '}
           <Link to={`/partidos/${estado.partidoId}/convocatoria`}>Revisa la convocatoria</Link>.
         </p>
       ) : null}
 
       <div ref={zonaControles}>{controles()}</div>
+
+      {/* Por encima de la botonera (DOC 07 §9). Lleva su propia región viva. */}
+      <Toast
+        open={confirmacion !== null}
+        message={confirmacion ?? ''}
+        onClose={() => {
+          setConfirmacion(null);
+        }}
+      />
+
+      {puedeApuntar && flujo !== null && paso !== null ? (
+        <FlujoDeRegistro
+          paso={paso}
+          titulo={
+            botonesActivos(estado.tiposActivos).find((b) => b.boton === flujo.boton)?.nombre ?? ''
+          }
+          nombre={nombreDe}
+          dorsal={dorsalDe}
+          error={errorDeFlujo}
+          alResponder={responder}
+          alResponderMinuto={(periodo, minuto) => {
+            const probado: Flujo = {
+              ...flujo,
+              respuestas: { ...flujo.respuestas, periodo, minuto },
+            };
+
+            if (minutoDelFlujo(probado, estado.minutosDeParte) === null) {
+              setErrorDeFlujo('Ese minuto no es de esa parte. Escribe, por ejemplo, 35 o 40+2.');
+              return;
+            }
+
+            setErrorDeFlujo(null);
+
+            if (siguientePaso(probado, contexto) === null) {
+              void guardarFlujo(probado);
+            } else {
+              setFlujo(probado);
+            }
+          }}
+          alAtras={Object.keys(flujo.respuestas).length === 0 ? null : atras}
+          alCancelar={() => {
+            setFlujo(null);
+            setErrorDeFlujo(null);
+          }}
+        />
+      ) : null}
+
+      {puedeApuntar && flujo === null && fichaDe !== null ? (
+        <section className={styles.ficha} aria-labelledby="ficha">
+          <h2 ref={tituloFicha} id="ficha" className={styles.subtitulo} tabIndex={-1}>
+            {nombreDe(fichaDe)}: ¿qué ha hecho?
+          </h2>
+          <Botonera
+            botones={botonesDeFicha(estado.tiposActivos)}
+            desactivados={desactivados}
+            alElegir={(boton) => {
+              empezarFlujo(
+                boton,
+                boton === 'gol' || boton === 'gol_en_propia' || boton === 'tarjeta'
+                  ? { lado: 'nuestro', jugador: fichaDe }
+                  : { jugador: fichaDe },
+              );
+            }}
+          />
+          <div className={styles.controles}>
+            <Button
+              variant="ghost"
+              className={styles.grande}
+              onClick={() => {
+                setFichaDe(null);
+              }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
+      {puedeApuntar && flujo === null && fichaDe === null ? (
+        <Botonera
+          botones={botonesActivos(estado.tiposActivos)}
+          desactivados={desactivados}
+          alElegir={(boton) => {
+            empezarFlujo(boton);
+          }}
+        />
+      ) : null}
+
+      <UltimosEventos
+        eventos={estado.eventos}
+        describir={describir}
+        alDeshacer={
+          puedeApuntar
+            ? (evento) => {
+                void hacer(
+                  { tipo: 'deshacer', clientEventId: evento.clientEventId },
+                  `Deshecho: ${describir(evento)}`,
+                );
+              }
+            : null
+        }
+      />
 
       {bloqueo === 'activo' ? (
         <p className={styles.nota}>Pantalla encendida mientras dure el partido. Gasta batería.</p>
@@ -448,7 +736,23 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
           </h2>
           <ul>
             {enCampo.map((linea) => (
-              <li key={linea.playerId}>{nombre(linea)}</li>
+              <li key={linea.playerId}>
+                {/* Tocar a un jugador abre su ficha: la acción y lo demás. */}
+                {puedeApuntar && flujo === null ? (
+                  <button
+                    type="button"
+                    className={styles.jugador}
+                    aria-label={`Ficha de ${nombre(linea)}`}
+                    onClick={() => {
+                      setFichaDe(linea.playerId);
+                    }}
+                  >
+                    {nombre(linea)}
+                  </button>
+                ) : (
+                  nombre(linea)
+                )}
+              </li>
             ))}
           </ul>
         </section>

@@ -52,3 +52,36 @@ export function minutoDePresentacion(
 
   return `${previo + minutosDeParte}+${minuto - minutosDeParte + 1}'`;
 }
+
+/**
+ * Al revés que `minutoDePresentacion`: el minuto que se escribe a mano en un
+ * partido en diferido (DOC 04 §5.4), como segundos dentro de su parte. «35»
+ * es el minuto 35 en curso; en la segunda parte del cadete se empieza en 41;
+ * el descuento se escribe «40+2». `null` si no es un minuto de esa parte.
+ */
+export function segundosDeMinuto(
+  texto: string,
+  numeroDeParte: number,
+  minutosDeParte: number,
+): number | null {
+  const partes = /^(\d{1,3})(?:\+(\d{1,2}))?$/.exec(texto.replace(/\s+/g, ''));
+
+  if (partes === null) {
+    return null;
+  }
+
+  const minuto = Number(partes[1]);
+  const previo = (numeroDeParte - 1) * minutosDeParte;
+
+  if (partes[2] === undefined) {
+    const dentro = minuto - previo;
+
+    return dentro >= 1 && dentro <= minutosDeParte ? (dentro - 1) * 60 : null;
+  }
+
+  const añadido = Number(partes[2]);
+
+  return minuto === previo + minutosDeParte && añadido >= 1
+    ? (minutosDeParte + añadido - 1) * 60
+    : null;
+}

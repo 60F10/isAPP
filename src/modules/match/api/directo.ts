@@ -10,7 +10,7 @@
 import { encolarJunto } from '@modules/sync';
 import { db } from '@shared/lib/db';
 
-import { desdePaquete, elegirEstado } from '../model/directo';
+import { conEventosDelServidor, desdePaquete, elegirEstado } from '../model/directo';
 import { leerInstantanea, precargarPartido } from './precarga';
 
 import type { EstadoDirecto } from '../model/directo';
@@ -26,6 +26,10 @@ export interface DirectoCargado {
   descargadoEn: number;
   /** Si esta vez se ha podido refrescar con el servidor. */
   refrescado: boolean;
+}
+
+function esCompleto(estado: EstadoDirecto | undefined): estado is EstadoDirecto {
+  return estado !== undefined && Array.isArray(estado.eventos) && Array.isArray(estado.titulares);
 }
 
 export async function cargarDirecto(partidoId: string): Promise<DirectoCargado> {
@@ -44,9 +48,14 @@ export async function cargarDirecto(partidoId: string): Promise<DirectoCargado> 
     throw new Error(SIN_PRECARGA);
   }
 
+  const servidor = desdePaquete(instantanea.paquete);
+  // Un estado guardado con la forma de antes de la T-208 no tiene eventos ni
+  // titulares: se descarta y manda el del servidor, que sí los trae.
+  const local = esCompleto(instantanea.estado) ? instantanea.estado : undefined;
+
   return {
     paquete: instantanea.paquete,
-    estado: elegirEstado(instantanea.estado, desdePaquete(instantanea.paquete)),
+    estado: conEventosDelServidor(elegirEstado(local, servidor), servidor.eventos),
     descargadoEn: instantanea.descargadoEn,
     refrescado,
   };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { desdePaquete, elegirEstado, enCurso, marcador, reducir } from './directo';
+import { desdePaquete, elegirEstado, enCurso, reducir } from './directo';
 
 import type { EstadoDirecto } from './directo';
 import type { PaqueteDePartido } from './paquete';
@@ -269,22 +269,6 @@ describe('enCurso', () => {
   it('está en curso desde que empieza hasta que se finaliza', () => {
     expect(enCurso(desdePaquete(paquete()))).toBe(false);
     expect(enCurso(empezado())).toBe(true);
-  });
-});
-
-describe('marcador', () => {
-  it('suma goles y goles en propia de cada lado, con los pendientes y sin los rechazados', () => {
-    expect(
-      marcador([
-        { event_type: 'goal', is_opponent: false, status: 'approved' },
-        { event_type: 'goal', is_opponent: false, status: 'pending' },
-        { event_type: 'goal', is_opponent: false, status: 'rejected' },
-        { event_type: 'own_goal', is_opponent: true, status: 'approved' },
-        { event_type: 'goal', is_opponent: true, status: 'approved' },
-        { event_type: 'own_goal', is_opponent: false, status: 'approved' },
-        { event_type: 'corner', is_opponent: false, status: 'approved' },
-      ]),
-    ).toEqual({ aFavor: 3, enContra: 2, pendientes: 1 });
   });
 });
 
