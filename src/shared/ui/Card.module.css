@@ -18,3 +18,14 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
+
+/* Mismo trato que el título de `Pantalla`: el foco por código no deja anillo
+   con el ratón, y con teclado sí se ve (2.4.7). */
+.title:focus {
+  outline: none;
+}
+
+.title:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}

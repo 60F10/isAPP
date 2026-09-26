@@ -25,6 +25,9 @@ const api = vi.hoisted(() => ({
   crearJugador: vi.fn(),
   actualizarApodo: vi.fn(),
   actualizarInscripcion: vi.fn(),
+  fetchBajas: vi.fn(),
+  fetchDelClubSinInscribir: vi.fn(),
+  inscribirDelClub: vi.fn(),
 }));
 
 vi.mock('../api/plantilla', () => api);
@@ -107,6 +110,8 @@ beforeEach(() => {
 
   api.fetchEquipoDePlantilla.mockResolvedValue(EQUIPO);
   api.fetchPlantilla.mockResolvedValue(PLANTILLA);
+  api.fetchBajas.mockResolvedValue([]);
+  api.fetchDelClubSinInscribir.mockResolvedValue([]);
 });
 
 describe('A05 · Plantilla', () => {
@@ -196,6 +201,91 @@ describe('A05 · Plantilla', () => {
 
     expect(await screen.findByText(/no tiene ninguna temporada en curso/)).toBeInTheDocument();
     expect(api.fetchPlantilla).not.toHaveBeenCalled();
+  });
+});
+
+describe('A05 · Bajas e inscritos del club (puntos 29 y 30 del DOC 13)', () => {
+  const baja = (shirtNumber: number | null): Inscripcion => ({
+    id: 'ins-9',
+    playerId: 'jug-9',
+    nickname: 'Chino',
+    shirtNumber,
+    defaultPosition: null,
+    availability: 'available',
+  });
+
+  it('sin bajas ni jugadores sueltos en el club, no sale ninguna de las dos listas', async () => {
+    montar('/equipos/eq-1/plantilla');
+
+    await tarjeta('Jugadores (2)');
+    // Que contesten las dos consultas antes de mirar que no sale nada: si no,
+    // la prueba pasaría por llegar antes que los datos.
+    await vi.waitFor(() => {
+      expect(api.fetchBajas).toHaveBeenCalled();
+      expect(api.fetchDelClubSinInscribir).toHaveBeenCalled();
+    });
+    await new Promise((resolver) => setTimeout(resolver, 20));
+
+    expect(screen.queryByRole('heading', { name: /Bajas de esta temporada/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Inscribir a alguien del club/ })).toBeNull();
+  });
+
+  it('reincorpora una baja con su dorsal si está libre', async () => {
+    api.fetchBajas.mockResolvedValue([baja(9)]);
+    api.actualizarInscripcion.mockResolvedValue(undefined);
+    const { anunciar } = montar('/equipos/eq-1/plantilla');
+
+    const bajas = await tarjeta('Bajas de esta temporada (1)');
+    await userEvent.click(within(bajas).getByRole('button', { name: 'Reincorporar a Chino' }));
+
+    expect(api.actualizarInscripcion).toHaveBeenCalledWith('ins-9', {
+      left_on: null,
+      shirt_number: 9,
+    });
+    await vi.waitFor(() => {
+      expect(anunciar).toHaveBeenCalledWith('Chino vuelve a la plantilla');
+    });
+    // Su fila desaparece de las bajas: el foco va a la lista, no se pierde.
+    expect(screen.getByRole('heading', { name: /^Jugadores/ })).toHaveFocus();
+  });
+
+  it('si su dorsal lo lleva otro, vuelve sin dorsal y lo dice', async () => {
+    api.fetchBajas.mockResolvedValue([baja(10)]);
+    api.actualizarInscripcion.mockResolvedValue(undefined);
+    const { anunciar } = montar('/equipos/eq-1/plantilla');
+
+    const bajas = await tarjeta('Bajas de esta temporada (1)');
+    await userEvent.click(within(bajas).getByRole('button', { name: 'Reincorporar a Chino' }));
+
+    expect(api.actualizarInscripcion).toHaveBeenCalledWith('ins-9', {
+      left_on: null,
+      shirt_number: null,
+    });
+    await vi.waitFor(() => {
+      expect(anunciar).toHaveBeenCalledWith(
+        'Chino vuelve a la plantilla sin dorsal: el 10 lo lleva otro',
+      );
+    });
+  });
+
+  it('inscribe a un jugador del club sin crear otro', async () => {
+    api.fetchDelClubSinInscribir.mockResolvedValue([{ playerId: 'jug-9', nickname: 'Chino' }]);
+    api.inscribirDelClub.mockResolvedValue(baja(null));
+    const { anunciar } = montar('/equipos/eq-1/plantilla');
+
+    const delClub = await tarjeta('Inscribir a alguien del club (1)');
+    await userEvent.click(within(delClub).getByRole('button', { name: 'Inscribir a Chino' }));
+
+    expect(api.fetchDelClubSinInscribir).toHaveBeenCalledWith('club-1', 'eq-1', 'temp-1');
+    expect(api.inscribirDelClub).toHaveBeenCalledWith(
+      { equipoId: 'eq-1', temporadaId: 'temp-1', userId: 'usuario-1' },
+      'jug-9',
+    );
+    expect(api.crearJugador).not.toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(anunciar).toHaveBeenCalledWith('Chino inscrito en la plantilla');
+    });
+    expect(screen.getByRole('heading', { name: /^Jugadores/ })).toHaveFocus();
   });
 });
 

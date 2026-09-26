@@ -4,6 +4,10 @@
 // curso, por dorsal, y el alta de uno nuevo. Cada jugador lleva a su ficha
 // (A06) para cambiar dorsal, posición, disponibilidad o darlo de baja.
 //
+// Y dos listas que solo salen si tienen algo (DOC 13, puntos 29 y 30):
+// inscribir a alguien que ya es del club, sin crear otro jugador con el
+// mismo apodo, y reincorporar a quien se dio de baja esta temporada.
+//
 // Del jugador solo se pide y se enseña APODO, DORSAL y POSICIÓN. Nada de
 // nombre real, foto ni dato de salud (DOC 05 §6.1, CLAUDE.md).
 //
@@ -11,7 +15,7 @@
 // otro club, o el usuario no tiene `roster.manage` en él, la RLS decide: la
 // lista sale vacía o el alta dice «No tienes permiso».
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 
 import { useAuth } from '@modules/auth';
@@ -23,7 +27,15 @@ import { Pantalla } from '@shared/ui/Pantalla';
 
 import { Cargando, ErrorDeCarga } from '../components/EstadoDeCarga';
 import { SelectorPosicion } from '../components/SelectorPosicion';
-import { useCrearJugador, useEquipoDePlantilla, usePlantilla } from '../hooks/usePlantilla';
+import {
+  useBajas,
+  useCrearJugador,
+  useDelClubSinInscribir,
+  useEquipoDePlantilla,
+  useInscribirDelClub,
+  usePlantilla,
+  useReincorporar,
+} from '../hooks/usePlantilla';
 import { mensajeDeErrorAlGuardar } from '../model/clubYEquipos';
 import { DISPONIBILIDADES, LARGO_APODO, POSICIONES, validarJugador } from '../model/plantilla';
 
@@ -180,6 +192,139 @@ function Lista({ equipoId, plantilla }: ListaProps) {
   );
 }
 
+interface DestinoProps {
+  clubId: string;
+  equipoId: string;
+  temporadaId: string;
+  plantilla: readonly Inscripcion[];
+  /**
+   * Al inscribir o reincorporar, la fila del botón pulsado desaparece y el
+   * foco se perdería con ella. Se lleva a la lista de jugadores, que es donde
+   * aparece quien acaba de entrar.
+   */
+  alEntrar: () => void;
+}
+
+/** Bajas de la temporada, con «Reincorporar». No sale si no hay ninguna. */
+function Bajas({ equipoId, temporadaId, plantilla, alEntrar }: DestinoProps) {
+  const anunciar = useAnnounce();
+  const bajas = useBajas(equipoId, temporadaId);
+  const reincorporar = useReincorporar(equipoId);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  if (bajas.data === undefined || bajas.data.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card title={`Bajas de esta temporada (${bajas.data.length})`} headingLevel={2}>
+      <ul className={styles.lista}>
+        {bajas.data.map((baja) => (
+          <li key={baja.id} className={styles.fila}>
+            <span className={styles.dorsal}>
+              {baja.shirtNumber === null ? (
+                <span aria-hidden="true">—</span>
+              ) : (
+                <>
+                  <span className={styles.oculto}>Dorsal </span>
+                  {baja.shirtNumber}
+                </>
+              )}
+            </span>
+            <div className={styles.datos}>
+              <span className={styles.apodo}>{baja.nickname}</span>
+            </div>
+            <Button
+              variant="secondary"
+              disabled={reincorporar.isPending}
+              aria-label={`Reincorporar a ${baja.nickname}`}
+              onClick={() => {
+                setFallo(null);
+                reincorporar.mutate(
+                  { baja, plantilla },
+                  {
+                    onSuccess: ({ sinDorsal }) => {
+                      alEntrar();
+                      anunciar(
+                        sinDorsal
+                          ? `${baja.nickname} vuelve a la plantilla sin dorsal: el ${baja.shirtNumber ?? ''} lo lleva otro`
+                          : `${baja.nickname} vuelve a la plantilla`,
+                      );
+                    },
+                    onError: (error) => {
+                      const mensaje = mensajeDeErrorAlGuardar(error);
+                      setFallo(mensaje);
+                      anunciar(mensaje);
+                    },
+                  },
+                );
+              }}
+            >
+              Reincorporar
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+    </Card>
+  );
+}
+
+/** Jugadores del club sin inscribir en este equipo. No sale si no hay ninguno. */
+function DelClub({ clubId, equipoId, temporadaId, alEntrar }: DestinoProps) {
+  const anunciar = useAnnounce();
+  const delClub = useDelClubSinInscribir(clubId, equipoId, temporadaId);
+  const inscribir = useInscribirDelClub({ equipoId, temporadaId });
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  if (delClub.data === undefined || delClub.data.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card title={`Inscribir a alguien del club (${delClub.data.length})`} headingLevel={2}>
+      <p className={styles.nota}>
+        Ya son jugadores del club, de otro equipo. Inscribirlos aquí no crea otro jugador: sus
+        estadísticas siguen siendo las suyas. El dorsal y la posición se ponen en su ficha.
+      </p>
+      <ul className={styles.lista}>
+        {delClub.data.map((jugador) => (
+          <li key={jugador.playerId} className={styles.fila}>
+            <div className={styles.datos}>
+              <span className={styles.apodo}>{jugador.nickname}</span>
+            </div>
+            <Button
+              variant="secondary"
+              disabled={inscribir.isPending}
+              aria-label={`Inscribir a ${jugador.nickname}`}
+              onClick={() => {
+                setFallo(null);
+                inscribir.mutate(jugador.playerId, {
+                  onSuccess: () => {
+                    alEntrar();
+                    anunciar(`${jugador.nickname} inscrito en la plantilla`);
+                  },
+                  onError: (error) => {
+                    const mensaje = mensajeDeErrorAlGuardar(
+                      error,
+                      'Ya está inscrito en este equipo.',
+                    );
+                    setFallo(mensaje);
+                    anunciar(mensaje);
+                  },
+                });
+              }}
+            >
+              Inscribir
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+    </Card>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Pantalla
 // ---------------------------------------------------------------------------
@@ -191,6 +336,10 @@ export function PlantillaPage() {
   // Solo se pregunta por la plantilla cuando se sabe que el equipo es propio:
   // un rival no tiene, y pedirla sería un viaje de red para nada.
   const plantilla = usePlantilla(equipoId, equipo.data?.kind === 'managed' ? activeSeasonId : null);
+  const tituloJugadores = useRef<HTMLHeadingElement>(null);
+  const alEntrar = () => {
+    tituloJugadores.current?.focus();
+  };
 
   const titulo =
     equipo.data === undefined || equipo.data === null
@@ -252,7 +401,11 @@ export function PlantillaPage() {
 
     return (
       <>
-        <Card title={`Jugadores (${plantilla.data.length})`} headingLevel={2}>
+        <Card
+          title={`Jugadores (${plantilla.data.length})`}
+          headingLevel={2}
+          headingRef={tituloJugadores}
+        >
           <Lista equipoId={equipoId} plantilla={plantilla.data} />
         </Card>
         <Card title="Añadir jugador" headingLevel={2}>
@@ -261,6 +414,20 @@ export function PlantillaPage() {
             plantilla={plantilla.data}
           />
         </Card>
+        <DelClub
+          clubId={equipo.data.clubId}
+          equipoId={equipoId}
+          temporadaId={activeSeasonId}
+          plantilla={plantilla.data}
+          alEntrar={alEntrar}
+        />
+        <Bajas
+          clubId={equipo.data.clubId}
+          equipoId={equipoId}
+          temporadaId={activeSeasonId}
+          plantilla={plantilla.data}
+          alEntrar={alEntrar}
+        />
       </>
     );
   };
