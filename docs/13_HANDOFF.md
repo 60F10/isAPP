@@ -189,14 +189,8 @@ Pendiente de hacer:
     permiso en él hasta que existan las invitaciones (T-301), así que su plantilla y sus partidos
     no los puede llevar nadie. La pantalla lo avisa al marcar «Del club». Para el Cadete A no
     importa: ya está sembrado.
-29. **Un jugador del club no se puede inscribir en un segundo equipo.** El alta de la A05 siempre
-    crea un jugador nuevo. Si el mismo chico juega en el Cadete A y en el Cadete B, quedan dos
-    jugadores con el mismo apodo y sus estadísticas separadas. Salida: en la A05, un «Inscribir a
-    alguien del club» que liste los jugadores del club sin inscripción en este equipo. Solo
-    frontend, sin migración. Con un solo equipo gestionado no molesta.
-30. **No hay lista de bajas ni reincorporación.** La baja rellena `left_on` y el jugador
-    desaparece de la A05. Volver a darlo de alta crea otro jugador (punto 29). Salida: una lista
-    plegada de «Bajas de esta temporada» con «Reincorporar», que vacía `left_on`.
+29. **Cerrado fuera de la cola** (`feat/core-inscripciones-del-club`). La A05 tiene «Inscribir a alguien del club»: lista los jugadores del club sin inscripción en este equipo y temporada, con su apodo y nada más, y los inscribe sin crear un jugador nuevo.
+30. **Cerrado fuera de la cola** (`feat/core-inscripciones-del-club`). La A05 tiene «Bajas de esta temporada», plegada, con «Reincorporar», que vacía `left_on`. Si otro jugador ha cogido el dorsal, la reincorporación entra sin dorsal y lo dice.
 31. **La ficha guarda en dos peticiones** (inscripción y apodo), y el alta en dos más un borrado
     compensatorio. Si falla la segunda, la primera ya está guardada; si falla también el borrado,
     queda un jugador sin inscribir en el club, invisible en toda plantilla. Salida: una función

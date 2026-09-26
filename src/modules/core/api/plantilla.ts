@@ -62,6 +62,82 @@ export async function fetchPlantilla(
   return data.map(aInscripcion);
 }
 
+/** Las bajas del equipo en la temporada: inscripciones con `left_on` (DOC 13, punto 30). */
+export async function fetchBajas(equipoId: string, temporadaId: string): Promise<Inscripcion[]> {
+  const { data, error } = await supabase
+    .from('squad_memberships')
+    .select(COLUMNAS_INSCRIPCION)
+    .eq('team_id', equipoId)
+    .eq('season_id', temporadaId)
+    .not('left_on', 'is', null);
+
+  if (error) {
+    throw error;
+  }
+
+  return data.map(aInscripcion);
+}
+
+/**
+ * Los jugadores del club sin ninguna inscripción en este equipo y temporada:
+ * los que se pueden inscribir sin crear un jugador nuevo (DOC 13, punto 29).
+ * Quien ya tiene fila, aunque sea de baja, no sale aquí: se reincorpora.
+ *
+ * Solo `id` y `nickname` de `players`, como en el resto del archivo.
+ */
+export async function fetchDelClubSinInscribir(
+  clubId: string,
+  equipoId: string,
+  temporadaId: string,
+): Promise<{ playerId: string; nickname: string }[]> {
+  const [jugadores, inscritos] = await Promise.all([
+    supabase.from('players').select('id, nickname').eq('club_id', clubId).eq('is_active', true),
+    supabase
+      .from('squad_memberships')
+      .select('player_id')
+      .eq('team_id', equipoId)
+      .eq('season_id', temporadaId),
+  ]);
+
+  if (jugadores.error) {
+    throw jugadores.error;
+  }
+
+  if (inscritos.error) {
+    throw inscritos.error;
+  }
+
+  const yaEstan = new Set(inscritos.data.map((fila) => fila.player_id));
+
+  return jugadores.data
+    .filter((jugador) => !yaEstan.has(jugador.id))
+    .map((jugador) => ({ playerId: jugador.id, nickname: jugador.nickname }))
+    .sort((a, b) => a.nickname.localeCompare(b.nickname, 'es'));
+}
+
+/** Inscribe en el equipo a un jugador que ya es del club, sin dorsal ni posición. */
+export async function inscribirDelClub(
+  destino: { equipoId: string; temporadaId: string; userId: string },
+  jugadorId: string,
+): Promise<Inscripcion> {
+  const { data, error } = await supabase
+    .from('squad_memberships')
+    .insert({
+      team_id: destino.equipoId,
+      season_id: destino.temporadaId,
+      player_id: jugadorId,
+      created_by: destino.userId,
+    })
+    .select(COLUMNAS_INSCRIPCION)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return aInscripcion(data);
+}
+
 /** La inscripción activa de un jugador en un equipo y temporada, o `null`. */
 export async function fetchInscripcion(
   jugadorId: string,
@@ -173,7 +249,7 @@ export async function actualizarInscripcion(
     shirt_number?: number | null;
     default_position?: Posicion | null;
     availability?: Disponibilidad;
-    left_on?: string;
+    left_on?: string | null;
   },
 ): Promise<void> {
   const { data, error } = await supabase

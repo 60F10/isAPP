@@ -2,7 +2,7 @@
 // alto contraste vale `none`: por eso la tarjeta lleva siempre borde, y ese
 // borde se vuelve negro en alto contraste sin que el componente se entere.
 
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 
 import styles from './Card.module.css';
 
@@ -16,6 +16,12 @@ interface CardProps {
       título; `li` cuando va dentro de una lista. */
   as?: 'div' | 'section' | 'article' | 'li';
   className?: string;
+  /**
+   * Para llevar el foco al título desde fuera, cuando desaparece el control
+   * que lo tenía. Con él, el título se puede enfocar por código (`tabIndex`
+   * −1) sin entrar en el orden de tabulación.
+   */
+  headingRef?: Ref<HTMLHeadingElement>;
 }
 
 export function Card({
@@ -24,12 +30,21 @@ export function Card({
   headingLevel = 3,
   as: Container = title ? 'section' : 'div',
   className,
+  headingRef,
 }: CardProps) {
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4';
 
   return (
     <Container className={[styles.card, className].filter(Boolean).join(' ')}>
-      {title ? <Heading className={styles.title}>{title}</Heading> : null}
+      {title ? (
+        <Heading
+          ref={headingRef}
+          className={styles.title}
+          tabIndex={headingRef === undefined ? undefined : -1}
+        >
+          {title}
+        </Heading>
+      ) : null}
       {children}
     </Container>
   );
