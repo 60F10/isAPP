@@ -90,11 +90,11 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'club',
-                    element: <PantallaPendiente id="A03" titulo="Club" tarea="T-201" />,
+                    lazy: async () => ({ Component: (await import('@modules/core')).ClubPage }),
                   },
                   {
                     path: 'equipos',
-                    element: <PantallaPendiente id="A04" titulo="Equipos" tarea="T-201" />,
+                    lazy: async () => ({ Component: (await import('@modules/core')).EquiposPage }),
                   },
                 ],
               },
