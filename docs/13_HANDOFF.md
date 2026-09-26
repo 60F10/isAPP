@@ -166,8 +166,7 @@ Pendiente de hacer:
 22. **Los fallos sin sesión no llegan a `error_logs`.** La RLS solo deja insertar a
     `authenticated`. Abrirla a `anon` abre la puerta a llenar la tabla desde fuera. Decidir en el
     DOC 03 si hace falta verlos.
-23. **El trozo de `App` no se precarga desde `index.html`** (D06-23): un viaje de red más en la
-    primera visita. Un plugin de Vite de diez líneas que añada su `modulepreload` lo arregla.
+23. **Cerrado fuera de la cola** (`build/platform-precarga-app`). El plugin `precargarApp()` de `vite.config.ts` añade a `index.html` un `modulepreload` para el trozo de `App` y sus importaciones estáticas. Comprobado en Chromium: cada trozo se pide una sola vez.
 24. **Las preferencias de pantalla viven en el dispositivo** (D06-25). Salidas: una columna
     `preferences jsonb` en `profiles` con `localStorage` como caché para arrancar sin red
     —recomendada—; o dejarlo así y corregir el DOC 07. Pide migración: sesión de Cowork.
