@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
+import type { HtmlTagDescriptor, Plugin } from 'vite';
+
 // Alias de importación del DOC 06 §4.3. Este mapa y el de `paths` en
 // tsconfig.app.json son el mismo: si se toca uno, se toca el otro. TypeScript
 // resuelve con el tsconfig y Vite con esto, y una desviación entre los dos
@@ -17,6 +19,44 @@ const rutaDe = (ruta: string): string => fileURLToPath(new URL(ruta, import.meta
 // `env.ts`—: se resuelve al compilar y entra en el paquete como texto.
 const VERSION_APP = process.env.COMMIT_REF?.slice(0, 7) ?? 'local';
 
+// PRECARGA DEL TROZO DE `App` DESDE `index.html` (DOC 13, punto 23).
+// `main.tsx` carga `App` con `import()` a propósito (D06-23), y Vite no lo
+// precarga: en la primera visita, el navegador no sabe que lo necesita hasta
+// ejecutar `index-*.js`, y eso es un viaje de red más en serie. Este plugin
+// añade al `<head>` un `modulepreload` para `App-*.js` y sus importaciones
+// estáticas, que baja en paralelo con el arranque. No cambia qué se carga,
+// solo cuándo. Desde la segunda visita lo sirve la precaché y da igual.
+function precargarApp(): Plugin {
+  return {
+    name: 'sasi-precargar-app',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, contexto) {
+        const trozos = Object.values(contexto.bundle ?? {});
+        const app = trozos.find(
+          (trozo) =>
+            trozo.type === 'chunk' &&
+            trozo.facadeModuleId !== null &&
+            trozo.facadeModuleId.endsWith('/src/app/App.tsx'),
+        );
+
+        if (app === undefined || app.type !== 'chunk') {
+          return [];
+        }
+
+        return [app.fileName, ...app.imports]
+          .filter((archivo) => !html.includes(archivo))
+          .map((archivo): HtmlTagDescriptor => ({
+            tag: 'link',
+            attrs: { rel: 'modulepreload', crossorigin: '', href: `/${archivo}` },
+            injectTo: 'head',
+          }));
+      },
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -24,6 +64,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    precargarApp(),
     VitePWA({
       // Decisión D06-14. La versión nueva NO se instala sola: se avisa y
       // decide quien está delante del móvil. Con 'autoUpdate', el service
