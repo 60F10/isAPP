@@ -59,3 +59,43 @@ export function mensajeDeErrorAlGuardar(error: unknown, repetido = 'Ya existe un
 
   return 'No se ha podido guardar. Vuelve a intentarlo.';
 }
+
+/**
+ * Clases de SQLSTATE que son del servidor y no del dato: conexión (08),
+ * recursos (53), intervención del operador (57), sistema (58) e interno (XX).
+ */
+const DEL_SERVIDOR = /^(08|53|57|58|XX)/;
+
+/** Los `PGRST3xx` son del testigo de sesión: caducado, se renueva solo. */
+const DE_LA_SESION = /^PGRST3/;
+
+/**
+ * Si repetir la petición no va a arreglar el error: es del dato o del
+ * permiso (DOC 06 §10.1, DOC 13 punto 16). Lo usa la caché de lectura para no
+ * reintentar un 42501 de la RLS dos veces antes de enseñarlo.
+ *
+ * Las funciones de `api/` lanzan el `PostgrestError` de Supabase, que trae
+ * `code` y no `status`: por eso se miran los dos. Lo que no se reconoce se
+ * reintenta, que mejor una vez de más que rendirse sin motivo.
+ */
+export function esErrorDefinitivo(error: unknown): boolean {
+  if (error instanceof Error && error.message === SIN_FILAS) {
+    return true;
+  }
+
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const { status } = error;
+
+    if (typeof status === 'number') {
+      return status >= 400 && status <= 499 && status !== 401 && status !== 408 && status !== 429;
+    }
+  }
+
+  const codigo = codigoDe(error);
+
+  if (codigo === null || codigo === '') {
+    return false;
+  }
+
+  return !DEL_SERVIDOR.test(codigo) && !DE_LA_SESION.test(codigo);
+}

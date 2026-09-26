@@ -4,24 +4,20 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { esErrorDefinitivo } from '@shared/lib/guardado';
+
 import type { ReactNode } from 'react';
 
 /**
- * Un error 4xx no se reintenta nunca. Un 400, un 401 o un 403 no los arregla
- * volver a preguntar: la petición está mal o la RLS ha dicho que no, y el
- * segundo intento va a fallar igual. Reintentar solo gasta batería y datos
- * justo cuando la cobertura del campo es la que es. Los 5xx y los cortes de
- * red, que sí son pasajeros, se reintentan hasta dos veces.
+ * Un error del dato o del permiso no se reintenta nunca: la petición está mal
+ * o la RLS ha dicho que no, y el segundo intento va a fallar igual.
+ * Reintentar solo gasta batería y datos justo cuando la cobertura del campo es
+ * la que es. Los fallos del servidor y los cortes de red, que sí son
+ * pasajeros, se reintentan hasta dos veces.
+ *
+ * Qué es definitivo lo decide `esErrorDefinitivo`: hasta la T-206 solo se
+ * miraba el estado HTTP, y el error de Supabase no lo trae (DOC 13, punto 16).
  */
-function esErrorDeCliente(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null || !('status' in error)) {
-    return false;
-  }
-
-  const { status } = error as { status: unknown };
-
-  return typeof status === 'number' && status >= 400 && status <= 499;
-}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,7 +33,7 @@ const queryClient = new QueryClient({
       // cada dos minutos, y cada vuelta al foco dispararía una ráfaga de
       // peticiones justo cuando peor va la cobertura.
       refetchOnWindowFocus: false,
-      retry: (failureCount, error) => !esErrorDeCliente(error) && failureCount < 2,
+      retry: (failureCount, error) => !esErrorDefinitivo(error) && failureCount < 2,
     },
   },
 });
