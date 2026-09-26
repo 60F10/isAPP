@@ -47,6 +47,14 @@ begin
       returning id into v_club_id;
   end if;
 
+  -- Campo de casa (DOC 05 §14.4), dato de Raúl del 26/09/2026. Solo si falta:
+  -- lo que se haya corregido desde la A03 no se pisa.
+  update public.clubs
+     set home_venue = 'Campo de Fútbol Izquierdo Rodríguez',
+         home_venue_address = 'Av. Milán, 27-29, 38260 La Laguna, Santa Cruz de Tenerife'
+   where id = v_club_id
+     and home_venue is null;
+
   -- Temporada en curso. Un índice parcial garantiza que solo haya una por
   -- club (DOC 05 §5.3), así que `is_current` aquí es la única verdadera.
   select id into v_season_id
