@@ -258,7 +258,7 @@ begin
       fails := fails || format('U%s: metric_reliability() calcula sobre un partido ajeno', me);
     end if;
 
-    foreach res in array array['rebuild_match_stints', 'flag_duplicate_candidates'] loop
+    foreach res in array array['rebuild_match_stints', 'flag_duplicate_candidates', 'marcar_convocado'] loop
       total := total + 1;
       begin
         execute format('select public.%I(%L)::text', res, t->>'match') into v_ret;
