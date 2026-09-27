@@ -93,9 +93,35 @@ export async function purgarEnviados(ahora: number): Promise<void> {
   await db.outbox.bulkDelete(purgables(enviados, ahora));
 }
 
+/** Lo que queda en la cola de este aparato de un partido, de cualquier cuenta. */
+export interface ColaDelPartido {
+  /** Pendiente o enviándose: llegará en cuanto haya cobertura. */
+  sinEnviar: number;
+  /** Rechazado por el servidor: no llegará nunca solo (DOC 06 §8.5). */
+  rechazados: number;
+}
+
 /**
- * Borra lo enviado de un partido. Lo llamará el cierre (T-210): «se purga al
- * cerrar el partido o a las 48 horas, lo que llegue antes».
+ * Cuánto queda en la cola de un partido. Lo mira el cierre (T-210a) antes de
+ * dejar cerrar: con cambios sin enviar, el servidor no tiene el partido
+ * entero. Cuenta los de todas las cuentas del aparato, porque el partido es
+ * el mismo aunque lo anotaran dos personas en el mismo móvil.
+ */
+export async function contarDelPartido(matchId: string): Promise<ColaDelPartido> {
+  const trabajos = await db.outbox.where('matchId').equals(matchId).toArray();
+
+  return {
+    sinEnviar: trabajos.filter(
+      (trabajo) => trabajo.status === 'pending' || trabajo.status === 'sending',
+    ).length,
+    rechazados: trabajos.filter((trabajo) => trabajo.status === 'failed').length,
+  };
+}
+
+/**
+ * Borra lo enviado de un partido. Lo llama el cierre (T-210a): «se purga al
+ * cerrar el partido o a las 48 horas, lo que llegue antes». Lo rechazado se
+ * queda: nadie lo ha revisado todavía.
  */
 export async function purgarPartido(matchId: string): Promise<void> {
   await db.outbox

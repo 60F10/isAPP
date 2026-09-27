@@ -249,3 +249,23 @@ export function enfrentamiento(
 export function sePuedeEditar(estado: EstadoDePartido): boolean {
   return estado === 'scheduled' || estado === 'called';
 }
+
+/**
+ * Si el calendario enlaza el cierre del partido (A13, T-210a): terminado,
+ * suspendido o cerrado; en diferido, también convocado o en juego, porque
+ * ese partido no tiene reloj y se termina desde el cierre. Qué se puede
+ * hacer allí lo decide `review`; esto solo elige cuándo enseñar el enlace.
+ */
+export function tieneCierre(partido: Pick<Partido, 'status' | 'isRetroactive'>): boolean {
+  switch (partido.status) {
+    case 'finished':
+    case 'suspended':
+    case 'closed':
+      return true;
+    case 'called':
+    case 'live':
+      return partido.isRetroactive;
+    case 'scheduled':
+      return false;
+  }
+}

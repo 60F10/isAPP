@@ -7,3 +7,11 @@
 
 export { ConvocatoriaConPrecarga } from './routes/ConvocatoriaConPrecarga';
 export { LiveMatchPage } from './routes/LiveMatchPage';
+
+// Para `review`, que enseña los eventos en el cierre y limpia el aparato al
+// cerrar (T-210a).
+export { olvidarPartido } from './api/precarga';
+export { describirEvento } from './model/describir';
+export { desdeFilas } from './model/eventos';
+
+export type { EstadoDeEvento, EventoDelDirecto } from './model/eventos';

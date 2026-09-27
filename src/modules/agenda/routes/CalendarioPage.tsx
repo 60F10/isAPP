@@ -22,6 +22,7 @@ import {
   NOMBRES_DE_ESTADO,
   separarCalendario,
   sePuedeEditar,
+  tieneCierre,
 } from '../model/partido';
 
 import styles from './CalendarioPage.module.css';
@@ -37,12 +38,14 @@ interface FilaProps {
   equipo: string;
   programa: boolean;
   convoca: boolean;
+  cierra: boolean;
 }
 
-function Fila({ partido, equipo, programa, convoca }: FilaProps) {
+function Fila({ partido, equipo, programa, convoca, cierra }: FilaProps) {
   const instante = new Date(partido.kickoffAt);
   const titulo = enfrentamiento(partido, equipo);
   const pendiente = sePuedeEditar(partido.status);
+  const conCierre = cierra && tieneCierre(partido);
 
   return (
     <li className={styles.fila}>
@@ -60,7 +63,7 @@ function Fila({ partido, equipo, programa, convoca }: FilaProps) {
         {NOMBRES_DE_ESTADO[partido.status]}
         {partido.isRetroactive ? ' · en diferido' : null}
       </p>
-      {(programa && pendiente) || (convoca && pendiente) ? (
+      {(programa && pendiente) || (convoca && pendiente) || conCierre ? (
         <div className={styles.acciones}>
           {convoca && pendiente ? (
             <Link
@@ -80,6 +83,15 @@ function Fila({ partido, equipo, programa, convoca }: FilaProps) {
               Editar
             </Link>
           ) : null}
+          {conCierre ? (
+            <Link
+              className={styles.accion}
+              to={`/partidos/${partido.id}/cierre`}
+              aria-label={`Cierre de ${titulo}`}
+            >
+              Cierre
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </li>
@@ -93,9 +105,10 @@ interface ListaProps {
   equipo: string;
   programa: boolean;
   convoca: boolean;
+  cierra: boolean;
 }
 
-function Lista({ titulo, vacio, partidos, equipo, programa, convoca }: ListaProps) {
+function Lista({ titulo, vacio, partidos, equipo, programa, convoca, cierra }: ListaProps) {
   return (
     <Card title={titulo} headingLevel={2}>
       {partidos.length === 0 ? (
@@ -109,6 +122,7 @@ function Lista({ titulo, vacio, partidos, equipo, programa, convoca }: ListaProp
               equipo={equipo}
               programa={programa}
               convoca={convoca}
+              cierra={cierra}
             />
           ))}
         </ul>
@@ -124,6 +138,7 @@ export function CalendarioPage() {
   // hasta saber que se puede, en vez de enseñarlo y quitarlo.
   const programa = useHasPermission('schedule.manage') === true;
   const convoca = useHasPermission('lineup.manage') === true;
+  const cierra = useHasPermission('match.close') === true;
 
   const contenido = () => {
     if (equipoId === null) {
@@ -179,6 +194,7 @@ export function CalendarioPage() {
           equipo={equipoNombre}
           programa={programa}
           convoca={convoca}
+          cierra={cierra}
         />
         <Lista
           titulo="Jugados"
@@ -187,6 +203,7 @@ export function CalendarioPage() {
           equipo={equipoNombre}
           programa={programa}
           convoca={convoca}
+          cierra={cierra}
         />
       </>
     );

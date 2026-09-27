@@ -36,22 +36,19 @@ rival del Cadete A en esta liga.
 | 02-10-2026 | 20:00 | Hidalgo       | Nuryana        |
 | 03-10-2026 | 10:30 | V. Guerra     | Longuera D     |
 | 03-10-2026 | 12:00 | S.Jeronimo    | S.J.Tablero    |
-| 03-10-2026 | ¿?    | At. Tacoronte | **U. Tejina**  |
+| 03-10-2026 | 12:00 | At. Tacoronte | **U. Tejina**  |
 | 04-10-2026 | 12:00 | Ravelo        | Tegueste B     |
 | 04-10-2026 | 14:00 | U.D.Tacoronte | At. U.La Paz B |
 
-**El primer partido del Cadete A se adelanta al sábado 3 de octubre de 2026, fuera, contra el
-At. Tacoronte. La hora está por confirmar.** La página de la federación lo daba el domingo 4 a las
-12:00; el cambio de día lo dio Raúl el 26/09, y la hora de ese día todavía no se sabe: no se da
-por buena la de 12:00. El campo no sale en la página.
+**El primer partido del Cadete A es el sábado 3 de octubre de 2026 a las 12:00, fuera, contra el
+At. Tacoronte.** La página de la federación lo daba el domingo 4 a las 12:00; Raúl adelantó el día
+el 26/09 y confirmó la hora esa misma noche. El campo no sale en la página.
 
 ## Para meterlo en la aplicación
 
 1. En **Equipos** (A04), da de alta los once rivales como «Rival».
 2. En **Competiciones** (A08), crea «Cadete Primera Tenerife G2» como Liga, si no está, con
    categoría «Cadete», nivel «Primera», ámbito «Tenerife» y grupo «G2».
-3. En **Calendario** (A09) → «Nuevo partido»: At. Tacoronte, fuera, 03/10/2026, **con la hora que
-   se confirme**. Si hay que meterlo antes de saberla, se pone una aproximada y se corrige en la A10
-   en cuanto se sepa.
+3. En **Calendario** (A09) → «Nuevo partido»: At. Tacoronte, fuera, 03/10/2026, **a las 12:00**.
 
 Cuando se tenga el calendario completo, cada jornada es un «Nuevo partido» más.

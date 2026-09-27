@@ -196,9 +196,9 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'partidos/:id/cierre',
-                    element: (
-                      <PantallaPendiente id="A13" titulo="Cierre del partido" tarea="T-210" />
-                    ),
+                    lazy: async () => ({
+                      Component: (await import('@modules/review')).CierrePartidoPage,
+                    }),
                   },
                 ],
               },

@@ -11,6 +11,7 @@ import {
   partesDeInstante,
   separarCalendario,
   sePuedeEditar,
+  tieneCierre,
   ultimoCampoDeCasa,
   validarPartido,
 } from './partido';
@@ -199,5 +200,27 @@ describe('estados', () => {
       finished: 'Terminado, sin cerrar',
       closed: 'Cerrado',
     });
+  });
+});
+
+describe('tieneCierre', () => {
+  it('terminado, suspendido o cerrado, siempre, en diferido o no', () => {
+    for (const isRetroactive of [false, true]) {
+      expect(tieneCierre({ status: 'finished', isRetroactive })).toBe(true);
+      expect(tieneCierre({ status: 'suspended', isRetroactive })).toBe(true);
+      expect(tieneCierre({ status: 'closed', isRetroactive })).toBe(true);
+    }
+  });
+
+  it('convocado o en juego, solo en diferido', () => {
+    expect(tieneCierre({ status: 'called', isRetroactive: true })).toBe(true);
+    expect(tieneCierre({ status: 'called', isRetroactive: false })).toBe(false);
+    expect(tieneCierre({ status: 'live', isRetroactive: true })).toBe(true);
+    expect(tieneCierre({ status: 'live', isRetroactive: false })).toBe(false);
+  });
+
+  it('programado, nunca, en diferido o no', () => {
+    expect(tieneCierre({ status: 'scheduled', isRetroactive: false })).toBe(false);
+    expect(tieneCierre({ status: 'scheduled', isRetroactive: true })).toBe(false);
   });
 });

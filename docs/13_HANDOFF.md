@@ -5,39 +5,45 @@
 
 ---
 
-## Sesión 26/09/2026, noche — T-203b y correcciones: ✅ cerrada
+## Sesión 27/09/2026, madrugada — T-210a y correcciones: ✅ cerrada
 
-Sesión de Cowork programada, sin Raúl delante. Cola renovada el 26/09 por la tarde: la T-203b
-(categoría de la competición en la A08 y campo de casa propuesto en la A10) más cuatro
-correcciones, todo en una PR. Rama `feat/rules-categoria-y-campo`. **Sin tocar la base**: la
-migración del DOC 05 §14.4 ya estaba aplicada (PR #52).
+Dos sesiones de Cowork programadas, sin Raúl delante. La del 26/09 a las 22:10 leyó los documentos,
+consultó el esquema y dejó el modelo, el acceso a datos y los hooks sin commitear; se cortó. La del
+27/09 a la 01:30 la retomó en modo recuperación y la terminó. Cola renovada el 26/09 por la noche:
+**la T-210 se adelanta a la T-209 por decisión de Raúl** y se parte en dos entregas. Esta es la
+primera, la T-210a (cierre del partido, A13), con cuatro correcciones de documentación en la misma
+PR. Rama `feat/review-cierre-partido`. **Sin DDL**: la T-210a cabe en el esquema actual. De la
+base solo se leyeron `enforce_match_changes` y los `CHECK` de `matches`.
 
 ---
 
 ## HECHO
 
-| Pieza                                    | Qué hace                                                                                                                                                                               |
-| :--------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rules/model/competicion.ts`             | `Categoria`, `CAMPOS_DE_CATEGORIA`, `SIN_CATEGORIA`, `LARGO_CATEGORIA` (40), `DatosDeCompeticion` y `NOMBRE_REPETIDO`. La validación limpia cada campo y guarda lo vacío como nulo     |
-| `rules/components/CamposDeCategoria.tsx` | Los cuatro campos —Categoría, Nivel, Ámbito y Grupo— en un `fieldset` con su leyenda, «Clasificación de la federación». Opcionales, con un ejemplo en la ayuda de cada uno             |
-| **A08, alta y ficha**                    | Los cuatro campos en las dos. Si la base rechaza un nombre repetido (23505, índice `competitions_name_unique`), el aviso es el de la pantalla y sale junto al campo «Nombre»           |
-| `rules/api/competiciones.ts` y su hook   | Leen y escriben `category`, `level`, `scope` y `group_label`. La `Fila` ya no las deja fuera                                                                                           |
-| `core`                                   | `Club` trae `homeVenue` y `homeVenueAddress`; `useClub` sale por el barril para `agenda`                                                                                               |
-| `agenda/model/partido.ts`                | `campoDeCasaPropuesto`: el campo de casa del club, limpio, y si no hay, el del último partido en casa                                                                                  |
-| **A10**                                  | Espera al club antes de pintar el formulario y propone su campo de casa al abrir y al pasar de «Fuera» a «En casa» con el campo vacío                                                  |
-| Referencias a «punto N» del DOC 13       | En `src/`, las que apuntaban a puntos ya cerrados o de otra numeración citan ahora la tarea, la PR o la decisión que los cerró. La única abierta, en `useConvocatoria.ts`, pasa al 24  |
-| Primer partido                           | Se adelanta al **sábado 3 de octubre**, fuera, contra el At. Tacoronte, **hora por confirmar**: `docs/recursos/cadete_primera_tenerife_g2_2026-27.md`, punto 27 y DOC 08 §8            |
-| Modelo de despliegue                     | Pre en `main`, pro en `release`, créditos de Netlify: DOC 10 v0.5 (§2.1 y §2.2), `CLAUDE.md` y comentarios de `netlify.toml`. **El comando `ignore` no cambia**                        |
-| DOC 08 v2.9, DOC 05 v1.10 y `CLAUDE.md`  | T-203b en ✅, el riesgo del 3/10 sin replanificar, y el DOC 05 §14 avisa de que los puntos que cita son de su día                                                                      |
-| DOC 13                                   | Se retiran los puntos 23 y 24, que cerró la PR #51 y la #52 volvió a dar por abiertos al pisar el traspaso: la A05 ya tiene «Inscribir a alguien del club» y «Bajas de esta temporada» |
+| Pieza                            | Qué hace                                                                                                                                                                                                       |
+| :------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `review/model/cierre.ts`         | Lógica pura del cierre: qué estado admite cierre, qué lo impide en palabras (`bloqueosDelCierre`), el acta (0 a 99, los dos obligatorios), C-02, orígenes del gol, dónde se suspendió y a qué estado se reabre |
+| `review/api/cierre.ts`           | Lee lo que pinta la A13, cierra en cinco pasos (abajo), reabre y guarda el origen de un gol. Del jugador solo `nickname` y el dorsal de `match_squad`                                                          |
+| `review/api/local.ts`            | Junta lo del aparato: cuenta la cola del partido, intenta enviarla y, con el partido cerrado, limpia la precarga, los eventos locales, lo enviado de la cola y la marca de partido en curso                    |
+| `review/hooks/useCierre.ts`      | Consultas y mutaciones. La cola se vuelve a mirar cada 3 s mientras quede algo por enviar                                                                                                                      |
+| **A13**, `CierrePartidoPage.tsx` | Sustituye a su `PantallaPendiente`. Estado en palabras, resultado calculado y acta, eventos pendientes, «Este móvil», origen de los goles y cerrar; cerrado, el acta, la fecha del cierre y reabrir            |
+| `sync` y `match`                 | `contarDelPartido` (sin enviar y rechazados de un partido, de todas las cuentas del aparato) y `olvidarPartido` (precarga y eventos locales), por sus barriles                                                 |
+| Calendario (A09) y directo (A12) | Enlace «Cierre» en el partido terminado, suspendido o cerrado, y en el diferido convocado o en juego; en el directo, «Ir al cierre del partido» al terminar. Los dos, solo con `match.close`                   |
+| Primer partido                   | **Sábado 3 de octubre a las 12:00**, confirmado por Raúl el 26/09: `docs/recursos/cadete_primera_tenerife_g2_2026-27.md` y DOC 08 §8                                                                           |
+| DOC 10 v0.7                      | Los paneles de Netlify y de Supabase, comprobados por Raúl el 26/09: se retira la hipótesis de la PR #54 y el §4.5 suma `https://main--gavetastats.netlify.app/**`                                             |
+| DOC 08 v3.0 y `CLAUDE.md`        | La T-210 en 🚧 y por delante de la T-209 en el §3 y en el §5, con el porqué. Nada más replanificado                                                                                                            |
+
+**Cerrar, paso a paso** (`review/api/cierre.ts`): cuenta otra vez los pendientes en el servidor; en
+diferido, crea las partes que falten con la duración prevista; recalcula los tramos con
+`rebuild_match_stints`; da por terminadas las coberturas abiertas en el final (C-03; hasta la T-209
+no hay ninguna); y pasa el partido a `closed` con el acta, `closed_at` y `closed_by`, con el estado
+de partida en el filtro. Si otro lo cambió entre medias, cero filas y «el partido ha cambiado».
 
 ### Pruebas
 
-**378 en verde, 40 archivos**, 13 nuevas: cinco del modelo de la categoría, tres de
-`campoDeCasaPropuesto`, cuatro de la A08 (alta con categoría, alta sin ella, 23505 de la base y la
-ficha que la enseña y la vacía) y dos de la A10 (recambio del último partido y vuelta a «En casa»).
-**Las cuatro de pantalla se vieron fallar** contra la A08 y la A10 de `main`; las del modelo no
-compilan sin él.
+**417 en verde, 42 archivos**, 39 nuevas: treinta del modelo del cierre, cinco de la A13 (pendientes
+que bloquean, acta que no cuadra y cierre, acta vacía, reabrir y partido sin jugar), tres de
+`tieneCierre` y una del enlace «Cierre» del calendario. **Las de pantalla se vieron fallar** contra
+el código roto a propósito; las del modelo no compilan sin él.
 
 `npm run lint`, `npx prettier --check .`, `tsc -b` y `npm run build` en verde en local, sin
 `INEFFECTIVE_DYNAMIC_IMPORT`.
@@ -46,58 +52,78 @@ compilan sin él.
 
 ## DECISIONES TOMADAS
 
-**El nombre no se compone con la categoría, ni se propone.** Lo dice el DOC 05 §14.4: una copa o un
-torneo de verano no tiene grupo, y obligar a componerlo rompería esos casos. Los cuatro campos van
-aparte y el nombre sigue siendo el que se ve en el calendario y en el partido.
+Donde los documentos no daban la regla, se eligió la salida más conservadora y reversible.
 
-**Los cuatro campos, opcionales y con un largo de interfaz de 40.** La base no los limita, y el más
-largo de la federación, «Autonómico Canarias», cabe de sobra. Van en el alta además de en la ficha,
-para que la liga del Cadete A nazca con ellos.
+**C-01 al pie de la letra: con eventos pendientes no se cierra.** La pantalla los enseña y los
+cuenta, y el servidor los vuelve a contar al pulsar «Sí, cerrar». Aprobarlos, en bloque o uno a
+uno, es de la T-210b (punto 51).
 
-**El campo de casa del club manda; el del último partido en casa queda de recambio.** La aplicación
-es multiclub y un club nuevo tendrá `home_venue` vacío: así la A10 sigue proponiendo algo. Al
-partido va solo `home_venue`, no la dirección: `matches.venue` es una línea del calendario.
+**Lo que este móvil no ha enviado también impide cerrar.** El servidor no tendría el partido entero,
+y el recálculo de los tramos saldría mal. Si la cola no se puede leer, no se bloquea: cerrar se
+deshace reabriendo. Alternativa descartada: avisar sin bloquear, que deja cerrar un partido al que
+le faltan eventos que llegarán después.
 
-**La A10 espera a tener el club.** El formulario toma su valor inicial una sola vez; si el club
-llegara después, el campo se quedaría sin proponer. Un fallo al leer el club se trata como los de
-las otras tres consultas: aviso y «Reintentar».
+**Lo rechazado por el servidor avisa y no bloquea.** No llegará nunca solo, y bloquear por ello
+dejaría el partido sin cerrar hasta que alguien lo revise. Su sitio es la T-210b (punto 34).
 
-**La A03 no edita el campo de casa.** La T-203b es de la A08 y la A10, y el dato del Unión Tejina ya
-está en la base. Queda en el punto 51.
+**Reabrir pide `match.close` y devuelve el partido al estado de antes.** Es lo que ya exige
+`enforce_match_changes`, que no restringe las transiciones: `suspended` si tiene parte y segundo de
+suspensión (el `CHECK` `matches_suspension` los exige para ese estado), y si no `finished`. El acta
+se conserva y el disparador `matches_audit` lo apunta en `audit_log`. Nadie más reabre: el DOC 04 §8.4 no lo reparte.
 
-**Las referencias a «punto N» en el código ya no llevan número salvo la abierta.** El DOC 13 se
-renumera en cada sesión, y las de `src/` venían de cuatro numeraciones distintas: casi todas
-apuntaban ya a otro punto. Las cerradas citan ahora la tarea (T-206, T-208), la PR (#51) o la
-decisión (D06-29, DOC 06 §10.1). Las migraciones aplicadas no se tocan: el DOC 05 §14 avisa de que
-sus puntos son los del día en que se escribieron.
+**Sin campo de notas del partido.** Es el sitio natural para escribir «se lesionó el 7», y esos datos
+no entran (datos de salud de menores). Si hace falta, se decide aparte.
 
-**El DOC 10 dice cómo tiene que estar el panel de Netlify, no que lo esté.** Desde aquí no se ve la
-rama de producción ni el estado de los builds. Lo que sí se vio antes de fusionar: `gavetastats` y
-`main--gavetastats` servían el mismo build viejo, anterior a la T-106 (`index-jOB7hSkO.js`).
+**En diferido, las partes que falten se crean al cerrar con su duración prevista** (DOC 04 §5.4): sin
+partes, el recálculo no da minutos a nadie. Crearlas pide `match.live.write`; quien solo tenga
+`match.close` ve el motivo y no puede cerrar (punto 52).
 
-**El 3 de octubre no se replanifica.** Queda como riesgo en el DOC 08 §8 con lo que hay hecho; qué
-entra antes del primer partido lo decide Raúl.
+**El origen del gol se pone en la A13, solo con `event.approve` y solo sin cerrar.** La RLS pide ese
+permiso para tocar un evento aprobado. Va directo a la base, no por la cola: la A13 se usa después
+del partido y con cobertura. Se guarda al elegir, con un `<select>` nativo; «Sin indicar» solo sale
+mientras no tenga origen. Cerrado, se corrige reabriendo.
+
+**Al cerrar, este móvil olvida el partido**: precarga, eventos locales, lo enviado de la cola y la
+marca de partido en curso. Lo rechazado se queda. Un fallo al limpiar no convierte el cierre en
+fallo. Los demás aparatos no se enteran (punto 37).
+
+**El acta propone lo ya confirmado o, si no hay, lo calculado.** Si no coinciden, se avisa y se
+puede cerrar igual (C-02). Qué resultado manda en las estadísticas lo decidirá la fase 4.
+
+**La suspensión desde el directo no entra aquí.** La A13 cierra y reabre partidos suspendidos y dice
+dónde se suspendieron, pero suspender es una acción del reductor de la A12, con su transición en la
+cola, y la cola pidió no ampliar el alcance (punto 40).
+
+**Confirmaciones en dos pasos en el mismo sitio**, como el borrado de la A10. Al abrirse, el foco va
+a la pregunta y no al «Sí», para que un segundo toque sin mirar no confirme. Al cerrar y al
+reabrir, el foco va a la línea del estado, que es lo que ha cambiado. Una sola región viva.
+
+**Cerrar y reabrir invalidan la caché sin esperar.** Si esperan, el partido cambia de estado, la
+sección que llamó a `mutate` se desmonta y TanStack Query no llama a sus `onSuccess`: ni anuncio
+ni foco.
 
 ---
 
 ## PENDIENTE DE LA TAREA
 
-Nada de código. **Pre no se actualizó al fusionar la #53** (punto 13): lo arregla Raúl en el
-panel de Netlify. La comprobación y lo que se corrigió después van en la PR #54, solo de
-documentación.
+**La T-210b**: aprobar y rechazar pendientes (con la acción en bloque de C-01), los candidatos a
+duplicado por `duplicate_group_id`, corregir el minuto por la cola (E8-09) y lo rechazado por el
+servidor. Con ella, la T-210 pasa a ✅. Hereda los puntos 34, 43 y 51.
 
 ---
 
 ## DEUDA TÉCNICA GENERADA
 
-Los puntos 51 y 52 de abajo.
+Los puntos 50 a 53 de abajo.
 
 ---
 
 ## LO QUE SIGUE ABIERTO
 
-Se retiran el 23 y el 24, que ya estaban cerrados. **La lista se renumera**: del 25 en adelante,
-cada punto baja dos. Se suman el 51 y el 52.
+Se retiran tres puntos: el 41 (tramos recalculados al cerrar) y el 44 (origen del gol al cerrar),
+que cierra la T-210a, y el 52 (inicio de sesión en pre), que cerró Raúl al comprobar el panel. **La
+lista se renumera**: el 42 y el 43 bajan uno; del 45 al 51, bajan dos. Se reescriben el 13, el 31,
+el 37 y el 40, y se suman del 50 al 53.
 
 Pendiente de decidir, que no lo decide el código:
 
@@ -148,14 +174,15 @@ Pendiente de hacer:
     Cada publicación cuesta 15 de los 300 créditos del mes. En pro no hay nada desde la T-106. La
     base ya tiene las migraciones del 26/09 y no rompe lo publicado: las columnas nuevas son
     nulables y lo que hay en el sitio no crea equipos, ni convoca, ni registra eventos.
-    **Comprobado tras fusionar la #53, el 26/09 por la noche: Netlify no compiló `main`.** La vista
-    previa de la PR sí se compiló (`deploy-preview-53--gavetastats.netlify.app` sirve el build
-    nuevo, con su `App-*.js`), así que los builds están activos. Pero el commit de `main` no tiene
-    ningún estado de Netlify, y `main--gavetastats` sigue sirviendo el build viejo
-    (`index-jOB7hSkO.js`), el mismo que producción. Lo más probable es que en el panel la rama de
-    producción siga siendo `main`, parada por los créditos, y que no haya despliegues de rama para
-    ella. **Lo arregla Raúl en el panel** (DOC 10 §2.1: rama de producción `release`, despliegues de
-    rama para `main`). Mientras, cada PR tiene su vista previa, que no gasta créditos.
+    **Los paneles están bien**: Raúl comprobó el 26/09, con capturas, que Netlify tiene `release`
+    como rama de producción, despliegues de rama para `main` y vistas previas de las PR contra esas
+    ramas, y que Supabase tiene la Site URL y las cuatro URL de redirección del DOC 10 §4.5. La
+    hipótesis de la PR #54 (rama de producción mal puesta) era equivocada. Tras la #53, Netlify no
+    compiló `main`; la #54, solo de documentación, no podía comprobarlo, porque el `ignore` cancela
+    esa compilación. **La primera fusión con código desde la revisión del panel es la de la
+    T-210a**: pre funciona si `main--gavetastats` sirve un `index.html` que apunta a un `App-*.js`
+    (el build viejo apunta solo a `assets/index-jOB7hSkO.js`). Lo que se vio, abajo, en «Pre tras
+    fusionar».
 14. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
     tabla `invitations` existe y no la usa ninguna pantalla. Es la T-301, y **la idea de Raúl de
     elegir equipo como seguidor al entrar se apunta aquí**: hace falta decidirla en el DOC 03,
@@ -228,8 +255,9 @@ Pendiente de hacer:
     A16 es de después del MVP. Mientras, a un sancionado se le pone «No disponible» en la A06, y la
     A11 lo deja fuera igual. La tabla `sanctions` no se lee.
 31. **Empezado el partido, la convocatoria no se corrige.** L-08 pide que corregirla obligue a
-    «volver atrás de forma explícita». La A11 la enseña en solo lectura y ya está. Decidir en la
-    T-210 si hace falta ese paso atrás y quién lo da.
+    «volver atrás de forma explícita». La A11 la enseña en solo lectura y ya está. La T-210a no lo
+    resuelve: quién corrige la convocatoria de un partido empezado, y cómo, es una decisión de
+    producto. **Lo decide Raúl.** Mientras, en el cierre cuenta lo que dicen los eventos.
 32. **Los titulares son exactamente `players_on_pitch`, también en un partido en diferido.** Si un
     día se juega con diez desde el principio, la A11 no deja guardar. Salida si pasa: permitir
     menos titulares con un aviso. Sin tocar hasta que ocurra.
@@ -238,17 +266,20 @@ Pendiente de hacer:
     línea no se borra: los eventos apuntan a `match_squad` con `on delete restrict`.
 34. **Lo rechazado por el servidor no se puede descartar ni reintentar desde la interfaz.** La C04
     lo cuenta y enseña lo que dijo el servidor, plegado. Se queda en la cola sin purgarse, a
-    propósito: nadie lo ha revisado. La T-210 (cierre y discordancias) es su sitio natural.
+    propósito: nadie lo ha revisado. La A13 lo cuenta y no impide cerrar. Es de la T-210b.
 35. **Sin probar el viaje entero hasta Supabase en el navegador**: la A12 encola, la cola envía, la
-    base fija el estado del evento y `marcar_convocado` pasa el partido a convocado. Probado en SQL,
+    base fija el estado del evento, `marcar_convocado` pasa el partido a convocado y la A13 lo
+    cierra con `rebuild_match_stints`. Probado en SQL,
     por la RLS, pero no desde la aplicación: desde las sesiones programadas no se entra con Google.
     Es lo primero que hay que mirar (comandos de abajo).
 36. **Decidido en la T-207: la C04 se queda también en el directo.** «Sin conexión» es justo lo que
     hay que ver a pie de campo, y ya dice cuánto queda por enviar. No se añade el «⚠N» de la
     cabecera del DOC 02 §4 para no decir lo mismo dos veces.
-37. **La precarga y los eventos locales no se purgan.** `purgarPartido` limpia lo enviado de la
-    cola; `matchSnapshots` y `matchEvents` crecen con cada partido. Pocos kilobytes por partido;
-    la T-210 los limpia al cerrar.
+37. **La precarga y los eventos locales solo se purgan en el móvil que cierra.** Desde la T-210a,
+    cerrar limpia en ese aparato la precarga, los eventos locales y lo enviado de la cola. En los
+    demás, lo enviado se purga a las 48 horas, pero `matchSnapshots` y `matchEvents` se quedan.
+    Pocos kilobytes por partido. Salida si molesta: purgar al arrancar los partidos que el
+    servidor ya da por cerrados.
 38. **La segunda precarga, al guardar la convocatoria, falla en silencio.** La pantalla ya ha
     navegado. La siguiente entrada en la convocatoria o en el directo lo vuelve a intentar, y el
     directo tendrá que decir si su precarga es vieja.
@@ -256,47 +287,55 @@ Pendiente de hacer:
     `(match_id, period_number)`, la cola lo trata como éxito y su reloj sigue anclado a su propio
     arranque. Al terminar la parte, su `update` por `id` no toca filas y queda como rechazado. **Es
     de la T-209**, igual que la pausa que otro aparato no ve en su reloj.
-40. **Sin estado `suspendido`.** El DOC 04 §8.1 lo tiene, con su minuto. El esqueleto solo lleva
-    a `finished`. Entra con el cierre (T-210) o antes si un amistoso lo pide.
-41. **Los tramos oficiales no se recalculan desde el directo.** `rebuild_match_stints` solo mira
-    eventos aprobados y la cola no llama a funciones. Se lanza al cerrar (T-210). En el directo,
-    «quién está en el campo» es estado de pantalla, como pide el DOC 04 §6.5.
-42. **Falta la banda «Partido en directo · mm:ss · Volver»** en el resto de pantallas (DOC 02
+40. **El directo no suspende.** El DOC 04 §8.1 tiene el estado `suspended` con su minuto, y desde la
+    T-210a la A13 cierra y reabre partidos suspendidos y dice dónde se suspendieron. Pero la A12
+    solo lleva a `finished`: suspender es una acción de su reductor, con su transición en la cola
+    y `suspended_period` y `suspended_seconds` (la base exige los dos). Sin tarea asignada; entra
+    antes si un amistoso lo pide.
+41. **Falta la banda «Partido en directo · mm:ss · Volver»** en el resto de pantallas (DOC 02
     §3.1). La marca de `shared/lib/partidoEnCurso.ts` ya dice qué partido está en curso; falta la
     banda. Sin tarea asignada.
-43. **Sin comprobar en el navegador**: ni el reloj a 7:1 al sol, ni el bloqueo de pantalla en un
+42. **Sin comprobar en el navegador**: ni el reloj a 7:1 al sol, ni el bloqueo de pantalla en un
     móvil de verdad. Los colores salen de los tokens del directo del DOC 07.
-44. **El origen del gol no se pide en el directo** (DOC 04 §7.5): «se puede rellenar al cerrar»,
-    y cada paso de más cuesta mirar el móvil. Lo pide el cierre (T-210).
-45. **Corregir el minuto de un evento** (E8-09) es hoy deshacerlo y volver a apuntarlo. La
-    edición de verdad, con `update` por la cola, va con el cierre y las discordancias (T-210).
-46. **Deshacer un evento que otro ya aprobó** falla si quien deshace no tiene `event.approve`: la
+43. **Corregir el minuto de un evento** (E8-09) es hoy deshacerlo y volver a apuntarlo. La
+    edición de verdad, con `update` por la cola, va con las discordancias (T-210b).
+44. **Deshacer un evento que otro ya aprobó** falla si quien deshace no tiene `event.approve`: la
     RLS solo deja borrar al autor mientras está pendiente. El borrado queda como rechazado en la
     C04, y el evento sigue en el servidor. Raro con un solo anotador; con varios, T-209.
-47. **Del rival solo goles, córners y tarjetas** (DOC 04 §7.2). La falta del rival no se apunta:
+45. **Del rival solo goles, córners y tarjetas** (DOC 04 §7.2). La falta del rival no se apunta:
     la que nos hacen es «falta recibida».
-48. **Sin probar en el navegador ni en un móvil.** Ni la botonera al sol, ni la vibración, ni el
-    tamaño de los botones con la mano. Tampoco la A08 y la A10 de la T-203b.
-49. **Si la base rechaza la convocatoria por el máximo, la A11 lo cuenta con el mensaje genérico
+46. **Sin probar en el navegador ni en un móvil.** Ni la botonera al sol, ni la vibración, ni el
+    tamaño de los botones con la mano. Tampoco la A08 y la A10 de la T-203b, ni la A13.
+47. **Si la base rechaza la convocatoria por el máximo, la A11 lo cuenta con el mensaje genérico
     de guardar.** Con la A11 no pasa: valida el máximo antes de mandar. Pasaría si alguien baja
     `squad_max` en la A08 mientras otro convoca. Salida si molesta: reconocer el 23514 en
     `mensajeDeErrorAlGuardar` y decir «La convocatoria pasa del máximo de la competición».
-50. **El aparato y la base pueden no estar de acuerdo en el estado de un evento.** La A12 decide
+48. **El aparato y la base pueden no estar de acuerdo en el estado de un evento.** La A12 decide
     `approved` o `pending` con los permisos que cargó al entrar; la base, con los del momento en que
     llega el evento. Si a alguien le quitan o le dan `event.approve` con eventos en la cola, «Últimos
     eventos» enseña un estado hasta que vuelvan los del servidor. Cuenta la base, que es lo que
     importa para las estadísticas.
-51. **El campo de casa no se edita desde la aplicación.** La A03 no enseña `home_venue` ni
+49. **El campo de casa no se edita desde la aplicación.** La A03 no enseña `home_venue` ni
     `home_venue_address`, y la dirección se lee y no se usa en ningún sitio. Para el C.D. Unión
     Tejina está relleno en la base; un club nuevo lo tendría vacío, y la A10 caería al recambio del
     último partido en casa. Salida: los dos campos en la A03, solo frontend, con la misma
     actualización que ya cambia el nombre del club.
-52. **El inicio de sesión con Google en pre, sin comprobar.** La cola decía que Raúl tiene que
-    añadir la URL de pre a Supabase, pero el DOC 10 §4.5 ya registra el patrón
-    `https://*--gavetastats.netlify.app/**` entre las URL de redirección, que cubre
-    `main--gavetastats` y las vistas previas. **Mirar el panel antes de tocar nada**: si el patrón
-    está, no hay que añadir nada; si no, se añade `https://main--gavetastats.netlify.app/**`. Las
-    sesiones programadas no lo tocan.
+50. **Cerrar son cinco peticiones sin transacción** (T-210a). El orden hace inofensivo un fallo a
+    medias: los tramos se recalculan cuantas veces se quiera, las partes creadas son las que el
+    partido necesitaba y el partido sigue sin cerrar hasta el último paso. Lo que no cubre: si otro
+    aprueba o crea un evento entre el recálculo y el paso a `closed`, los tramos se quedan sin él.
+    Salida: una función `cerrar_partido()` `SECURITY DEFINER` que lo haga todo de una vez. Pide
+    migración: sesión de Cowork, con la función definida antes en el DOC 05.
+51. **Sin la T-210b, un partido con eventos pendientes no se puede cerrar** (C-01). Los pendientes
+    solo nacen de quien anota sin `event.approve`. **Para el 3 de octubre**: si anota solo quien
+    tiene ese permiso, todo nace aprobado y el cierre funciona; si anota alguien más y la T-210b no
+    ha llegado, el partido se queda terminado y sin cerrar hasta que llegue, sin perder nada.
+52. **En diferido, cerrar crea las partes que falten, y eso pide `match.live.write`.** Quien solo
+    tenga `match.close` ve el motivo y no puede cerrar. Con los permisos sembrados del Cadete A no
+    pasa. Salida si molesta: la función del punto 50, que no dependería de la RLS de
+    `match_periods`.
+53. **C-03 a medias.** El cierre da por terminadas las coberturas abiertas en el final del
+    partido, pero no las lista: hasta la T-209 no existe ninguna. La lista entra con la T-209.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
@@ -315,31 +354,32 @@ no enseña la categoría, porque el nombre ya la dice.
 | Momento                                     | Inicial comprimido | Margen sobre 200 kB |
 | :------------------------------------------ | -----------------: | ------------------: |
 | Tras la T-208, en Linux                     |          180,97 kB |            19,03 kB |
-| Migración del 26/09, en Windows             |          180,27 kB |            19,73 kB |
-| **Esta sesión, en Windows, cifras de Vite** |      **180,29 kB** |        **19,71 kB** |
+| T-203b, en Windows                          |          180,29 kB |            19,71 kB |
+| **Esta sesión, en Windows, cifras de Vite** |      **180,33 kB** |        **19,67 kB** |
 
-**Sin cambios de código en el arranque**: los 0,02 kB de más son de los nombres con _hash_ que se
-citan unos a otros. Lo nuevo vive en los trozos perezosos `rules-*.js` y `agenda-*.js`, de unos
-5,5 kB cada uno. La cifra suma lo que carga `index.html` —`index-*.js`, `App-*.js`,
-`announceContext-*.js`, `QueryClientProvider-*.js`, `workbox-window` e `index-*.css`— con los
-tamaños que da Vite en Windows. El CI da la cifra de referencia. En crudo, `precache 35 entries
-(911.86 KiB)`.
+**La A13 no entra en el arranque**: vive en su trozo perezoso, `review-*.js`, de 6,70 kB
+comprimidos, más 0,76 kB de CSS. Los 0,04 kB de más en el inicial son la ruta nueva del enrutador y
+los nombres con _hash_. Misma suma que la sesión anterior: `index-*.js`, `App-*.js`,
+`announceContext-*.js`, `QueryClientProvider-*.js`, `workbox-window` e `index-*.css`. El CI da la
+cifra de referencia. En crudo, `precache 37 entries (934.94 KiB)`.
 
 ---
 
 ## SIGUIENTE
 
-**Lo que tiene que decidir Raúl antes del sábado 3 de octubre:**
+**Lo que tiene que decidir o hacer Raúl antes del sábado 3 de octubre:**
 
-1. **Qué entra antes del primer partido** (DOC 08 §8). Hoy hay entrada de datos completa y directo
-   con un anotador; no hay cierre (T-210) ni varios anotadores (T-209). Lo que no se siga en
-   directo se puede meter en diferido (D5).
-2. **La hora del partido**, para meterlo en la A10.
-3. **Poner pre en marcha en el panel de Netlify** (punto 13) y mirar la URL de pre en Supabase
-   (punto 52). **Publicar en pro** cuando vuelvan los créditos: `git push origin main:release`.
+1. **Quién anota el primer partido.** Con la T-210a, un partido se cierra si no le quedan
+   pendientes; si anota alguien sin `event.approve` y la T-210b no ha llegado, el partido espera
+   terminado (punto 51).
+2. **Meter el partido** en la A10: At. Tacoronte, fuera, sábado 3 de octubre a las 12:00.
+3. **Mirar pre en el móvil** (punto 13 y comandos de abajo) y **publicar en pro** cuando vuelvan
+   los créditos: `git push origin main:release`.
+4. **La convocatoria de un partido empezado** (punto 31), si hace falta antes de la liga.
 
-**Siguiente tarea de código: T-209** (sesión y media), varios anotadores. Hereda los puntos 39 y 46. Es la ruta crítica del directo antes de la prueba de campo (T-302), que el DOC 08 pide antes del
-18 de octubre.
+**Siguiente tarea de código: T-210b**, el panel de discordancias. Hereda los puntos 34, 43 y 51.
+Con ella la T-210 pasa a ✅ y la cola termina. Después, la T-209 (varios anotadores), que hereda
+los puntos 39, 44 y 53.
 
 ---
 
@@ -358,21 +398,21 @@ npm run test -- --run
 npm run build
 ```
 
-`npm run test -- --run` tiene que decir `Test Files 40 passed (40)` y `Tests 378 passed (378)`. El
+`npm run test -- --run` tiene que decir `Test Files 42 passed (42)` y `Tests 417 passed (417)`. El
 build, en verde y sin `INEFFECTIVE_DYNAMIC_IMPORT`.
 
-**En pre** (`https://main--gavetastats.netlify.app`, cuando compile: punto 13) **o con
-`npm run dev`, tu cuenta y la temporada en curso:**
+**En pre** (`https://main--gavetastats.netlify.app`) **o con `npm run dev`, con tu cuenta:**
 
-1. En Competiciones, crea «Cadete Primera Tenerife G2» con categoría «Cadete», nivel «Primera»,
-   ámbito «Tenerife» y grupo «G2». En Supabase, `competitions` tiene las cuatro columnas rellenas.
-2. En su ficha, vacía el grupo y guarda: la columna queda a `null`, no a texto vacío.
-3. En Calendario → «Nuevo partido», «En casa» ya trae «Campo de Fútbol Izquierdo Rodríguez».
-   Cambia a «Fuera», borra el campo y vuelve a «En casa»: lo propone otra vez.
-4. Da de alta el partido del 3 de octubre en casa del At. Tacoronte, fuera, con la hora que se
-   confirme.
-5. Lo de la sesión anterior sigue sin mirar en el navegador (punto 35): convocatoria que pasa a
-   «Convocado», rival con `team.manage` y un gol que la base deja `approved`.
+1. En Calendario, un partido terminado enseña «Cierre». Un partido en diferido convocado, también.
+2. En la A13 de un partido con goles aprobados: el calculado sale solo; pon el acta distinta y sale
+   el aviso de C-02. Ponle a un gol «Penalti»: en Supabase, `match_events.details` tiene
+   `"origen": "penalti"` y conserva lo que tuviera.
+3. «Cerrar el partido» → «Sí, cerrar el partido». En Supabase, `matches` en `closed` con
+   `confirmed_goals_for`, `confirmed_goals_against`, `closed_at` y `closed_by`; y
+   `player_match_stints` con los tramos del partido.
+4. «Reabrir el partido»: vuelve a «Terminado, sin cerrar» y `audit_log` tiene las dos filas de
+   `matches`.
+5. Lo de sesiones anteriores sigue sin mirar en el navegador (punto 35).
 
 **Para repetir la prueba de aislamiento:** pega `supabase/pruebas/aislamiento_clubes.sql` en el
 SQL Editor. Tiene que acabar en «T-105b SUPERADA · 168 comprobaciones · 0 fallos · 14 avisos».
@@ -383,10 +423,11 @@ SQL Editor. Tiene que acabar en «T-105b SUPERADA · 168 comprobaciones · 0 fal
 
 ## AVISO DE SEGURIDAD
 
-**Esta sesión no tocó la base de producción**, ni variables de entorno, ni Netlify, ni la rama
-`release`. De Netlify solo se leyó el sitio con su MCP. Del jugador siguen viajando solo
-identificador, apodo y dorsal: ninguna consulta nueva toca `players`.
+**Esta sesión no escribió en la base de producción**: solo leyó la definición de
+`enforce_match_changes` y los `CHECK` de `matches`. Ni variables de entorno, ni Netlify, ni la
+rama `release`. Del jugador siguen viajando solo identificador, apodo y dorsal: la consulta nueva
+de la A13 lee `players(nickname)` y nada más.
 
 El aviso de Chrome autorrellenando el panel de Google en Supabase sigue vigente: al abrir el panel
 del proveedor de Google, Chrome rellena «Client IDs» y «Client Secret»; **vacía los dos campos
-antes de tocar nada.** Vale también al mirar las URL de redirección (punto 52).
+antes de tocar nada.** Vale también al mirar las URL de redirección.

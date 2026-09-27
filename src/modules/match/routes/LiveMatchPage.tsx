@@ -161,6 +161,14 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const [errorDeFlujo, setErrorDeFlujo] = useState<string | null>(null);
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
   const puedeAprobar = useHasPermission('event.approve') === true;
+  // La A13 pide `match.close` (T-210a): el enlace solo sale a quien la abre.
+  const puedeCerrar = useHasPermission('match.close') === true;
+  const enlaceAlCierre = puedeCerrar ? (
+    <>
+      {' '}
+      <Link to={`/partidos/${estado.partidoId}/cierre`}>Ir al cierre del partido</Link>.
+    </>
+  ) : null;
   const tituloFicha = useRef<HTMLHeadingElement>(null);
 
   // La ficha sustituye a la botonera: el foco va a su título (2.4.3).
@@ -405,7 +413,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
       return (
         <p className={styles.nota}>
           Partido en diferido: sin reloj. Cada evento pide su parte y su minuto. Se termina desde el
-          cierre del partido.
+          cierre del partido.{enlaceAlCierre}
         </p>
       );
     }
@@ -521,6 +529,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
         return (
           <p className={styles.nota}>
             El partido ha terminado. Los datos entran en las estadísticas cuando se cierre.
+            {enlaceAlCierre}
           </p>
         );
     }

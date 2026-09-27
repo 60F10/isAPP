@@ -1,6 +1,6 @@
 # DOC 10 — Entornos y despliegue
 
-> **Versión:** 0.6 — 26/09/2026 (§2.2: pre no compiló con la primera fusión; §2.1: el patrón del §4.5 ya cubre pre) · 0.5 — 26/09/2026 (§2.1 y §2.2: pre en `main`, pro en `release` y los créditos de Netlify, decisión de Raúl) · 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
+> **Versión:** 0.7 — 27/09/2026 (§2.1, §2.2 y §4.5: los paneles de Netlify y de Supabase, comprobados por Raúl el 26/09; se retira la hipótesis de la rama de producción) · 0.6 — 26/09/2026 (§2.2: pre no compiló con la primera fusión; §2.1: el patrón del §4.5 ya cubre pre) · 0.5 — 26/09/2026 (§2.1 y §2.2: pre en `main`, pro en `release` y los créditos de Netlify, decisión de Raúl) · 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
 > **Depende de:** DOC 05 (modelo de datos), DOC 06 (arquitectura frontend), DOC 15 (convenciones de Git)
 >
 > Esta versión registra **la configuración real de los servicios externos** tal como quedó al montar Supabase. El resto del documento —deploy previews, checklist de publicación, procedimiento de vuelta atrás— está por escribir; ver §7.
@@ -38,9 +38,9 @@ Todo dentro del presupuesto de 0 € del proyecto. La región de Supabase es Irl
 
 **Publicar es un avance rápido.** `release` no recibe commits propios: siempre va por detrás de `main` o igual, y `git push origin main:release` la adelanta hasta `main`. Si Git lo rechaza por no ser avance rápido, alguien ha escrito en `release`, y hay que mirarlo antes de forzar nada. **La rama `release` es permanente**: ni se borra, ni se le abre pull request, ni la tocan las sesiones de Claude.
 
-**Con 300 créditos salen, como mucho, veinte publicaciones al mes.** Pre es gratis: lo que se quiera probar en el móvil antes de publicar se prueba en `main--gavetastats`, que tiene HTTPS y deja probar la PWA de verdad (service worker, instalación, sin conexión). El inicio de sesión con Google en pre lo cubre el patrón `https://*--gavetastats.netlify.app/**` del §4.5, si sigue en el panel de Supabase (DOC 13).
+**Con 300 créditos salen, como mucho, veinte publicaciones al mes.** Pre es gratis: lo que se quiera probar en el móvil antes de publicar se prueba en `main--gavetastats`, que tiene HTTPS y deja probar la PWA de verdad (service worker, instalación, sin conexión). El inicio de sesión con Google en pre lo cubren las URL de redirección del §4.5, comprobadas por Raúl en el panel de Supabase el 26/09.
 
-Lo que tiene que estar así en el panel de Netlify para que el modelo funcione: **rama de producción `release`**, despliegues de rama activos para `main` y vistas previas de pull request activas.
+**Así está el panel de Netlify, comprobado por Raúl el 26/09 con capturas:** rama de producción `release`, despliegues de rama para `main` y vistas previas de cualquier pull request contra esas ramas. Es lo que el modelo necesita.
 
 **El comando `ignore` de `netlify.toml` sigue.** Cancela la compilación cuando el commit no toca nada que acabe en `dist/`: `docs/`, cualquier `.md`, `.github/`, `.claude/`, `.husky/` y `supabase/`. Todo lo demás compila. Con el modelo de créditos, donde ahorra de verdad es en **pro**: una publicación que solo traiga documentación no se despliega. En pre y en las vistas previas cuesta 0 igualmente, y lo que ahorra es tiempo de cola.
 
@@ -76,7 +76,7 @@ De las diez compilaciones de las sesiones del 14 y el 18 de septiembre, **cuatro
 2. _Project configuration → Developer settings → Continuous deployment → Build settings_: **Build status** tiene que estar en **Active builds**. Con **Stopped builds**, Netlify no compila nada, ni producción, ni vistas previas, ni despliegues de rama. Estuvo así desde el 20/09 para no gastar en compilaciones que no publicaban; con el modelo de créditos ya no hace falta.
 3. La rama de producción y los despliegues de rama del panel: producción tiene que ser `release`, y `main` tiene que tener despliegue de rama.
 
-**Lo que pasó con la primera fusión del modelo, la #53, el 26/09 por la noche.** Los builds están activos: Netlify compiló la vista previa de la PR, y `deploy-preview-53--gavetastats.netlify.app` servía el build nuevo. Pero **no compiló `main`**: el commit de la fusión no tiene ningún estado de Netlify y `main--gavetastats` seguía con el build viejo. Lo más probable es el punto 3: que la rama de producción siga siendo `main`, parada por los créditos, y que `main` no tenga despliegue de rama. Desde las sesiones programadas no se ve el panel. Se arregla ahí, y lo hace Raúl.
+**Lo que pasó con la primera fusión del modelo, la #53, el 26/09 por la noche.** Los builds están activos: Netlify compiló la vista previa de la PR, y `deploy-preview-53--gavetastats.netlify.app` servía el build nuevo. Pero **no compiló `main`**: el commit de la fusión no tiene ningún estado de Netlify y `main--gavetastats` seguía con el build viejo. La PR #54 lo achacó a la rama de producción del panel, y **era una hipótesis equivocada**: Raúl revisó el panel el 26/09 con capturas y está como dice el §2.1. La fusión de la #54, solo de documentación, no podía comprobarlo: el `ignore` cancela esa compilación. La primera fusión con código después de la revisión del panel es la de la T-210a, y lo que se vio tras ella queda en el DOC 13.
 
 **Reactivar los builds no lanza ninguna compilación por sí solo**: hace falta un push después.
 
@@ -154,14 +154,14 @@ Si algún día el proyecto pasa a plan de pago, activar el add-on cambia el `red
 
 ### 4.5 URL de autenticación en Supabase
 
-| Ajuste             | Valor                                                                                                       |
-| :----------------- | :---------------------------------------------------------------------------------------------------------- |
-| Site URL           | `https://gavetastats.netlify.app`                                                                           |
-| URL de redirección | `https://gavetastats.netlify.app/**` · `http://localhost:5173/**` · `https://*--gavetastats.netlify.app/**` |
+| Ajuste             | Valor                                                                                                                                                    |
+| :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Site URL           | `https://gavetastats.netlify.app`                                                                                                                        |
+| URL de redirección | `https://gavetastats.netlify.app/**` · `http://localhost:5173/**` · `https://*--gavetastats.netlify.app/**` · `https://main--gavetastats.netlify.app/**` |
 
-La tercera cubre los deploy previews por rama del DOC 15 §2: sin ella, probar el login desde el móvil en una rama devuelve un error de redirección.
+La tercera cubre los deploy previews por rama del DOC 15 §2: sin ella, probar el login desde el móvil en una rama devuelve un error de redirección. La cuarta nombra pre de forma explícita, aunque la tercera ya lo cubre. **Comprobadas por Raúl en el panel el 26/09, con la Site URL de arriba.**
 
-**La aplicación vuelve a `/auth/callback`** (T-105). Los tres patrones acaban en `/**`, así que esa ruta ya está cubierta y **no hubo que tocar nada aquí**. Si algún día cambia la ruta de vuelta, el valor vive en `RUTA_VUELTA`, en `src/modules/auth/api/session.ts`, y tiene que seguir casando con esta lista.
+**La aplicación vuelve a `/auth/callback`** (T-105). Los cuatro patrones acaban en `/**`, así que esa ruta ya está cubierta y **no hubo que tocar nada aquí**. Si algún día cambia la ruta de vuelta, el valor vive en `RUTA_VUELTA`, en `src/modules/auth/api/session.ts`, y tiene que seguir casando con esta lista.
 
 **La llamada pide `prompt=select_account`**, así que Google enseña siempre el selector de cuenta. Es deliberado: sin él, quien tiene dos cuentas entra siempre con la última y no hay forma de cambiarla desde la aplicación mientras no exista el cierre de sesión (T-107).
 
