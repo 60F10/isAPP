@@ -1,0 +1,58 @@
+/* A13 — Cierre del partido. Pantalla de después del partido: objetivos de
+   48 px (`--tap-min`) separados por `--tap-gap`, como el resto del bloque A. */
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+.dato {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Aviso que no impide nada: el acta que no cuadra, los cambios repetidos. */
+.aviso {
+  max-inline-size: 60ch;
+  font-weight: var(--font-weight-semibold);
+}
+
+.fallo {
+  max-inline-size: 60ch;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Los dos goles del acta, lado a lado cuando cabe; uno por fila a 320 px. */
+.acta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-4);
+  max-inline-size: 36rem;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:last-child {
+  border-block-end: 0;
+}

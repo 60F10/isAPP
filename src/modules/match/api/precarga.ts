@@ -187,6 +187,19 @@ export async function precargarPartido(partidoId: string): Promise<ResultadoDePr
   return { descargadoEn: ahora, convocados: contarConvocados(paquete), persistente };
 }
 
+/**
+ * Borra de este aparato la precarga y los eventos locales de un partido. Lo
+ * llama el cierre (T-210a) cuando el partido ya está cerrado en el servidor:
+ * a partir de ahí, lo bueno es lo del servidor, y si alguien vuelve a abrir
+ * el directo, se descarga de nuevo. La cola no se toca aquí: es de `sync`.
+ */
+export async function olvidarPartido(partidoId: string): Promise<void> {
+  await db.transaction('rw', db.matchSnapshots, db.matchEvents, async () => {
+    await db.matchSnapshots.delete(partidoId);
+    await db.matchEvents.where('matchId').equals(partidoId).delete();
+  });
+}
+
 /** El partido precargado, o `null` si no lo hay. Para el directo (T-207). */
 export async function leerInstantanea(partidoId: string): Promise<Instantanea | null> {
   const guardada = await db.matchSnapshots.get(partidoId);
