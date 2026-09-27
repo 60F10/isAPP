@@ -4,7 +4,7 @@
 // también la de `core` y `rules`, de donde salen rivales y competiciones.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -203,6 +203,23 @@ describe('A09 · Calendario', () => {
     expect(within(porJugar).getByText('Cadete A – UD Orotava')).toBeInTheDocument();
     expect(within(porJugar).queryByRole('link')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Nuevo partido' })).toBeNull();
+  });
+
+  it('el cierre solo se enlaza con el permiso de cerrar', async () => {
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'finished' })]);
+    montar('/calendario', ['schedule.manage', 'lineup.manage', 'match.close']);
+
+    const jugados = await tarjeta('Jugados');
+    expect(
+      within(jugados).getByRole('link', { name: 'Cierre de Cadete A – UD Orotava' }),
+    ).toHaveAttribute('href', '/partidos/par-1/cierre');
+
+    cleanup();
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'finished' })]);
+    montar('/calendario', ['schedule.manage', 'lineup.manage']);
+
+    const jugadosSinPermiso = await tarjeta('Jugados');
+    expect(within(jugadosSinPermiso).queryByRole('link', { name: /Cierre/ })).toBeNull();
   });
 });
 
