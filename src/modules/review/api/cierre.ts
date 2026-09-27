@@ -11,8 +11,9 @@
 //   3. Recalcular los tramos con `rebuild_match_stints` (C-04).
 //   4. Dar por terminadas las coberturas abiertas en el final del partido
 //      (C-03). Hasta la T-209 no hay ninguna.
-//   5. Pasar el partido a `closed` con el acta, quién y cuándo. Lo vigila
-//      `enforce_match_changes`, que pide `match.close`.
+//   5. Contar otra vez los pendientes y pasar el partido a `closed` con el
+//      acta, quién y cuándo. Lo vigila `enforce_match_changes`, que pide
+//      `match.close`.
 //
 // SIN TRANSACCIÓN. Si falla a medias, lo hecho no estorba: los tramos se
 // pueden recalcular cuantas veces se quiera, las partes creadas son las que
@@ -126,21 +127,12 @@ export interface Cierre {
   userId: string;
 }
 
-/**
- * Cierra el partido (pasos arriba). Lanza `CON_PENDIENTES` si hay eventos por
- * revisar y `PARTIDO_CAMBIADO` si el partido ya no admite cierre.
- *
- * @returns cuántas sustituciones repetidas no cuentan en los minutos.
- */
-export async function cerrarPartido({ partido, acta, userId }: Cierre): Promise<number> {
-  if (!admiteCierre(partido)) {
-    throw new Error(PARTIDO_CAMBIADO);
-  }
-
+/** Lanza `CON_PENDIENTES` si el partido tiene eventos por revisar en el servidor (C-01). */
+async function exigirSinPendientes(partidoId: string): Promise<void> {
   const pendientes = await supabase
     .from('match_events')
     .select('id', { count: 'exact', head: true })
-    .eq('match_id', partido.id)
+    .eq('match_id', partidoId)
     .eq('status', 'pending');
 
   if (pendientes.error) {
@@ -150,6 +142,25 @@ export async function cerrarPartido({ partido, acta, userId }: Cierre): Promise<
   if ((pendientes.count ?? 0) > 0) {
     throw new Error(CON_PENDIENTES);
   }
+}
+
+/**
+ * Cierra el partido (pasos arriba). Lanza `CON_PENDIENTES` si hay eventos por
+ * revisar y `PARTIDO_CAMBIADO` si el partido ya no admite cierre.
+ *
+ * Los pendientes se cuentan dos veces: al empezar, para no recalcular en
+ * balde, y otra justo antes de pasar a `closed`, porque entre medias van
+ * varias peticiones y ha podido llegar uno. Queda un hueco de una petición;
+ * cerrarlo del todo pide la función de la base del DOC 13.
+ *
+ * @returns cuántas sustituciones repetidas no cuentan en los minutos.
+ */
+export async function cerrarPartido({ partido, acta, userId }: Cierre): Promise<number> {
+  if (!admiteCierre(partido)) {
+    throw new Error(PARTIDO_CAMBIADO);
+  }
+
+  await exigirSinPendientes(partido.id);
 
   const partes = await supabase
     .from('match_periods')
@@ -213,6 +224,8 @@ export async function cerrarPartido({ partido, acta, userId }: Cierre): Promise<
       throw coberturas.error;
     }
   }
+
+  await exigirSinPendientes(partido.id);
 
   const cerrado = await supabase
     .from('matches')
