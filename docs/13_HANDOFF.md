@@ -163,36 +163,14 @@ Pendiente de hacer:
     `marcar_convocado` se suma a los once de siempre, a propósito (DOC 05 §14.7).
 11. Si Supabase recrea `rls_auto_enable()` con `DROP` + `CREATE`, el permiso de PUBLIC vuelve.
     Mirar el auditor tras cada actualización de la plataforma.
-12. **El `ignore` de `netlify.toml` no cancela la compilación de una vista previa aunque la rama
-    solo toque `docs/`**: `CACHED_COMMIT_REF` apunta al commit de la caché restaurada, no al padre
-    inmediato. **Con el modelo de créditos del 26/09 no cuesta nada**: las vistas previas y los
-    despliegues de rama cuestan 0 (DOC 10 §2.1). Donde gasta es en pro, al publicar. Sin tocar.
-13. **Producción, parada desde el 20/09 por falta de créditos; se reanuda con el siguiente ciclo
-    de facturación.** Modelo de Raúl del 26/09 (DOC 10 §2.1): `main` es **pre**, despliegue de rama
-    gratuito en `https://main--gavetastats.netlify.app`; `release` es **pro**, en
-    `https://gavetastats.netlify.app`, y **publica solo Raúl** con `git push origin main:release`.
-    Cada publicación cuesta 15 de los 300 créditos del mes. En pro no hay nada desde la T-106. La
-    base ya tiene las migraciones del 26/09 y no rompe lo publicado: las columnas nuevas son
-    nulables y lo que hay en el sitio no crea equipos, ni convoca, ni registra eventos.
-    **Los paneles están bien**: Raúl comprobó el 26/09, con capturas, que Netlify tiene `release`
-    como rama de producción, despliegues de rama para `main` y vistas previas de las PR contra esas
-    ramas, y que Supabase tiene la Site URL y las cuatro URL de redirección del DOC 10 §4.5. La
-    hipótesis de la PR #54 (rama de producción mal puesta) era equivocada. Tras la #53, Netlify no
-    compiló `main`; la #54, solo de documentación, no podía comprobarlo, porque el `ignore` cancela
-    esa compilación. **La primera fusión con código desde la revisión del panel es la de la
-    T-210a**: pre funciona si `main--gavetastats` sirve un `index.html` que apunta a un `App-*.js`
-    (el build viejo apunta solo a `assets/index-jOB7hSkO.js`). **Comprobado el 27/09 a las 02:26,
-    doce minutos después de fusionar la #55: pre sigue sin compilar.** El commit de la fusión,
-    `b169ff2`, solo tiene los dos estados del CI y ninguno de Netlify, y `main--gavetastats` sigue
-    con `index-jOB7hSkO.js`. La vista previa de la misma PR sí se compiló
-    (`deploy-preview-55--gavetastats.netlify.app` sirve `App-*.js`). **Con el panel bien, la causa es
-    otra**, y desde aquí no se ve. Por orden de probabilidad: Netlify no recibe el aviso de los
-    _push_ a `main` (la vista previa llega por el evento de la PR, el despliegue de rama por el de
-    _push_: mirar en GitHub, _Settings → GitHub Apps → Netlify_, y en el registro de despliegues de
-    Netlify si aparece algún intento para `main`); la cuenta sin créditos frena también los
-    despliegues de rama aunque cuesten 0; o el despliegue de rama de `main` está en la lista pero
-    con un filtro que no casa. **Lo mira Raúl en el panel**; las sesiones no lo tocan. Mientras,
-    cada PR tiene su vista previa, que sí se compila y no gasta.
+12. **Cerrado el 27/09: se quita el `ignore` de `netlify.toml`.** Era la causa del punto 13 (DOC 10
+    §2.1). No se vuelve a poner.
+13. **Pre y pro, en marcha desde el 27/09.** Raúl publicó en pro a las 11:07 con
+    `git push origin main:release` (`release@f6f38d0`). Pre no compilaba porque el `ignore`
+    cancelaba cada despliegue de `main` («Canceled build due to no content change»), también el de
+    la #55. Se relanzó a mano con «Retry without cache» y `main--gavetastats` sirve ya el build de
+    `f6f38d0`. Desde la PR `build/platform-netlify-sin-ignore`, cada fusión a `main` compila pre sola, con
+    coste 0. Cada publicación en pro cuesta 15 de los 300 créditos del mes.
 14. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
     tabla `invitations` existe y no la usa ninguna pantalla. Es la T-301, y **la idea de Raúl de
     elegir equipo como seguidor al entrar se apunta aquí**: hace falta decidirla en el DOC 03,

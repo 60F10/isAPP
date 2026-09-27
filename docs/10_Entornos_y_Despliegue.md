@@ -42,29 +42,7 @@ Todo dentro del presupuesto de 0 € del proyecto. La región de Supabase es Irl
 
 **Así está el panel de Netlify, comprobado por Raúl el 26/09 con capturas:** rama de producción `release`, despliegues de rama para `main` y vistas previas de cualquier pull request contra esas ramas. Es lo que el modelo necesita.
 
-**El comando `ignore` de `netlify.toml` sigue.** Cancela la compilación cuando el commit no toca nada que acabe en `dist/`: `docs/`, cualquier `.md`, `.github/`, `.claude/`, `.husky/` y `supabase/`. Todo lo demás compila. Con el modelo de créditos, donde ahorra de verdad es en **pro**: una publicación que solo traiga documentación no se despliega. En pre y en las vistas previas cuesta 0 igualmente, y lo que ahorra es tiempo de cola.
-
-| Concepto                | Detalle                                                                                                   |
-| :---------------------- | :-------------------------------------------------------------------------------------------------------- |
-| Polaridad               | **Salida 0 cancela** la compilación; distinta de 0 la lanza. `git diff --quiet` da justo esa polaridad    |
-| Tipo de lista           | **De exclusión**, no de inclusión. Lo que no reconozca, compila                                           |
-| Por qué de exclusión    | Compilar de más cuesta tiempo y, en pro, créditos; no compilar deja el sitio viejo y nadie se entera      |
-| `netlify.toml` excluido | **No.** Aquí viven la redirección de SPA y las cabeceras de caché: un cambio ahí sí tiene que desplegarse |
-| Sin caché previa        | `CACHED_COMMIT_REF` vacío hace fallar la primera condición, así que compila                               |
-
-**Comprobado contra commits reales del repositorio** el 19/09/2026, no razonado sobre el papel:
-
-| Caso                       | Salida | Resultado |
-| :------------------------- | -----: | :-------- |
-| PR #27, solo documentación |      0 | Cancela   |
-| PR #26, solo documentación |      0 | Cancela   |
-| PR #25, código de la PWA   |      1 | Compila   |
-| PR #23, código de la T-104 |      1 | Compila   |
-| Sin caché previa           |      1 | Compila   |
-
-De las diez compilaciones de las sesiones del 14 y el 18 de septiembre, **cuatro se habrían cancelado**.
-
-**Límite conocido: en las vistas previas no cancela.** `CACHED_COMMIT_REF` apunta al commit de la caché restaurada, no al padre inmediato, y una rama que solo toca `docs/` compila su vista previa igual (DOC 13, punto 12). Con el modelo de créditos no cuesta nada, así que se deja como está.
+**Sin comando `ignore` desde el 27/09/2026.** El que había en `netlify.toml` cancelaba todas las compilaciones de `main`, también las que traían código (la #55 de la T-210a), con «Canceled build due to no content change». En el despliegue de rama, `CACHED_COMMIT_REF` no apunta al commit anterior y el `git diff` salía sin diferencias; en las vistas previas pasaba lo contrario y no cancelaba nunca. Pre y las vistas previas cuestan 0, así que no ahorraba nada. **No se vuelve a poner.** En pro, el filtro es quien publica: si desde la última publicación solo hay documentación, no se lanza `git push origin main:release`.
 
 ### 2.2 Producción, parada desde el 20/09/2026 por falta de créditos
 
@@ -72,11 +50,11 @@ De las diez compilaciones de las sesiones del 14 y el 18 de septiembre, **cuatro
 
 **Pre no debería depender de eso**, porque los despliegues de rama cuestan 0. Si una fusión a `main` no aparece en `https://main--gavetastats.netlify.app`, mira por este orden:
 
-1. El registro del despliegue en Netlify. «Build cancelled» con el motivo del `ignore` quiere decir que alguien ha metido en una carpeta excluida un archivo que sí acaba en `dist/`.
+1. El registro del despliegue en Netlify. «Canceled build due to no content change» quiere decir que alguien ha vuelto a poner un comando `ignore` (§2.1).
 2. _Project configuration → Developer settings → Continuous deployment → Build settings_: **Build status** tiene que estar en **Active builds**. Con **Stopped builds**, Netlify no compila nada, ni producción, ni vistas previas, ni despliegues de rama. Estuvo así desde el 20/09 para no gastar en compilaciones que no publicaban; con el modelo de créditos ya no hace falta.
 3. La rama de producción y los despliegues de rama del panel: producción tiene que ser `release`, y `main` tiene que tener despliegue de rama.
 
-**Lo que pasó con la primera fusión del modelo, la #53, el 26/09 por la noche.** Los builds están activos: Netlify compiló la vista previa de la PR, y `deploy-preview-53--gavetastats.netlify.app` servía el build nuevo. Pero **no compiló `main`**: el commit de la fusión no tiene ningún estado de Netlify y `main--gavetastats` seguía con el build viejo. La PR #54 lo achacó a la rama de producción del panel, y **era una hipótesis equivocada**: Raúl revisó el panel el 26/09 con capturas y está como dice el §2.1. La fusión de la #54, solo de documentación, no podía comprobarlo: el `ignore` cancela esa compilación. La primera fusión con código después de la revisión del panel, la #55 de la T-210a, **tampoco compiló `main`**: el commit de la fusión no tiene ningún estado de Netlify, mientras que la vista previa de la misma PR sí se compiló. Con el panel bien, la causa es otra; las hipótesis y dónde mirarlas están en el DOC 13, punto 13.
+**Lo que pasó con la primera fusión del modelo, la #53, el 26/09 por la noche.** Los builds están activos: Netlify compiló la vista previa de la PR, y `deploy-preview-53--gavetastats.netlify.app` servía el build nuevo. Pero **no compiló `main`**: el commit de la fusión no tiene ningún estado de Netlify y `main--gavetastats` seguía con el build viejo. La PR #54 lo achacó a la rama de producción del panel, y **era una hipótesis equivocada**: Raúl revisó el panel el 26/09 con capturas y está como dice el §2.1. La primera fusión con código después de la revisión del panel, la #55 de la T-210a, **tampoco compiló `main`**: el commit de la fusión no tiene ningún estado de Netlify, mientras que la vista previa de la misma PR sí se compiló. **La causa era el `ignore`** (§2.1), y lo confirmó el registro del despliegue el 27/09. Ese día se relanzó `main` a mano con «Retry without cache», compiló, y se quitó el comando.
 
 **Reactivar los builds no lanza ninguna compilación por sí solo**: hace falta un push después.
 
