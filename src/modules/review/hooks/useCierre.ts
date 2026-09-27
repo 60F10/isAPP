@@ -53,6 +53,10 @@ export function useEnviarAhora(partidoId: string) {
  * servidor, y lo enviado de la cola se purga igual a las 48 horas.
  *
  * Al terminar se invalida toda la caché: el calendario enseña el estado.
+ * SIN ESPERAR a que vuelva, a propósito: con el partido ya en su estado
+ * nuevo, la pantalla cambia de sección, el componente que llamó a `mutate`
+ * se desmonta y TanStack Query no llama a sus `onSuccess` ni `onError`. Lo
+ * mismo al reabrir.
  *
  * @returns cuántas sustituciones repetidas no cuentan en los minutos.
  */
@@ -80,16 +84,26 @@ export function useCerrarPartido(datos: DatosDelCierre | null | undefined) {
 
       return descartados;
     },
-    onSettled: () => queryClient.invalidateQueries(),
+    onSettled: () => {
+      void queryClient.invalidateQueries();
+    },
   });
 }
 
-export function useReabrirPartido(partidoId: string) {
+export function useReabrirPartido(datos: DatosDelCierre | null | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => reabrirPartido(partidoId),
-    onSettled: () => queryClient.invalidateQueries(),
+    mutationFn: async () => {
+      if (datos === null || datos === undefined) {
+        throw new Error('Sin partido.');
+      }
+
+      await reabrirPartido(datos.partido);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries();
+    },
   });
 }
 

@@ -23,7 +23,7 @@ import { desdeFilas } from '@modules/match';
 import { SIN_FILAS } from '@shared/lib/guardado';
 import { supabase } from '@shared/lib/supabase';
 
-import { admiteCierre } from '../model/cierre';
+import { admiteCierre, estadoAlReabrir } from '../model/cierre';
 
 import type { DatosDelCierre, EstadoDelPartido, OrigenDeGol, Resultado } from '../model/cierre';
 import type { TablesInsert } from '@app-types/database.types';
@@ -240,15 +240,18 @@ export async function cerrarPartido({ partido, acta, userId }: Cierre): Promise<
 }
 
 /**
- * Reabre un partido cerrado (C-05): vuelve a terminado y deja de contar en
- * las estadísticas. El acta se conserva. `matches_audit` deja constancia de
- * quién y cuándo; `enforce_match_changes` pide `match.close`.
+ * Reabre un partido cerrado (C-05): vuelve al estado de antes de cerrarlo
+ * (`estadoAlReabrir`) y deja de contar en las estadísticas. El acta se
+ * conserva. `matches_audit` deja constancia de quién y cuándo;
+ * `enforce_match_changes` pide `match.close`.
  */
-export async function reabrirPartido(partidoId: string): Promise<void> {
+export async function reabrirPartido(
+  partido: Pick<DatosDelCierre['partido'], 'id' | 'suspendidoEnParte' | 'suspendidoEnSegundo'>,
+): Promise<void> {
   const { data, error } = await supabase
     .from('matches')
-    .update({ status: 'finished', closed_at: null, closed_by: null })
-    .eq('id', partidoId)
+    .update({ status: estadoAlReabrir(partido), closed_at: null, closed_by: null })
+    .eq('id', partido.id)
     .eq('status', 'closed')
     .select('id')
     .maybeSingle();

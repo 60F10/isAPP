@@ -93,6 +93,41 @@ export function motivoDeEstado(
     : 'El partido todavía no se ha jugado.';
 }
 
+type Suspension = Pick<PartidoDelCierre, 'suspendidoEnParte' | 'suspendidoEnSegundo'>;
+
+function seSuspendio(partido: Suspension): partido is {
+  suspendidoEnParte: number;
+  suspendidoEnSegundo: number;
+} {
+  return partido.suspendidoEnParte !== null && partido.suspendidoEnSegundo !== null;
+}
+
+/**
+ * Dónde se suspendió, en palabras: «en la parte 2, a los 23:10». Minutos y
+ * segundos dentro de la parte, que es lo que guarda la base (DOC 05 §8.1).
+ * `null` si el partido no se suspendió.
+ */
+export function dondeSeSuspendio(partido: Suspension): string | null {
+  if (!seSuspendio(partido)) {
+    return null;
+  }
+
+  const minutos = Math.floor(partido.suspendidoEnSegundo / 60);
+  const segundos = partido.suspendidoEnSegundo % 60;
+
+  return `en la parte ${String(partido.suspendidoEnParte)}, a los ${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+}
+
+/**
+ * A qué estado vuelve un partido cerrado al reabrirlo (C-05): al de antes de
+ * cerrarlo. Un suspendido sigue suspendido, que es lo que lo deja fuera de
+ * las medias (DOC 04 §8.1); la base exige su parte y su segundo para ese
+ * estado (`matches_suspension`), y si los tiene es que se suspendió.
+ */
+export function estadoAlReabrir(partido: Suspension): 'suspended' | 'finished' {
+  return seSuspendio(partido) ? 'suspended' : 'finished';
+}
+
 /** Las partes que faltan para cerrar un partido en diferido (DOC 04 §5.4). */
 export function partesQueFaltan(existentes: readonly number[], periodos: number): number[] {
   const faltan: number[] = [];
