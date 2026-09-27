@@ -181,8 +181,18 @@ Pendiente de hacer:
     compiló `main`; la #54, solo de documentación, no podía comprobarlo, porque el `ignore` cancela
     esa compilación. **La primera fusión con código desde la revisión del panel es la de la
     T-210a**: pre funciona si `main--gavetastats` sirve un `index.html` que apunta a un `App-*.js`
-    (el build viejo apunta solo a `assets/index-jOB7hSkO.js`). Lo que se vio, abajo, en «Pre tras
-    fusionar».
+    (el build viejo apunta solo a `assets/index-jOB7hSkO.js`). **Comprobado el 27/09 a las 02:26,
+    doce minutos después de fusionar la #55: pre sigue sin compilar.** El commit de la fusión,
+    `b169ff2`, solo tiene los dos estados del CI y ninguno de Netlify, y `main--gavetastats` sigue
+    con `index-jOB7hSkO.js`. La vista previa de la misma PR sí se compiló
+    (`deploy-preview-55--gavetastats.netlify.app` sirve `App-*.js`). **Con el panel bien, la causa es
+    otra**, y desde aquí no se ve. Por orden de probabilidad: Netlify no recibe el aviso de los
+    _push_ a `main` (la vista previa llega por el evento de la PR, el despliegue de rama por el de
+    _push_: mirar en GitHub, _Settings → GitHub Apps → Netlify_, y en el registro de despliegues de
+    Netlify si aparece algún intento para `main`); la cuenta sin créditos frena también los
+    despliegues de rama aunque cuesten 0; o el despliegue de rama de `main` está en la lista pero
+    con un filtro que no casa. **Lo mira Raúl en el panel**; las sesiones no lo tocan. Mientras,
+    cada PR tiene su vista previa, que sí se compila y no gasta.
 14. **No hay forma de que entre nadie más.** Ni alta propia, ni invitación, ni hacerse seguidor: la
     tabla `invitations` existe y no la usa ninguna pantalla. Es la T-301, y **la idea de Raúl de
     elegir equipo como seguidor al entrar se apunta aquí**: hace falta decidirla en el DOC 03,
@@ -373,8 +383,9 @@ cifra de referencia. En crudo, `precache 37 entries (934.94 KiB)`.
    pendientes; si anota alguien sin `event.approve` y la T-210b no ha llegado, el partido espera
    terminado (punto 51).
 2. **Meter el partido** en la A10: At. Tacoronte, fuera, sábado 3 de octubre a las 12:00.
-3. **Mirar pre en el móvil** (punto 13 y comandos de abajo) y **publicar en pro** cuando vuelvan
-   los créditos: `git push origin main:release`.
+3. **Averiguar por qué Netlify no compila `main`** con el panel bien (punto 13). Hasta entonces, lo
+   último se prueba en la vista previa de cada PR. **Publicar en pro** cuando vuelvan los
+   créditos: `git push origin main:release`.
 4. **La convocatoria de un partido empezado** (punto 31), si hace falta antes de la liga.
 
 **Siguiente tarea de código: T-210b**, el panel de discordancias. Hereda los puntos 34, 43 y 51.
