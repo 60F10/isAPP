@@ -15,28 +15,13 @@
   # producción cuesta 15, y las vistas previas y los despliegues de rama, 0.
   # Lo que gasta es publicar, no subir ramas ni fusionar.
   #
-  # Un cambio que solo toca documentación produce exactamente el mismo
-  # `dist/`: compilarlo es publicar lo de siempre. En pro, eso son 15
-  # créditos tirados; en pre y en las vistas previas, solo tiempo de cola.
-  #
-  # Este comando decide si merece la pena. La polaridad es la de Netlify y es
-  # fácil de invertir sin querer: **salida 0 cancela la compilación**, salida
-  # distinta de 0 la lanza. `git diff --quiet` da justo eso, porque devuelve 0
-  # cuando no encuentra diferencias.
-  #
-  # La lista es de exclusión a propósito, no de inclusión. Lo que el comando no
-  # reconozca, compila. Equivocarse hacia compilar de más cuesta créditos;
-  # equivocarse hacia no compilar deja el sitio sin actualizar y nadie se entera
-  # hasta que alguien abre la aplicación y ve la versión vieja.
-  #
-  # `netlify.toml` no está excluido a propósito: aquí viven la redirección de
-  # SPA y las cabeceras de caché, y un cambio en ellas sí tiene que desplegarse.
-  #
-  # Si `CACHED_COMMIT_REF` viene vacío —primera compilación de un contexto— la
-  # primera condición falla, la cadena devuelve distinto de 0 y se compila.
-  # En las vistas previas no llega a cancelar: `CACHED_COMMIT_REF` es el
-  # commit de la caché restaurada, no el padre. Cuestan 0, así que se deja.
-  ignore = '''test -n "$CACHED_COMMIT_REF" && git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- . ':(exclude)docs' ':(exclude)*.md' ':(exclude).github' ':(exclude).claude' ':(exclude).husky' ':(exclude)supabase' '''
+  # Sin comando `ignore`, a propósito (27/09/2026). El que había cancelaba
+  # todas las compilaciones de `main`, también las que traían código: en el
+  # despliegue de rama, `CACHED_COMMIT_REF` no es el commit anterior, y el
+  # `git diff` salía sin diferencias. Pre se quedó en un build del 12/09.
+  # Compilar de más en pre y en las vistas previas cuesta 0. En pro, el filtro
+  # es quien publica: si solo hay documentación desde la última publicación,
+  # no se lanza `git push origin main:release`.
 
 [build.environment]
   NODE_VERSION = "22"

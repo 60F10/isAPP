@@ -198,7 +198,7 @@ Convención completa en `docs/15_Convenciones_Git.md`. Los hooks de `.husky` y e
 - Ruptura: `tipo(ámbito)!:` más pie `BREAKING CHANGE:` con la migración.
 - **Pull request por rama**, título con el mismo formato que un commit, plantilla rellenada, CI en verde, **squash merge**.
 - **`main` es pre y `release` es pro** (decisión de Raúl del 26/09, DOC 10 §2.1). Cada fusión a `main` se despliega sola en `https://main--gavetastats.netlify.app`; producción, `https://gavetastats.netlify.app`, sale de `release`, y **publica solo Raúl** con `git push origin main:release`. **Nunca toques `release`**: ni push, ni pull request, ni borrado.
-- **Netlify funciona por créditos, 300 al mes. Lo que gasta es publicar, no subir ramas ni fusionar**: un despliegue a producción cuesta 15, y las vistas previas de las pull requests y el despliegue de rama de `main`, 0. `netlify.toml` lleva un comando `ignore` que cancela la compilación cuando el commit solo toca `docs/`, `.md`, `.github/`, `.claude/`, `.husky/` o `supabase/`. Si añades un archivo que **sí** acaba en `dist/` dentro de alguna de esas carpetas, quita esa carpeta de la lista o el sitio dejará de actualizarse en silencio.
+- **Netlify funciona por créditos, 300 al mes. Lo que gasta es publicar, no subir ramas ni fusionar**: un despliegue a producción cuesta 15, y las vistas previas de las pull requests y el despliegue de rama de `main`, 0. `netlify.toml` no lleva comando `ignore` desde el 27/09: el que había cancelaba todas las compilaciones de `main`. No lo vuelvas a poner. Si desde la última publicación solo hay documentación, no se publica.
 - **Agrupa los commits y sube la rama una sola vez.** No gasta créditos, pero cada `git push` a una rama con pull request abierta lanza otra vista previa y otro CI.
 - Ámbito o módulo nuevo: se añade a `commitlint.config.mjs`, al patrón de `.husky/pre-commit` y a DOC 15, en el mismo commit.
 
@@ -216,7 +216,7 @@ Ejemplos buenos: `feat(match): add internal running clock with manual pause` · 
 | `.husky/pre-commit`                  | Bloquea `main`, valida el nombre de la rama y pasa `lint-staged`                                                  |
 | `.prettierrc.json` · `.editorconfig` | Formato                                                                                                           |
 | `.github/workflows/ci.yml`           | Lint, formato, build y validación de commits en cada push y PR                                                    |
-| `netlify.toml`                       | Build, redirección SPA, cabeceras de caché de la PWA y el `ignore` que cancela compilaciones de solo documentos   |
+| `netlify.toml`                       | Build, redirección SPA y cabeceras de caché de la PWA                                                             |
 | `.nvmrc`                             | Versión de Node del proyecto: **22**. Vite 7 y `create-vite` no arrancan con Node 18                              |
 
 ## Accesibilidad (condiciona el diseño, no es un repaso final)
