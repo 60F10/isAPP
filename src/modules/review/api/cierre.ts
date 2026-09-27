@@ -242,7 +242,7 @@ export async function cerrarPartido({ partido, acta, userId }: Cierre): Promise<
 /**
  * Reabre un partido cerrado (C-05): vuelve al estado de antes de cerrarlo
  * (`estadoAlReabrir`) y deja de contar en las estadísticas. El acta se
- * conserva. `matches_audit` deja constancia de quién y cuándo;
+ * conserva. El disparador `matches_audit` apunta quién y cuándo en `audit_log`;
  * `enforce_match_changes` pide `match.close`.
  */
 export async function reabrirPartido(

@@ -49,7 +49,9 @@ Desde la **T-207** está el esqueleto de la A12, **perezosa como el resto** (D06
 
 Desde la **T-208** la A12 registra eventos. `match/model/eventos.ts` deriva quién está en el campo y el marcador de los eventos que conoce el aparato; `registro.ts` valida y convierte cada evento en una fila tipada contra `TablesInsert<'match_events'>`; `flujo.ts` son los pasos de cada botón (D06-33). **El aparato manda los segundos** (la pausa es local) y el estado `approved` solo con `event.approve`, que la base impone desde el 26/09 con el disparador `match_events_a_set_status` (DOC 05 §14.6). **Los `model/` no importan barriles en tiempo de ejecución**: arrastran pantallas y el cliente de Supabase.
 
-Siguiente tarea de código: **T-209**, varios anotadores: cobertura declarada, tiempo real y duplicados.
+Desde la **T-210a** está la A13 en `modules/review`, perezosa: resultado calculado frente al acta, eventos pendientes que impiden cerrar (C-01), lo que queda en la cola del móvil, el origen de los goles y el paso a `closed`, que también recalcula los tramos con `rebuild_match_stints`. **Cerrar son varios pasos sin transacción, en un orden que hace inofensivo un fallo a medias** (`review/api/cierre.ts`), y cada `update` de `matches` lleva el estado de partida en el filtro, para no pisar lo que otro haya cambiado. Reabrir devuelve el partido a `suspended` si tiene parte y segundo de suspensión, y si no a `finished`. Al cerrar, el móvil olvida la precarga, los eventos locales y lo enviado de la cola; lo rechazado se queda. **Las mutaciones que cambian de sección la pantalla invalidan la caché sin esperar**: si esperan, el componente que llamó a `mutate` se desmonta y TanStack Query no llama a sus `onSuccess`.
+
+Siguiente tarea de código: **T-210b**, el panel de discordancias. La T-210 va antes que la T-209 por decisión de Raúl del 26/09 (DOC 08 §3).
 
 **Requisito**: Node 22 (ver `.nvmrc`). Con Node 18 ni `create-vite` ni Vite arrancan; en Windows se cambia con `nvm use 22` desde una terminal de administrador.
 
