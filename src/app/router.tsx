@@ -288,11 +288,13 @@ export const router = createBrowserRouter([
               // --- Registro de errores -------------------------------------
               // SIN guardia de permiso A PROPÓSITO: el DOC 05 §4 no define
               // ningún permiso de administración y aquí no se inventa uno. La
-              // RLS es quien decide qué filas devuelve. Cuando la T-303 fije
-              // el permiso, esta ruta pasa a su grupo.
+              // RLS es quien decide qué filas devuelve, y la T-303 no lo ha
+              // cambiado: la C02 solo recibe filas siendo administrador.
               {
                 path: 'admin/logs',
-                element: <PantallaPendiente id="C02" titulo="Registro de errores" tarea="T-303" />,
+                lazy: async () => ({
+                  Component: (await import('@modules/logging')).RegistroDeErroresPage,
+                }),
               },
             ],
           },

@@ -1,0 +1,168 @@
+/* C02, registro de errores (T-303). A 320 px cada error es una tarjeta y la
+   traza se desplaza dentro de su bloque, nunca por la página. */
+
+.fallo {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.filtros {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.etiqueta {
+  font-weight: var(--font-weight-semibold);
+}
+
+.selector {
+  min-block-size: var(--tap-min);
+  padding-inline: var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.casilla {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--tap-min);
+}
+
+.casilla input {
+  inline-size: 24px;
+  block-size: 24px;
+}
+
+.envoltorio {
+  min-inline-size: 0;
+}
+
+.tabla {
+  inline-size: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.caption {
+  margin-block-end: var(--space-3);
+  font-weight: var(--font-weight-semibold);
+  text-align: start;
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-2) var(--space-3);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.filaDetalle td {
+  padding-block-start: 0;
+}
+
+.detalle {
+  min-inline-size: 0;
+}
+
+.resumenDetalle {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  cursor: pointer;
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.subtitulo {
+  margin-block: var(--space-3) var(--space-1);
+  font-size: var(--font-size-100);
+}
+
+.mensaje {
+  overflow-wrap: anywhere;
+}
+
+.traza {
+  max-inline-size: 100%;
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-sunken);
+  font-size: var(--font-size-75);
+}
+
+.dispositivo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.dato {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.dato dt {
+  font-weight: var(--font-weight-semibold);
+}
+
+.dato dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Por debajo de 600 px la tabla se compone en tarjetas. */
+@media (max-width: 599px) {
+  .tabla,
+  .tabla tbody,
+  .tabla tr,
+  .tabla th,
+  .tabla td {
+    display: block;
+  }
+
+  .tabla thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .error {
+    display: block;
+    margin-block-end: var(--space-3);
+    padding: var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .tabla td[data-etiqueta]::before,
+  .tabla th[data-etiqueta]::before {
+    content: attr(data-etiqueta) ': ';
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .tabla th[data-etiqueta] {
+    font-weight: var(--font-weight-regular, 400);
+  }
+}
