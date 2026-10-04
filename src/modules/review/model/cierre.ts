@@ -48,6 +48,23 @@ export interface LineaDelCierre {
   shirtNumber: number | null;
 }
 
+/**
+ * Del identificador de un jugador a «7 · Juanito»: del jugador solo se enseña
+ * dorsal y apodo. Lo usan la A13 y la A14 para describir los eventos.
+ */
+export function nombrador(convocatoria: readonly LineaDelCierre[]): (id: string) => string {
+  const nombres = new Map(
+    convocatoria.map((linea) => [
+      linea.playerId,
+      linea.shirtNumber === null
+        ? linea.nickname
+        : `${String(linea.shirtNumber)} · ${linea.nickname}`,
+    ]),
+  );
+
+  return (id) => nombres.get(id) ?? 'Jugador fuera de la convocatoria';
+}
+
 export interface Resultado {
   aFavor: number;
   enContra: number;

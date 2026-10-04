@@ -52,6 +52,7 @@ import {
   esOrigen,
   golesAprobados,
   motivoDeEstado,
+  nombrador,
   NOMBRES_DE_ESTADO,
   ORIGENES_DE_GOL,
   origenDe,
@@ -70,20 +71,6 @@ import type { EventoDelDirecto } from '@modules/match';
 const FECHA = new Intl.DateTimeFormat('es-ES', { dateStyle: 'full', timeStyle: 'short' });
 
 type Describir = (evento: EventoDelDirecto) => string;
-
-/** Del jugador solo dorsal y apodo: «7 · Juanito». */
-function nombrador(convocatoria: DatosDelCierre['convocatoria']): (id: string) => string {
-  const nombres = new Map(
-    convocatoria.map((linea) => [
-      linea.playerId,
-      linea.shirtNumber === null
-        ? linea.nickname
-        : `${String(linea.shirtNumber)} · ${linea.nickname}`,
-    ]),
-  );
-
-  return (id) => nombres.get(id) ?? 'Jugador fuera de la convocatoria';
-}
 
 function mensajeDeCierre(error: Error): string {
   if (error.message === CON_PENDIENTES) {

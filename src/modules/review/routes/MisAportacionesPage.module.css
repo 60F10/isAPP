@@ -1,0 +1,120 @@
+/* A14 — Mis aportaciones. Pantalla de después del partido: objetivos de 48 px
+   (`--tap-min`, que pone `Button`) separados por `--tap-gap`, como el resto
+   del bloque A. Las clases que repiten a las de la A13 dicen lo mismo: los
+   módulos de CSS no se comparten entre componentes. */
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+/* Lo último que se ha borrado: su fila ya no está para decirlo. */
+.aviso {
+  max-inline-size: 60ch;
+  font-weight: var(--font-weight-semibold);
+}
+
+.fallo {
+  max-inline-size: 60ch;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada evento, en columna: a 320 px no hay sitio para más, y así los botones
+   quedan siempre debajo de lo que cambian. */
+.fila {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-block: var(--space-4);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:last-child {
+  border-block-end: 0;
+}
+
+.descripcion {
+  max-inline-size: 60ch;
+  font-weight: var(--font-weight-semibold);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+/* Elegir jugador y confirmar el borrado, en su sitio. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  inline-size: 100%;
+}
+
+/* El grupo de convocados es un `fieldset`: se le quita el marco del
+   navegador y se deja como el resto de los formularios en su sitio. */
+.grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* La leyenda no entra en el `gap` del grupo: lleva su propio margen. */
+.leyenda {
+  max-inline-size: 60ch;
+  margin-block-end: var(--space-3);
+  padding: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.pregunta {
+  max-inline-size: 60ch;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* El partido cerrado, plegado. El resumen es el control: 48 px de alto y el
+   triángulo del navegador, que ya dice si está abierto. */
+.plegado {
+  inline-size: 100%;
+}
+
+.resumen {
+  display: list-item;
+  min-block-size: var(--tap-min);
+  padding-block: var(--space-3);
+
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.resumen:focus-visible,
+.aviso:focus-visible,
+.pregunta:focus-visible,
+.leyenda:focus-visible,
+.descripcion:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
