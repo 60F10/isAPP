@@ -5,6 +5,22 @@
 
 ---
 
+## Sesión 04/10/2026, tarde — T-219: la banda lista lo rechazado y deja descartarlo: ✅ cerrada
+
+Sesión programada, rama `feat/sync-descartar-rechazados`. **Sin base de datos.**
+
+- **Hecho:** `EstadoDeCola` gana `rechazados` (`id`, `entity`, `op`, `createdAt`, `lastError`); la C04 los
+  lista dentro de «Qué dijo el servidor», nombrados por su tabla, con la hora y el error, y cada
+  uno se descarta con confirmación en su sitio. `descartarRechazado(id, userId)` en `api/almacen.ts`
+  solo borra un `failed` de esa persona y no sale por el barril.
+- **Pruebas:** `cola`, `almacen` y la banda; 487 en verde, lint, formato y build limpios.
+- **Deuda:** descartar borra el trabajo de la cola, pero el evento rechazado sigue en la precarga
+  del partido de ese aparato hasta que el partido se cierra. La cola no conoce a `match`, y
+  limpiarlo pide que `match` se entere.
+- **Sin probar en un móvil.**
+
+---
+
 ## Sesión 04/10/2026, mediodía — I1 cerrada y traspasos del lote siguiente: ✅ cerrada
 
 Misma sesión de Cowork, con las respuestas de Raúl. Rama `docs/docs-seguir-sin-aprobacion`. **Sin
@@ -255,6 +271,7 @@ Pendiente de hacer:
     lo cuenta y enseña lo que dijo el servidor, plegado, y se queda para siempre. **Ya pasó**: el
     móvil de Raúl tiene desde el 04/10 un cambio del primer partido que el servidor rechazó por el
     límite, y la banda roja no se va. Es la T-219: la banda lista lo rechazado y deja descartarlo.
+    **Cerrado por la T-219** (descartar sí; reintentar sigue fuera).
 35. ~~Sin probar el viaje entero hasta Supabase en el navegador.~~ **Cerrado el 04/10**: el primer
     partido de liga se convocó, se apuntó en diferido, se envió por la cola y se cerró desde
     producción, con sus tramos. Lo que sigue sin probar es el reloj en vivo (punto 42).

@@ -6,7 +6,12 @@ import { observarEstado } from '../api/almacen';
 
 import type { EstadoDeCola } from '../model/cola';
 
-const VACIA: EstadoDeCola = { pendientes: 0, fallidos: 0, ultimoError: null };
+const VACIA: EstadoDeCola = {
+  pendientes: 0,
+  fallidos: 0,
+  ultimoError: null,
+  rechazados: [],
+};
 
 /**
  * Si el navegador cree que hay red. Que diga que sí no garantiza que llegue

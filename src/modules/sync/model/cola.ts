@@ -157,6 +157,15 @@ export function purgables(trabajos: readonly Trabajo[], ahora: number): string[]
     .map((trabajo) => trabajo.id);
 }
 
+/** Un trabajo que el servidor rechazó, con lo justo para enseñarlo y descartarlo. */
+export interface Rechazado {
+  id: string;
+  entity: Entidad;
+  op: Operacion;
+  createdAt: number;
+  lastError: string | null;
+}
+
 export interface EstadoDeCola {
   /** Por enviar: pendientes y a medio enviar. */
   pendientes: number;
@@ -164,6 +173,8 @@ export interface EstadoDeCola {
   fallidos: number;
   /** Lo que dijo el servidor del fallido más reciente. */
   ultimoError: string | null;
+  /** Los rechazados de esta persona, del más reciente al más antiguo. */
+  rechazados: Rechazado[];
 }
 
 /** El estado de la cola de una persona. Lo de otras cuentas no cuenta. */
@@ -178,6 +189,13 @@ export function contar(trabajos: readonly Trabajo[], userId: string): EstadoDeCo
     pendientes: propios.filter(listoParaEnviar).length,
     fallidos: fallidos.length,
     ultimoError: ultimo === undefined ? null : ultimo.lastError,
+    rechazados: fallidos.map(({ id, entity, op, createdAt, lastError }) => ({
+      id,
+      entity,
+      op,
+      createdAt,
+      lastError,
+    })),
   };
 }
 

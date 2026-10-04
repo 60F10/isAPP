@@ -170,7 +170,24 @@ describe('contar', () => {
         ],
         'u1',
       ),
-    ).toEqual({ pendientes: 2, fallidos: 2, ultimoError: 'nuevo' });
+    ).toMatchObject({ pendientes: 2, fallidos: 2, ultimoError: 'nuevo' });
+  });
+
+  it('devuelve los rechazados propios, del más reciente al más antiguo', () => {
+    const { rechazados } = contar(
+      [
+        trabajo({ id: 'a', status: 'failed', entity: 'match', lastError: 'viejo', createdAt: 1 }),
+        trabajo({ id: 'b', status: 'failed', lastError: null, createdAt: 3 }),
+        trabajo({ id: 'c', status: 'failed', userId: 'otra', createdAt: 4 }),
+        trabajo({ id: 'd', status: 'pending', createdAt: 5 }),
+      ],
+      'u1',
+    );
+
+    expect(rechazados).toEqual([
+      { id: 'b', entity: 'match_event', op: 'insert', createdAt: 3, lastError: null },
+      { id: 'a', entity: 'match', op: 'insert', createdAt: 1, lastError: 'viejo' },
+    ]);
   });
 });
 

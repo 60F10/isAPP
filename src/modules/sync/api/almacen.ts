@@ -142,6 +142,24 @@ export async function purgarPartido(matchId: string): Promise<void> {
 }
 
 /**
+ * Borra de la cola un trabajo rechazado (T-219). Solo si es `failed` y de esa
+ * persona: lo pendiente va a enviarse y lo de otra cuenta no es suyo.
+ *
+ * @returns si lo borró.
+ */
+export async function descartarRechazado(id: string, userId: string): Promise<boolean> {
+  const trabajo = await db.outbox.get(id);
+
+  if (trabajo === undefined || trabajo.status !== 'failed' || trabajo.userId !== userId) {
+    return false;
+  }
+
+  await db.outbox.delete(id);
+
+  return true;
+}
+
+/**
  * Se suscribe al estado de la cola de una persona. Dexie avisa en cada
  * cambio del almacén, también de los que haga otra pestaña.
  *
