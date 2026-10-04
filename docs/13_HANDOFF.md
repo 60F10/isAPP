@@ -5,6 +5,30 @@
 
 ---
 
+## Sesión 04/10/2026, noche — revisión de la T-209b, la T-209c y la T-222, y `main` otra vez en verde: ✅ cerrada
+
+Sesión con Raúl. **Sin base de datos.** Dos PR: la #78, que arregla `main`, y esta, de documentación.
+
+- **`main` estuvo roto de la #76 a la #78.** La T-209c se disparó dos veces y salieron dos PR con
+  la misma rama (#75 y #76). La segunda se fusionó resolviendo conflictos a mano y dejó en
+  `match/model/directo.test.ts` una prueba sin cerrar: ni lint, ni tipos, ni pruebas, ni CI. La
+  #78 la quita, y quita los párrafos y comentarios que quedaron dobles. **El código de `main` es
+  el de la #75.** Hoy: lint, formato, **712 pruebas en 57 archivos** y build.
+- **La T-222 perdió en su fusión** la versión 4.9 y su párrafo del DOC 08. Repuestos aquí. Su
+  código llegó entero: es idéntico al de la rama.
+- **La T-221 no está hecha.** Su sesión programada falló a los cuatro minutos de arrancar y no
+  dejó rama ni PR. El traspaso sigue valiendo: los símbolos que nombra están en `main`.
+- **Revisadas contra su traspaso** la T-209b (#74), la T-209c (#75) y la T-222 (#77): hacen lo que
+  pedían, sin nada que rompa datos. Lo que sale está en los puntos 79 y 80 de abajo y en dos
+  tareas nuevas, la **T-223** y la **T-224**, con traspaso en `docs/traspasos/`.
+- **Tres lecciones para las sesiones programadas**, ya escritas en el traspaso de la conversación
+  que programa (`claude/traspaso_programar_noche_0410.md`, en el proyecto de Claude):
+  1. Antes de empezar, la sesión mira si ya existe la rama o una PR de su tarea. Si existe, se va.
+  2. No programa nada, ni recordatorios: si tiene que esperar, espera dentro de la sesión.
+  3. Una PR con conflictos no se resuelve en el editor de GitHub: se rehace la rama sobre `main`.
+
+---
+
 ## Sesión 04/10/2026, noche — T-222: arreglos del cierre, «Mis aportaciones» y el registro de errores: ✅ cerrada
 
 Sesión programada, rama `fix/review-arreglos-de-la-revision`. **Sin base de datos y sin migración.**
@@ -717,10 +741,28 @@ Pendiente de hacer:
     Aplicar `supabase/pendientes/realtime_del_directo.sql` es una línea y pide la confirmación
     de Raúl.
     **Desde la T-209b el código está en `main`**: falta solo aplicar el SQL (DOC 05 §14.9).
+    **Ojo al aplicarlo:** Supabase no filtra los borrados («Delete events are not filterable»), y
+    el canal los pide con filtro. La T-223 los escucha sin filtro. Con dos sesiones, deshacer un
+    evento en una y mirar que la otra lo quita en un par de segundos.
 
 78. **Entrar al directo a mirar deja una cobertura de duración cero**, y volver tras cerrar la
     aplicación a medias da por cubierto el hueco entero. La fórmula de fiabilidad tendrá que
     ignorar las primeras; lo segundo se asume. Es del bloque B.
+
+79. **Flecos del directo entre aparatos** (revisión de la T-209b y la T-209c). Lo que otro
+    aparato termina o finaliza cambia la pantalla sin anunciarse, y si pilla un flujo abierto el
+    foco se pierde; un toque puede reducir sobre un estado anterior al último fundido; una
+    descarga lenta puede pisar en el aparato un paquete más nuevo; los borrados pueden no avisar
+    por Realtime; los eventos se descargan sin orden; y quedan pruebas repetidas de la segunda
+    T-209c. **Es la T-223.** Fuera de ella, y solo con la base incoherente: con dos partes
+    abiertas en el servidor, `reducir` mira la primera abierta y la fase, la última; y un partido
+    `suspended` con la parte abierta queda finalizado con la parte en pausa.
+
+80. **Flecos del cierre, de «Mis aportaciones» y del registro de errores** (revisión de la
+    T-222). El registro vuelve a pedir la primera página al volver el foco y descoloca las
+    siguientes; si falla «Cargar 50 más» no se puede reintentar; una ruta que sea solo `*` filtra
+    de más; `guardarOrigen` no lleva el `match_id`; «Borrando…» sale de más; y a las pruebas de
+    las `api/` les falta exigir la fila de vuelta. **Es la T-224.**
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
@@ -761,21 +803,21 @@ cifra de referencia. En crudo, `precache 37 entries (940.82 KiB)`.
    la línea de Realtime (punto 77); y el borrado del cambio repetido (punto 65), que ya se
    puede hacer también desde el cierre, reabriendo el partido.
 3. **Probar en el móvil, en pre, lo de hoy**: descartar el rechazado de la banda, «Sin
-   asistencia» arriba, el panel del cierre y «Mis aportaciones».
+   asistencia» arriba, el panel del cierre y «Mis aportaciones». Y con dos móviles en un partido
+   de prueba: que uno vea lo que apunta el otro y que los dos relojes marquen lo mismo.
 4. **Decir si los equipos nacen fuera de la lista** (punto 14). Es como está escrito.
 
-**Las tareas, en orden**, cada una con su traspaso en el proyecto de Claude:
+**Las tareas, en orden**, cada una con su traspaso en `docs/traspasos/` o en el proyecto de Claude:
 
 | Orden | Tarea      | Qué                                                              | Esfuerzo | Necesita a Raúl |
 | :---- | :--------- | :--------------------------------------------------------------- | :------- | :-------------- |
 | 1     | **T-221**  | Arreglos de la revisión: la banda y la cobertura                 | Medio    | No              |
-| 2     | **T-209b** | Ver lo que apuntan los demás, sin tocar la base                  | Alto     | No              |
-| 3     | **T-209c** | Partes compartidas entre aparatos                                | Medio    | No              |
-| 4     | **T-222**  | Arreglos de la revisión: cierre, aportaciones y registro         | Bajo     | No              |
-| 5     | **T-301a** | Migración de personas: invitaciones, seguir y solicitudes        | Alto     | Sí              |
-| 6     | **T-301b** | A07, personas y permisos                                         | Medio    | No, tras la a   |
-| 7     | **T-301c** | Entrar sin equipo: seguir, pedir permisos y el seguidor que mira | Medio    | No, tras la b   |
-| 8     | **T-302**  | Prueba de campo, el sábado 17 de octubre en casa. Tiene guion    | —        | Sí              |
+| 2     | **T-223**  | Flecos del directo entre aparatos                                | Medio    | No              |
+| 3     | **T-224**  | Flecos del cierre, «Mis aportaciones» y el registro de errores   | Bajo     | No              |
+| 4     | **T-301a** | Migración de personas: invitaciones, seguir y solicitudes        | Alto     | Sí              |
+| 5     | **T-301b** | A07, personas y permisos                                         | Medio    | No, tras la a   |
+| 6     | **T-301c** | Entrar sin equipo: seguir, pedir permisos y el seguidor que mira | Medio    | No, tras la b   |
+| 7     | **T-302**  | Prueba de campo, el sábado 17 de octubre en casa. Tiene guion    | —        | Sí              |
 
 La T-302 tiene fecha y no espera a nadie: lo que no esté fusionado y publicado el jueves 15 no
 entra en la prueba. Todas tocan el DOC 08 y este documento: de una en una.
