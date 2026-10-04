@@ -5,7 +5,8 @@
 // antiguo. La abre cualquiera que pertenezca al equipo; programar y editar
 // solo quien tiene `schedule.manage`, la convocatoria quien tiene
 // `lineup.manage` y el directo (T-212) quien tiene `match.live.write`. Lo que
-// no se puede hacer no se enseña.
+// no se puede hacer no se enseña. Cada partido lo pinta `ResumenDePartido`
+// (T-213), que es quien lee esos permisos; aquí solo queda el de programar.
 //
 // Los entrenamientos (E4-01) no salen todavía: su pantalla es de después del
 // MVP (DOC 08 §7).
@@ -17,112 +18,22 @@ import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Pantalla } from '@shared/ui/Pantalla';
 
+import { ResumenDePartido } from '../components/ResumenDePartido';
 import { useCalendario, useEquipoActivo } from '../hooks/usePartidos';
-import {
-  enfrentamiento,
-  NOMBRES_DE_ESTADO,
-  separarCalendario,
-  sePuedeEditar,
-  tieneCierre,
-  tieneDirecto,
-} from '../model/partido';
+import { separarCalendario } from '../model/partido';
 
 import styles from './CalendarioPage.module.css';
 
 import type { Partido } from '../model/partido';
-
-// «sáb, 25 oct · 11:30». Corto para que quepa en una línea a 320 px.
-const DIA = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
-const HORA = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit' });
-
-interface FilaProps {
-  partido: Partido;
-  equipo: string;
-  anota: boolean;
-  programa: boolean;
-  convoca: boolean;
-  cierra: boolean;
-}
-
-function Fila({ partido, equipo, anota, programa, convoca, cierra }: FilaProps) {
-  const instante = new Date(partido.kickoffAt);
-  const titulo = enfrentamiento(partido, equipo);
-  const pendiente = sePuedeEditar(partido.status);
-  const conCierre = cierra && tieneCierre(partido);
-  const conDirecto = anota && tieneDirecto(partido.status);
-
-  return (
-    <li className={styles.fila}>
-      <p className={styles.cuando}>
-        <time dateTime={partido.kickoffAt}>
-          {DIA.format(instante)} · {HORA.format(instante)}
-        </time>
-      </p>
-      <p className={styles.partido}>{titulo}</p>
-      <p className={styles.detalle}>
-        {partido.competitionName}
-        {partido.venue === null ? null : ` · ${partido.venue}`}
-      </p>
-      <p className={styles.estado}>
-        {NOMBRES_DE_ESTADO[partido.status]}
-        {partido.isRetroactive ? ' · en diferido' : null}
-      </p>
-      {conDirecto || (programa && pendiente) || (convoca && pendiente) || conCierre ? (
-        <div className={styles.acciones}>
-          {conDirecto ? (
-            <Link
-              className={styles.accion}
-              to={`/partidos/${partido.id}/directo`}
-              aria-label={partido.isRetroactive ? `Apuntar ${titulo}` : `Directo de ${titulo}`}
-            >
-              {partido.isRetroactive ? 'Apuntar' : 'Directo'}
-            </Link>
-          ) : null}
-          {convoca && pendiente ? (
-            <Link
-              className={styles.accion}
-              to={`/partidos/${partido.id}/convocatoria`}
-              aria-label={`Convocatoria de ${titulo}`}
-            >
-              Convocatoria
-            </Link>
-          ) : null}
-          {programa && pendiente ? (
-            <Link
-              className={styles.accion}
-              to={`/partidos/${partido.id}/editar`}
-              aria-label={`Editar ${titulo}`}
-            >
-              Editar
-            </Link>
-          ) : null}
-          {conCierre ? (
-            <Link
-              className={styles.accion}
-              to={`/partidos/${partido.id}/cierre`}
-              aria-label={`Cierre de ${titulo}`}
-            >
-              Cierre
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
-    </li>
-  );
-}
 
 interface ListaProps {
   titulo: string;
   vacio: string;
   partidos: readonly Partido[];
   equipo: string;
-  anota: boolean;
-  programa: boolean;
-  convoca: boolean;
-  cierra: boolean;
 }
 
-function Lista({ titulo, vacio, partidos, equipo, anota, programa, convoca, cierra }: ListaProps) {
+function Lista({ titulo, vacio, partidos, equipo }: ListaProps) {
   return (
     <Card title={titulo} headingLevel={2}>
       {partidos.length === 0 ? (
@@ -130,15 +41,9 @@ function Lista({ titulo, vacio, partidos, equipo, anota, programa, convoca, cier
       ) : (
         <ul className={styles.lista}>
           {partidos.map((partido) => (
-            <Fila
-              key={partido.id}
-              partido={partido}
-              equipo={equipo}
-              anota={anota}
-              programa={programa}
-              convoca={convoca}
-              cierra={cierra}
-            />
+            <li key={partido.id} className={styles.fila}>
+              <ResumenDePartido partido={partido} equipo={equipo} />
+            </li>
           ))}
         </ul>
       )}
@@ -152,9 +57,6 @@ export function CalendarioPage() {
   // `undefined` mientras no se saben los permisos: no se enseña el botón
   // hasta saber que se puede, en vez de enseñarlo y quitarlo.
   const programa = useHasPermission('schedule.manage') === true;
-  const convoca = useHasPermission('lineup.manage') === true;
-  const cierra = useHasPermission('match.close') === true;
-  const anota = useHasPermission('match.live.write') === true;
 
   const contenido = () => {
     if (equipoId === null) {
@@ -208,20 +110,12 @@ export function CalendarioPage() {
           }
           partidos={proximos}
           equipo={equipoNombre}
-          anota={anota}
-          programa={programa}
-          convoca={convoca}
-          cierra={cierra}
         />
         <Lista
           titulo="Jugados"
           vacio="Todavía no se ha jugado ninguno esta temporada."
           partidos={jugados}
           equipo={equipoNombre}
-          anota={anota}
-          programa={programa}
-          convoca={convoca}
-          cierra={cierra}
         />
       </>
     );

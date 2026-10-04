@@ -137,7 +137,7 @@ Es un flujo lineal con estados: `programado → convocado → en_juego → final
 1. **Cada pantalla tiene URL propia.** Sin ella no hay enlaces desde notificación (E4-08) ni recuperación tras un cierre inesperado de la app.
 2. **La pantalla de directo sobrevive a una recarga.** El estado vive en almacenamiento local, no solo en memoria.
 3. **Máximo tres toques desde Inicio** hasta cualquier pantalla del Bloque A.
-4. **El partido en directo está a un toque desde Inicio** cuando hay uno programado en las próximas horas o en curso.
+4. **El partido en directo está a un toque desde Inicio** cuando hay uno programado en las próximas horas o en curso. Se cumple desde la T-213: la tarjeta «Próximo evento» enseña el próximo partido y, si está convocado o en juego, el enlace «Directo» a quien tiene `match.live.write`.
 5. **Retroceder nunca destruye datos.** Cualquier salida con eventos sin sincronizar avisa antes.
 
 ---

@@ -78,10 +78,12 @@ export const router = createBrowserRouter([
           {
             element: <AppLayout />,
             children: [
-              // Inicio. Sin permiso: lo ve todo el que entra.
+              // Inicio. Sin permiso: lo ve todo el que entra. La A02 de `core`
+              // con el próximo partido dentro (T-213, D06-34): sale de
+              // `agenda`, que es quien conoce el calendario, no de `core`.
               {
                 index: true,
-                lazy: async () => ({ Component: (await import('@modules/core')).HomePage }),
+                lazy: async () => ({ Component: (await import('@modules/agenda')).InicioPage }),
               },
 
               // --- team.manage ---------------------------------------------

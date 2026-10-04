@@ -1,0 +1,14 @@
+/* DEUDA (T-213): estas dos reglas están copiadas de
+   `routes/CalendarioPage.module.css`. Son dos y no merecen todavía un
+   componente compartido; si aparece un tercer sitio, salen a `shared/ui`. */
+.nota {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
