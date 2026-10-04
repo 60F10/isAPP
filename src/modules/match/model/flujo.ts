@@ -13,10 +13,11 @@
 // LA FICHA DE JUGADOR es el mismo flujo con el jugador ya elegido: tocar a
 // alguien del campo, elegir la acción y seguir por donde falte.
 
-import { expulsados, sustituidos } from './eventos';
+import { calcularEnCampo, expulsados, hastaElInstante, incorporados, sustituidos } from './eventos';
 import { segundosDeMinuto } from './reloj';
 
 import type { EstadoDirecto } from './directo';
+import type { Instante } from './eventos';
 import type { BorradorDeEvento } from './registro';
 import type { TipoDeEvento } from '@modules/rules';
 import type { IconName } from '@shared/ui/icons/registry';
@@ -406,21 +407,46 @@ export function minutoDelFlujo(
     : null;
 }
 
-/** Los candidatos de cada paso, desde el estado del directo. */
+/**
+ * Los candidatos de cada paso, desde el estado del directo.
+ *
+ * CON RELOJ, el campo es el de ahora mismo: `estado.enCampo`.
+ *
+ * EN DIFERIDO, CON EL INSTANTE DEL FLUJO (D06-36, T-217), el campo y los
+ * expulsados son los de ese instante: con el cambio del 46 ya apuntado, un
+ * gol del 20 ofrece a quien salió y no a quien entró. Para entrar, con
+ * cambios fijos, no se ofrece a quien ya sale ni a quien ya entra en un
+ * cambio apuntado, sea del minuto que sea. Sin instante —no hay flujo, o
+ * falta el minuto—, como con reloj.
+ */
 export function contextoDe(
   estado: Pick<
     EstadoDirecto,
-    'enCampo' | 'convocados' | 'eventos' | 'cambiosFijos' | 'tiposActivos' | 'diferido' | 'periodos'
+    | 'enCampo'
+    | 'titulares'
+    | 'convocados'
+    | 'eventos'
+    | 'cambiosFijos'
+    | 'tiposActivos'
+    | 'diferido'
+    | 'periodos'
   >,
+  instante?: Instante,
 ): ContextoDeFlujo {
-  const fuera = expulsados(estado.eventos);
+  const enElInstante = estado.diferido && instante !== undefined;
+  const anteriores = enElInstante ? hastaElInstante(estado.eventos, instante) : estado.eventos;
+  const enCampo = enElInstante ? calcularEnCampo(estado.titulares, anteriores) : estado.enCampo;
+
+  const fuera = expulsados(anteriores);
   const salieron = estado.cambiosFijos ? sustituidos(estado.eventos) : new Set<string>();
-  const campo = new Set(estado.enCampo);
+  const entraron =
+    estado.cambiosFijos && enElInstante ? incorporados(estado.eventos) : new Set<string>();
+  const campo = new Set(enCampo);
 
   return {
-    enCampo: estado.enCampo,
+    enCampo,
     paraEntrar: estado.convocados.filter(
-      (id) => !campo.has(id) && !fuera.has(id) && !salieron.has(id),
+      (id) => !campo.has(id) && !fuera.has(id) && !salieron.has(id) && !entraron.has(id),
     ),
     tarjetables: estado.convocados.filter((id) => !fuera.has(id)),
     tiposActivos: estado.tiposActivos,

@@ -173,6 +173,8 @@ Todo evento admite corregir su parte y sus segundos después de crearse. Es la m
 
 Un partido en diferido necesita igualmente sus partes con duración real. Si no se sabe, se toma la prevista.
 
+En diferido, quién está en el campo se calcula en el minuto del evento que se apunta, con los cambios y las expulsiones anteriores a ese minuto, y no al final del partido (DOC 06, D06-36).
+
 ---
 
 ## 6. Participación y minutos jugados

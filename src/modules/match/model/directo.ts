@@ -330,21 +330,67 @@ function avance(estado: EstadoDirecto): number {
 }
 
 /**
+ * Lo que manda siempre el servidor (D06-36): la convocatoria y el reglamento.
+ * No son del avance del partido, y pueden cambiar con el directo ya abierto
+ * una vez: se sube el límite de cambios, se convoca a alguien más.
+ */
+const DEL_SERVIDOR = [
+  'titulares',
+  'convocados',
+  'posicionesIniciales',
+  'periodos',
+  'minutosDeParte',
+  'titularesPedidos',
+  'cambiosMax',
+  'cambiosFijos',
+  'tiposActivos',
+  'diferido',
+] as const satisfies readonly (keyof EstadoDirecto)[];
+
+/**
  * Qué estado manda al abrir el directo: el guardado en este aparato o el que
- * sale de lo precargado del servidor. Gana el más avanzado —partes abiertas y
- * cerradas, y terminado por encima de todo—, y a igualdad el local, que
+ * sale de lo precargado del servidor.
+ *
+ * LA FASE, LAS PARTES Y LOS EVENTOS son del más avanzado —partes abiertas y
+ * cerradas, y terminado por encima de todo—, y a igualdad del local, que
  * conoce la pausa. Así, si otro aparato cerró la parte, se ve cerrada; y lo
  * que este aparato hizo sin red no se deshace porque el servidor aún no lo sepa.
+ *
+ * LA CONVOCATORIA Y EL REGLAMENTO son siempre del servidor (D06-36, T-217),
+ * y el campo se recalcula con sus titulares. Sin red, `servidor` sale del
+ * último paquete descargado, que es lo mejor que se sabe. Si no cambia nada,
+ * devuelve el estado elegido tal cual.
  */
 export function elegirEstado(
   local: EstadoDirecto | undefined,
   servidor: EstadoDirecto,
 ): EstadoDirecto {
-  if (local === undefined) {
+  if (local === undefined || avance(servidor) > avance(local)) {
     return servidor;
   }
 
-  return avance(servidor) > avance(local) ? servidor : local;
+  const alDia = DEL_SERVIDOR.every(
+    (campo) => JSON.stringify(local[campo]) === JSON.stringify(servidor[campo]),
+  );
+
+  if (alDia) {
+    return local;
+  }
+
+  return {
+    ...local,
+    titulares: servidor.titulares,
+    convocados: servidor.convocados,
+    posicionesIniciales: servidor.posicionesIniciales,
+    periodos: servidor.periodos,
+    minutosDeParte: servidor.minutosDeParte,
+    titularesPedidos: servidor.titularesPedidos,
+    cambiosMax: servidor.cambiosMax,
+    cambiosFijos: servidor.cambiosFijos,
+    tiposActivos: servidor.tiposActivos,
+    diferido: servidor.diferido,
+    enCampo: calcularEnCampo(servidor.titulares, local.eventos),
+  };
 }
 
 /**

@@ -189,6 +189,45 @@ export function sustituidos(eventos: readonly EventoDelDirecto[]): Set<string> {
   return jugadoresDe(propiosDeTipo(eventos, ['substitution']));
 }
 
+/**
+ * Los que entraron en un cambio. En diferido y con cambios fijos, quien ya
+ * entra en un cambio apuntado no se ofrece para entrar en otro (D06-36).
+ */
+export function incorporados(eventos: readonly EventoDelDirecto[]): Set<string> {
+  return new Set(
+    propiosDeTipo(eventos, ['substitution'])
+      .map((evento) => evento.segundo)
+      .filter((jugador): jugador is string => jugador !== null),
+  );
+}
+
+/** Un momento del partido: la parte y los segundos dentro de ella. */
+export interface Instante {
+  periodo: number;
+  segundos: number;
+}
+
+/**
+ * Los eventos que ya habían pasado en ese instante (D06-36, T-217): los de
+ * una parte anterior y los de la misma parte hasta ese segundo, incluido. Los
+ * que no tienen segundos quedan fuera: no se sabe cuándo pasaron.
+ *
+ * En diferido, con el partido entero ya apuntado, es lo que permite saber
+ * quién estaba en el campo en el minuto 20 aunque el cambio del 46 ya esté
+ * metido.
+ */
+export function hastaElInstante(
+  eventos: readonly EventoDelDirecto[],
+  instante: Instante,
+): EventoDelDirecto[] {
+  return eventos.filter(
+    (evento) =>
+      evento.segundos !== null &&
+      (evento.periodo < instante.periodo ||
+        (evento.periodo === instante.periodo && evento.segundos <= instante.segundos)),
+  );
+}
+
 /** Cambios hechos, contra `substitutions_max` (R-04). */
 export function cambiosHechos(eventos: readonly EventoDelDirecto[]): number {
   return propiosDeTipo(eventos, ['substitution']).length;
