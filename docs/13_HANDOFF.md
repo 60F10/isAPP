@@ -5,6 +5,41 @@
 
 ---
 
+## Sesión 04/10/2026, noche — T-211: «Mis aportaciones» (A14): ✅ cerrada
+
+Sesión programada, rama `feat/review-mis-aportaciones`. **Sin base de datos y sin migración.**
+
+- **Hecho:** `/mis-aportaciones` ya no es una pantalla pendiente. Lista lo que ha apuntado quien
+  tiene la sesión en los partidos del equipo y la temporada activos, por partido, el más reciente
+  primero, con el estado de cada evento. En un partido sin cerrar: «Minuto», «Jugador»,
+  «Asistencia» en los goles propios —con «Sin asistencia», la primera—, «Entra» en los cambios y
+  «Borrar», con confirmación. Del rival, solo «Minuto» y «Borrar». Los cerrados salen plegados y
+  solo para leer. Lo ya revisado, sin `event.approve`, dice que lo corrige quien cierra.
+- **Dónde vive:** `review/model/aportaciones.ts`, puro; `review/api/aportaciones.ts`, en línea y
+  con `SIN_FILAS`; `review/hooks/useAportaciones.ts`, una sola mutación para las cuatro
+  correcciones, que invalida sin esperar la lista y el cierre de ese partido; y
+  `review/routes/MisAportacionesPage.tsx`. El formulario del minuto sale del panel a
+  `review/components/MinutoDelEvento.tsx` y lo usan los dos; `nombrador` pasa a `model/cierre.ts`.
+- **Decisiones pequeñas, que el traspaso no decía:** «Jugador» solo sale si el evento ya lleva
+  jugador, para no ponerle uno a un córner a favor; el que ya está puesto sale en la lista,
+  marcado «(ahora)» y sin poder elegirse; el borrado es una sola fila con `delete`, y al terminar
+  una línea dice qué se borró y recibe el foco; un rechazo de `validate_match_event` (P0001) se
+  enseña tal cual y deja el formulario abierto, y con `SIN_FILAS` se cierra. La lista sale de tres
+  consultas seguidas —partidos, eventos propios y convocatorias—, sin embeber `matches` en
+  `match_events`, que tiene dos relaciones con el mismo nombre.
+- **Pruebas:** 578 en verde, lint, formato y build limpios, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+  `review-*.js` pasa de 30,43 a 41,06 kB (de 9,65 a 12,29 comprimidos); el arranque no cambia.
+- **Deuda:** cambiar el jugador de un cambio o de una expulsión con el partido en juego no se
+  refleja en el directo, ni en el de los demás ni en el del propio aparato, hasta su siguiente
+  refresco (T-209b); no se puede cambiar el tipo de un evento, hay que borrarlo y apuntarlo otra
+  vez; en un partido cerrado no se corrige nada sin reabrirlo; y cambiar quien entra no vuelve a
+  pasar las reglas de reentrada ni de expulsado, que la base solo comprueba al insertar.
+- **Sin probar en un móvil ni contra la base de verdad.** Las políticas `match_events_update` y
+  `match_events_delete` se dan por buenas según el traspaso. Para Raúl, sobre el primer partido:
+  reabrirlo o usar uno sin cerrar, entrar en «Mis aportaciones» y cambiar una asistencia.
+
+---
+
 ## Sesión 04/10/2026, noche — T-209a: cobertura declarada: ✅ cerrada
 
 Sesión programada, rama `feat/match-cobertura-declarada`. **Sin base de datos y sin migración.**
@@ -512,6 +547,7 @@ Pendiente de hacer:
 71. **Lo apuntado mal no se corrige desde la aplicación**, salvo el minuto (T-210b). Cambiar el
     jugador o la asistencia, o borrar un evento propio, es la A14, «Mis aportaciones» (T-211), que
     ya tiene traspaso. Hasta entonces, por SQL y con el punto 64 delante.
+    **Cerrado en la T-211 para los partidos sin cerrar**: en uno cerrado, primero se reabre.
 
 72. **El ensayo de la T-301a pasa en local y no en Supabase.** Se montó con PGlite en la carpeta
     temporal de la sesión, sin tocar el repositorio: tres roles, un esquema `auth` mínimo, las ocho

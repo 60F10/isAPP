@@ -211,7 +211,9 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'mis-aportaciones',
-                    element: <PantallaPendiente id="A14" titulo="Mis aportaciones" tarea="T-211" />,
+                    lazy: async () => ({
+                      Component: (await import('@modules/review')).MisAportacionesPage,
+                    }),
                   },
                 ],
               },
