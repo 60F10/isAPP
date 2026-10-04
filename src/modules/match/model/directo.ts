@@ -21,6 +21,10 @@
 // real de la parte, pero el servidor no la conoce: otro dispositivo que
 // derive los segundos de `started_at` no la verá. Con reloj corrido, como el
 // cadete, solo se pausa por un parón largo (DOC 13).
+//
+// LAS PARTES SON DE TODOS LOS APARATOS (T-209c, D06-39). Se concilian por
+// número con las del servidor: el `id` y el arranque son del primero que llegó
+// a la base, y por eso una parte se termina por partido y número, no por `id`.
 
 import { calcularEnCampo, desdeFilas } from './eventos';
 import { conEventos, deshacer, registrar } from './registro';
@@ -35,7 +39,10 @@ import type { EntradaDeTrabajo } from '@modules/sync';
 export type Fase = 'inactivo' | 'en_juego' | 'pausado' | 'descanso' | 'finalizado';
 
 export interface ParteLocal {
-  /** El `id` de `match_periods`. Lo genera el dispositivo que la abre. */
+  /**
+   * El `id` de `match_periods`. Lo genera el dispositivo que la abre, y se
+   * cambia por el del servidor si otro la abrió antes (`conciliarPartes`).
+   */
   id: string;
   numero: number;
   /** Instante de arranque en milisegundos: el ancla del reloj (D06-15). */
@@ -287,7 +294,10 @@ export function reducir(estado: EstadoDirecto, accion: Accion): Resultado {
                 ended_at: new Date(accion.ahora).toISOString(),
                 actual_seconds: segundosReales,
               },
-              clave: { id: abierta.id },
+              // Por partido y número, no por `id` (D06-39): si otro aparato
+              // abrió antes esta parte, el `id` de este no está en la base
+              // hasta el siguiente refresco. El número va como texto.
+              clave: { match_id: estado.partidoId, period_number: String(abierta.numero) },
             },
           },
         ],
@@ -319,16 +329,6 @@ export function reducir(estado: EstadoDirecto, accion: Accion): Resultado {
   }
 }
 
-function avance(estado: EstadoDirecto): number {
-  if (estado.fase === 'finalizado') {
-    return Number.MAX_SAFE_INTEGER;
-  }
-
-  const cerradas = estado.partes.filter((parte) => parte.segundosReales !== null).length;
-
-  return estado.partes.length + cerradas;
-}
-
 /**
  * Lo que manda siempre el servidor (D06-36): la convocatoria y el reglamento.
  * No son del avance del partido, y pueden cambiar con el directo ya abierto
@@ -347,38 +347,132 @@ const DEL_SERVIDOR = [
   'diferido',
 ] as const satisfies readonly (keyof EstadoDirecto)[];
 
+function igual(una: unknown, otra: unknown): boolean {
+  return JSON.stringify(una) === JSON.stringify(otra);
+}
+
 /**
- * Qué estado manda al abrir el directo: el guardado en este aparato o el que
- * sale de lo precargado del servidor.
+ * Las partes de este aparato, conciliadas por número con las del servidor
+ * (T-209c, D06-39). Dos aparatos pueden abrir la misma parte, cada uno con su
+ * `id`; en la base solo cabe una por partido y número, la del primero que llegó.
  *
- * LA FASE, LAS PARTES Y LOS EVENTOS son del más avanzado —partes abiertas y
- * cerradas, y terminado por encima de todo—, y a igualdad del local, que
- * conoce la pausa. Así, si otro aparato cerró la parte, se ve cerrada; y lo
- * que este aparato hizo sin red no se deshace porque el servidor aún no lo sepa.
+ * - La misma parte en los dos: el `id` y el arranque son del servidor, y así
+ *   todos los relojes salen de la misma ancla. `pausadoMs` y `pausaDesde` son
+ *   locales: el servidor no conoce la pausa.
+ * - Cerrada en el servidor y abierta aquí: se cierra con los segundos del
+ *   servidor y se le quita la pausa.
+ * - Cerrada aquí, lo esté o no en el servidor: se queda con los segundos de
+ *   este aparato. Su cierre está en la cola, o ya llegó.
+ * - Solo en el servidor: se añade. Solo aquí: se queda, su alta está en la cola.
+ *
+ * Sin diferencias devuelve `local`, la misma lista.
+ */
+export function conciliarPartes(
+  local: ParteLocal[],
+  servidor: readonly ParteLocal[],
+): ParteLocal[] {
+  const delServidor = new Map(servidor.map((parte) => [parte.numero, parte]));
+  const numeros = new Set(local.map((parte) => parte.numero));
+
+  const conciliadas = local.map((parte): ParteLocal => {
+    const otra = delServidor.get(parte.numero);
+
+    if (otra === undefined) {
+      return parte;
+    }
+
+    const cerradaFuera = parte.segundosReales === null && otra.segundosReales !== null;
+
+    return {
+      ...parte,
+      id: otra.id,
+      inicio: otra.inicio,
+      pausaDesde: cerradaFuera ? null : parte.pausaDesde,
+      segundosReales: cerradaFuera ? otra.segundosReales : parte.segundosReales,
+    };
+  });
+
+  for (const parte of servidor) {
+    if (!numeros.has(parte.numero)) {
+      conciliadas.push(parte);
+    }
+  }
+
+  conciliadas.sort((a, b) => a.numero - b.numero);
+
+  return igual(conciliadas, local) ? local : conciliadas;
+}
+
+/**
+ * La fase que sale de las partes conciliadas: la regla de `desdePaquete`, con
+ * dos salvedades. Terminado en cualquiera de los dos, terminado. Y la pausa de
+ * este aparato se conserva mientras siga abierta la parte que pausó.
+ */
+function faseConciliada(
+  local: EstadoDirecto,
+  servidor: EstadoDirecto,
+  partes: readonly ParteLocal[],
+): Fase {
+  if (local.fase === 'finalizado' || servidor.fase === 'finalizado') {
+    return 'finalizado';
+  }
+
+  const ultima = partes[partes.length - 1];
+
+  if (ultima === undefined || servidor.diferido) {
+    return 'inactivo';
+  }
+
+  if (ultima.segundosReales !== null) {
+    return 'descanso';
+  }
+
+  return local.fase === 'pausado' && ultima.pausaDesde !== null ? 'pausado' : 'en_juego';
+}
+
+/**
+ * Qué estado manda al abrir el directo y en cada refresco: el guardado en
+ * este aparato, puesto al día con lo que sale del paquete del servidor.
+ *
+ * LAS PARTES se concilian por número (`conciliarPartes`, D06-39), y LA FASE
+ * se deriva de ellas. Así, si otro aparato abrió, cerró o terminó, se ve sin
+ * recargar; y lo que este aparato hizo sin red no se deshace porque el
+ * servidor aún no lo sepa.
+ *
+ * LOS EVENTOS son siempre los de este aparato. Unirlos con los del servidor
+ * y quitar los borrados es de `fusionar`, que mira la cola. Con estado local,
+ * nunca se devuelve `servidor` entero: se llevaría lo que está sin enviar.
  *
  * LA CONVOCATORIA Y EL REGLAMENTO son siempre del servidor (D06-36, T-217),
  * y el campo se recalcula con sus titulares. Sin red, `servidor` sale del
- * último paquete descargado, que es lo mejor que se sabe. Si no cambia nada,
- * devuelve el estado elegido tal cual.
+ * último paquete descargado, que es lo mejor que se sabe.
+ *
+ * Si no cambia nada, devuelve `local` tal cual: no provoca un repintado.
  */
 export function elegirEstado(
   local: EstadoDirecto | undefined,
   servidor: EstadoDirecto,
 ): EstadoDirecto {
-  if (local === undefined || avance(servidor) > avance(local)) {
+  if (local === undefined) {
     return servidor;
   }
 
-  const alDia = DEL_SERVIDOR.every(
-    (campo) => JSON.stringify(local[campo]) === JSON.stringify(servidor[campo]),
-  );
+  const partes = conciliarPartes(local.partes, servidor.partes);
+  const fase = faseConciliada(local, servidor, partes);
+  const alDia = DEL_SERVIDOR.every((campo) => igual(local[campo], servidor[campo]));
+
+  if (alDia && partes === local.partes && fase === local.fase) {
+    return local;
+  }
 
   if (alDia) {
-    return local;
+    return { ...local, fase, partes };
   }
 
   return {
     ...local,
+    fase,
+    partes,
     titulares: servidor.titulares,
     convocados: servidor.convocados,
     posicionesIniciales: servidor.posicionesIniciales,
