@@ -563,10 +563,12 @@ Pendiente de hacer:
     **Tras la T-209a sigue igual:** el primer partido no tiene cobertura hasta que alguien se la
     ponga a mano.
 
-67. **Los traspasos guiados viven en el proyecto de Claude, no en el repositorio**:
-    `claude/traspaso_T-xxx.md`. Cada sesión que ejecuta uno añade su cierre aquí arriba, corto, y
-    la siguiente sesión de revisión los junta. Si el método se queda, pide su sitio en el DOC 00
-    §5.
+67. **Los traspasos guiados van en `docs/traspasos/`** desde la tarde del 04/10, y el proyecto de
+    Claude guarda una copia como `claude/traspaso_T-xxx.md`. Los de la T-212 a la T-220, la
+    T-210b, la T-209a, la T-211, la T-303 y las tres T-301 siguen solo en el proyecto. Las
+    sesiones programadas corren en la nube, clonan el repositorio y leen el traspaso de ahí:
+    así no dependen de tener el proyecto a mano. Cada sesión añade su cierre aquí arriba, corto,
+    y la siguiente sesión de revisión los junta. Falta darle su sitio en el DOC 00 §5.
 
 68. **El nombre real de los jugadores se podía pedir por la API.** `authenticated` tiene permiso
     de lectura sobre toda la tabla `players`, y la política deja leer la fila a quien sigue al
