@@ -9,6 +9,6 @@ export { EditarPartidoPage, NuevoPartidoPage } from './routes/PartidoPage';
 export { marcarComoConvocado } from './api/partidos';
 export { agendaKeys } from './api/queryKeys';
 export { usePartido } from './hooks/usePartidos';
-export { enfrentamiento, NOMBRES_DE_ESTADO } from './model/partido';
+export { enfrentamiento, NOMBRES_DE_ESTADO, tieneDirecto } from './model/partido';
 
 export type { EstadoDePartido, Partido } from './model/partido';

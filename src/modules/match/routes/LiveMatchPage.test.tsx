@@ -5,7 +5,7 @@
 // `@modules/sync`.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -588,6 +588,48 @@ describe('A12 · Directo, esqueleto', () => {
 
         expect(flujo.queryByText('Guardando…')).toBeNull();
       });
+
+      it('tras fallar el guardado, el foco vuelve a la pregunta del flujo', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        api.aplicarTransicion.mockRejectedValue(new Error('QuotaExceededError'));
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+        await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+        await within(screen.getByRole('region', { name: 'Córner' })).findByText(
+          ERROR_DE_DISPOSITIVO,
+        );
+
+        expect(screen.getByRole('heading', { level: 2, name: /^Córner:/ })).toHaveFocus();
+      });
+
+      it('a los 4 s con el guardado a medias, el aviso pasa a «Sigue guardando…»', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+
+        try {
+          api.cargarDirecto.mockResolvedValue(enJuego());
+          guardadoAMedias();
+          montar();
+
+          await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+          await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+          const flujo = within(screen.getByRole('region', { name: 'Córner' }));
+
+          expect(await flujo.findByText('Guardando…')).toBeInTheDocument();
+
+          act(() => {
+            vi.advanceTimersByTime(4_000);
+          });
+
+          expect(
+            await flujo.findByText('Sigue guardando en este dispositivo. No cierres la pantalla.'),
+          ).toBeInTheDocument();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
     });
 
     it('la ficha de un jugador se abre con el foco en su título', async () => {
@@ -681,6 +723,45 @@ describe('A12 · Directo, esqueleto', () => {
             .getAllByRole('listitem')
             .map((miga) => miga.textContent),
         ).toEqual(["2.ª parte · 55'", 'Nuestro', '7 · Juanito']);
+      });
+
+      it('el selector de la parte dice «1.ª parte» y «2.ª parte»', async () => {
+        api.cargarDirecto.mockResolvedValue(enDiferido());
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+
+        expect(
+          within(screen.getByLabelText('Parte'))
+            .getAllByRole('option')
+            .map((opcion) => opcion.textContent),
+        ).toEqual(['1.ª parte', '2.ª parte']);
+      });
+
+      it('«Sin asistencia» va antes que el primer jugador y guarda el gol sin asistente', async () => {
+        api.cargarDirecto.mockResolvedValue(enDiferido());
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Gol' }));
+        await responderMinuto('1', '10');
+        await userEvent.click(screen.getByRole('button', { name: 'Nuestro' }));
+        await userEvent.click(screen.getByRole('button', { name: '7 · Juanito' }));
+
+        const saltar = screen.getByRole('button', { name: 'Sin asistencia' });
+        const primero = screen.getAllByRole('button', { name: /^\d+ · / })[0];
+
+        expect(primero).toBeDefined();
+        expect(
+          saltar.compareDocumentPosition(primero as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+
+        await userEvent.click(saltar);
+
+        expect(ultimaTransicion().trabajos.at(-1)?.payload.valores).toMatchObject({
+          event_type: 'goal',
+          player_id: 'p7',
+          secondary_player_id: null,
+        });
       });
 
       it('la ayuda y el error del minuto dicen el rango de la parte elegida', async () => {

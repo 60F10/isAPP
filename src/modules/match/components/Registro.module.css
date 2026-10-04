@@ -137,6 +137,31 @@
   touch-action: manipulation;
 }
 
+/* Desactivados se distinguen sin depender solo del color (1.4.1): borde
+   discontinuo y texto secundario, con los tokens de `Button`. */
+.opcion:disabled,
+.jugador:disabled,
+.saltar:disabled {
+  background-color: var(--color-disabled-bg);
+  border-color: var(--color-disabled-border);
+  border-style: dashed;
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+/* «Sin asistencia», «Sin motivo»: encima de la lista, a todo el ancho, sin
+   dorsal y con el texto centrado para que no se confunda con un jugador. */
+.saltar {
+  inline-size: 100%;
+  min-block-size: var(--tap-event);
+  border: 2px solid var(--color-text);
+  text-align: center;
+}
+
+.saltar:disabled {
+  border: 2px dashed var(--color-disabled-border);
+}
+
 /* El dorsal, grande: es lo que se busca con la vista en el campo. */
 .dorsal {
   font-size: var(--font-size-400);

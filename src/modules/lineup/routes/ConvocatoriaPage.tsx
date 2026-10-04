@@ -22,8 +22,8 @@
 import { useId, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { enfrentamiento, NOMBRES_DE_ESTADO, usePartido } from '@modules/agenda';
-import { useAuth } from '@modules/auth';
+import { enfrentamiento, NOMBRES_DE_ESTADO, tieneDirecto, usePartido } from '@modules/agenda';
+import { useAuth, useHasPermission } from '@modules/auth';
 import { DISPONIBILIDADES, POSICIONES, usePlantilla } from '@modules/core';
 import { useCompeticion } from '@modules/rules';
 import { useAnnounce } from '@shared/hooks/announceContext';
@@ -356,6 +356,8 @@ export function ConvocatoriaPage({ aviso, alGuardar }: ConvocatoriaPageProps = {
   const { id: partidoId = '' } = useParams();
   const { teams, activeSeasonId } = useAuth();
   const partido = usePartido(partidoId);
+  // `undefined` mientras no se saben los permisos: el enlace no sale hasta saberlo.
+  const anota = useHasPermission('match.live.write') === true;
   const datos = partido.data ?? null;
   const competicion = useCompeticion(datos === null ? '' : datos.competitionId);
   const plantilla = usePlantilla(
@@ -465,6 +467,14 @@ export function ConvocatoriaPage({ aviso, alGuardar }: ConvocatoriaPageProps = {
         <Link className={styles.volver} to="/calendario">
           Volver al calendario
         </Link>
+        {anota && datos !== null && tieneDirecto(datos.status) ? (
+          <>
+            {' · '}
+            <Link className={styles.volver} to={`/partidos/${partidoId}/directo`}>
+              {datos.isRetroactive ? 'Ir a apuntar' : 'Ir al directo'}
+            </Link>
+          </>
+        ) : null}
       </p>
       {aviso}
       {contenido()}

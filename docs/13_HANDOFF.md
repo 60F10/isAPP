@@ -5,6 +5,20 @@
 
 ---
 
+## Sesión 04/10/2026, tarde — T-220: flecos del flujo y enlace al directo desde la convocatoria: ✅ cerrada
+
+Sesión programada, rama `fix/match-flecos-del-flujo`. **Sin base de datos.**
+
+- **Hecho:** los seis arreglos del traspaso. `Registro.module.css` da a `.opcion`, `.jugador` y `.saltar`
+  un estado desactivado con borde discontinuo y `--color-text-secondary`; `FlujoDeRegistro` devuelve el
+  foco a la pregunta cuando `ocupado` pasa a `false`, dice «1.ª parte» y pinta «Sin asistencia» y
+  «Sin motivo» encima de la lista (también sin candidatos). La A11 enlaza el directo con
+  `tieneDirecto` (ahora exportada por `agenda`) y `match.live.write`.
+- **Decisión pequeña:** no hay token de borde fuerte; `.saltar` usa `--color-text` en el borde.
+- **Pruebas:** 495 en verde, lint, formato y build limpios. Sin probar en un móvil.
+
+---
+
 ## Sesión 04/10/2026, tarde — T-219: la banda lista lo rechazado y deja descartarlo: ✅ cerrada
 
 Sesión programada, rama `feat/sync-descartar-rechazados`. **Sin base de datos.**
@@ -365,6 +379,7 @@ Pendiente de hacer:
 59. **La A11 no enlaza al directo** (T-212). Al guardar la convocatoria se vuelve al calendario, y
     de ahí se entra. Con el partido empezado, la convocatoria en solo lectura tampoco lo enlaza. Va
     en la T-220.
+    **Cerrado en la T-220**: «Ir al directo» / «Ir a apuntar», también en solo lectura.
 
 60. **Flecos del flujo de registro** (T-215 y T-218), todos sin ver en un móvil: los botones
     desactivados mientras guarda no tienen estilo propio en `Registro.module.css`; si el guardado
@@ -372,6 +387,8 @@ Pendiente de hacer:
     respondido no se han visto a 320 px con cuatro seguidas; el selector dice «2ª parte» y el
     resumen y el error «2.ª parte»; y en la ficha de jugador en diferido el resumen sale vacío en
     el paso del minuto. Va en la T-220, menos lo de ver en un móvil, que es de la T-302.
+    **La T-220 cierra** los estilos desactivados, el foco, «1.ª parte» y la prueba de los 4 s.
+    **Sigue abierto:** ver las pastillas a 320 px y el resumen vacío de la ficha en diferido.
 
 61. **En diferido, apuntar un evento anterior no revisa los posteriores** (T-217). Un cambio
     apuntado en el 20 no invalida un gol del 30 de quien salió, y una amarilla anterior a otra ya
@@ -424,6 +441,7 @@ Pendiente de hacer:
     La noche del primer partido era además el último paso del flujo, el que daba el error falso de
     la T-215: Raúl acabó eligiendo a un jugador para poder guardar. La T-220 lo sube encima de la
     lista, y lo mismo con «Sin motivo».
+    **Cerrado en la T-220.**
 
 71. **Lo apuntado mal no se corrige desde la aplicación**, salvo el minuto (T-210b). Cambiar el
     jugador o la asistencia, o borrar un evento propio, es la A14, «Mis aportaciones» (T-211), que
