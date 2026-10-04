@@ -9,12 +9,14 @@ import {
   expulsados,
   hastaElInstante,
   incorporados,
+  leerVentanas,
   marcador,
+  parejasRepetidas,
+  posiblesRepetidos,
   sustituidos,
-  unirEventos,
 } from './eventos';
 
-import type { EventoDelDirecto } from './eventos';
+import type { EventoDelDirecto, Ventanas } from './eventos';
 
 function evento(cambios: Partial<EventoDelDirecto> & { clientEventId: string }): EventoDelDirecto {
   return {
@@ -57,21 +59,6 @@ describe('desdeFilas', () => {
         detalles: { origen: 'penalti' },
         estado: 'pending',
       }),
-    ]);
-  });
-});
-
-describe('unirEventos', () => {
-  it('junta los del aparato y los del servidor sin repetir, y el estado lo pone el servidor', () => {
-    const local = evento({ clientEventId: 'a', estado: 'pending', propio: true });
-    const soloLocal = evento({ clientEventId: 'b', propio: true });
-    const delServidor = evento({ clientEventId: 'a', estado: 'approved' });
-    const ajeno = evento({ clientEventId: 'c' });
-
-    expect(unirEventos([local, soloLocal], [delServidor, ajeno])).toEqual([
-      { ...delServidor, propio: true },
-      soloLocal,
-      ajeno,
     ]);
   });
 });
@@ -221,5 +208,128 @@ describe('incorporados', () => {
         evento({ clientEventId: 'c', tipo: 'goal', jugador: 'p1', segundo: 'p10' }),
       ]),
     ).toEqual(new Set(['p8']));
+  });
+});
+
+// T-209b: el aviso de posible repetido del directo (DOC 04 §9.2).
+describe('posiblesRepetidos', () => {
+  const VENTANAS: Ventanas = { default: 30, by_type: { goal: 30, corner: 10 } };
+
+  it('dos goles propios seguidos no son repetidos: los apuntó el mismo aparato', () => {
+    const eventos = [
+      evento({ clientEventId: 'a', segundos: 100, propio: true }),
+      evento({ clientEventId: 'b', segundos: 110, propio: true }),
+    ];
+
+    expect(posiblesRepetidos(eventos, VENTANAS)).toEqual(new Set());
+  });
+
+  it('uno propio y uno de otro aparato a 20 s, sí; a 40 s, no', () => {
+    const propio = evento({ clientEventId: 'a', segundos: 100, propio: true });
+
+    expect(
+      posiblesRepetidos([propio, evento({ clientEventId: 'b', segundos: 120 })], VENTANAS),
+    ).toEqual(new Set(['a', 'b']));
+    expect(
+      posiblesRepetidos([propio, evento({ clientEventId: 'b', segundos: 140 })], VENTANAS),
+    ).toEqual(new Set());
+  });
+
+  it('dos de otros aparatos también: no se sabe si son del mismo', () => {
+    const eventos = [
+      evento({ clientEventId: 'a', segundos: 100 }),
+      evento({ clientEventId: 'b', segundos: 95 }),
+    ];
+
+    expect(posiblesRepetidos(eventos, VENTANAS)).toEqual(new Set(['a', 'b']));
+  });
+
+  it('un córner a 20 s no lo es: su ventana es más corta', () => {
+    const eventos = [
+      evento({ clientEventId: 'a', tipo: 'corner', segundos: 100, propio: true }),
+      evento({ clientEventId: 'b', tipo: 'corner', segundos: 120 }),
+    ];
+
+    expect(posiblesRepetidos(eventos, VENTANAS)).toEqual(new Set());
+  });
+
+  it('el borde de la ventana cuenta, como en la base', () => {
+    const eventos = [
+      evento({ clientEventId: 'a', segundos: 100, propio: true }),
+      evento({ clientEventId: 'b', segundos: 130 }),
+    ];
+
+    expect(posiblesRepetidos(eventos, VENTANAS)).toEqual(new Set(['a', 'b']));
+  });
+
+  it('un rechazado no cuenta', () => {
+    const eventos = [
+      evento({ clientEventId: 'a', segundos: 100, propio: true }),
+      evento({ clientEventId: 'b', segundos: 105, estado: 'rejected' }),
+    ];
+
+    expect(posiblesRepetidos(eventos, VENTANAS)).toEqual(new Set());
+  });
+
+  it('distinto tipo, distinto bando o distinta parte, tampoco', () => {
+    const propio = evento({ clientEventId: 'a', segundos: 100, propio: true });
+
+    for (const otro of [
+      evento({ clientEventId: 'b', segundos: 105, tipo: 'own_goal' }),
+      evento({ clientEventId: 'b', segundos: 105, rival: true }),
+      evento({ clientEventId: 'b', segundos: 105, periodo: 2 }),
+    ]) {
+      expect(posiblesRepetidos([propio, otro], VENTANAS)).toEqual(new Set());
+    }
+  });
+
+  it('sin segundos no se comparan', () => {
+    const eventos = [
+      evento({ clientEventId: 'a', segundos: null, propio: true }),
+      evento({ clientEventId: 'b', segundos: null }),
+    ];
+
+    expect(posiblesRepetidos(eventos, VENTANAS)).toEqual(new Set());
+  });
+
+  it('sin ventanas en el paquete, 30 s para todo', () => {
+    const eventos = [
+      evento({ clientEventId: 'a', tipo: 'corner', segundos: 100, propio: true }),
+      evento({ clientEventId: 'b', tipo: 'corner', segundos: 120 }),
+    ];
+
+    expect(posiblesRepetidos(eventos, undefined)).toEqual(new Set(['a', 'b']));
+  });
+
+  it('las parejas salen una vez cada una, con el más antiguo de la lista delante', () => {
+    const eventos = [
+      evento({ clientEventId: 'a', segundos: 100, propio: true }),
+      evento({ clientEventId: 'b', segundos: 110 }),
+      evento({ clientEventId: 'c', segundos: 120 }),
+    ];
+
+    expect(parejasRepetidas(eventos, VENTANAS)).toEqual([
+      ['a', 'b'],
+      ['a', 'c'],
+      ['b', 'c'],
+    ]);
+  });
+});
+
+describe('leerVentanas', () => {
+  it('lee el valor de `app_settings` y se queda solo con los números', () => {
+    expect(
+      leerVentanas({ default: 30, by_type: { goal: 30, corner: 10, raro: 'diez', cero: -1 } }),
+    ).toEqual({ default: 30, by_type: { goal: 30, corner: 10 } });
+  });
+
+  it('con la forma de antes, o sin fila, no hay ventanas: valen los 30 s', () => {
+    expect(leerVentanas({ seconds: 30 })).toBeUndefined();
+    expect(leerVentanas(null)).toBeUndefined();
+    expect(leerVentanas('30')).toBeUndefined();
+  });
+
+  it('sin `by_type`, solo la de por defecto', () => {
+    expect(leerVentanas({ default: 20 })).toEqual({ default: 20, by_type: {} });
   });
 });

@@ -128,6 +128,65 @@ export async function contarDelPartido(matchId: string): Promise<ColaDelPartido>
   };
 }
 
+/** Lo que la cola de este aparato tiene de camino de los eventos de un partido. */
+export interface PendientesDelPartido {
+  /** Los `client_event_id` de los eventos apuntados aquí que el servidor puede no tener. */
+  altas: Set<string>;
+  /** Los de los eventos deshechos aquí que el servidor puede tener todavía. */
+  bajas: Set<string>;
+}
+
+/**
+ * Qué eventos de un partido tiene este aparato de camino (T-209b, D06-38). Lo
+ * mira el directo al fundir lo que descarga con lo que tiene en pantalla:
+ * sin esto, un refresco borraría lo que aún no ha llegado y resucitaría lo
+ * que se acaba de deshacer.
+ *
+ * Cuenta lo que no está enviado —pendiente, enviándose o rechazado, que
+ * sigue en la banda— y lo enviado desde `desde`, que es cuando se pidió la
+ * descarga: algo confirmado después puede no venir en ella. De cualquier
+ * cuenta del aparato, como `contarDelPartido`.
+ *
+ * ES LA ÚNICA VEZ QUE `sync` MIRA DENTRO DE UNA `clave`, y solo el campo
+ * `client_event_id` de los borrados de `match_event`: una inserción lleva su
+ * identificador aparte, en `clientEventId`, pero un borrado solo lo lleva
+ * ahí. La cola sigue sin saber qué es un gol (DOC 06 §4.2).
+ */
+export async function pendientesDelPartido(
+  matchId: string,
+  desde: number,
+): Promise<PendientesDelPartido> {
+  const trabajos = await db.outbox.where('matchId').equals(matchId).toArray();
+  const pendientes: PendientesDelPartido = { altas: new Set(), bajas: new Set() };
+
+  for (const trabajo of trabajos) {
+    if (trabajo.entity !== 'match_event') {
+      continue;
+    }
+
+    // Enviado sin hora no debería existir; si existe, se cuenta: es mejor
+    // conservar un evento de más un refresco que quitar uno que está.
+    const deCamino =
+      trabajo.status !== 'sent' || trabajo.sentAt === null || trabajo.sentAt >= desde;
+
+    if (!deCamino) {
+      continue;
+    }
+
+    if (trabajo.op === 'insert' && trabajo.clientEventId !== null) {
+      pendientes.altas.add(trabajo.clientEventId);
+    } else if (trabajo.op === 'delete') {
+      const borrado = trabajo.payload.clave?.client_event_id;
+
+      if (typeof borrado === 'string') {
+        pendientes.bajas.add(borrado);
+      }
+    }
+  }
+
+  return pendientes;
+}
+
 /**
  * Borra lo enviado de un partido. Lo llama el cierre (T-210a): «se purga al
  * cerrar el partido o a las 48 horas, lo que llegue antes». Lo rechazado se

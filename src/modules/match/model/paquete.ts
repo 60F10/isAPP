@@ -7,6 +7,7 @@
 
 import type { CoberturaLocal } from './cobertura';
 import type { EstadoDirecto } from './directo';
+import type { Ventanas } from './eventos';
 import type { LineaGuardada } from '@modules/lineup';
 import type { Reglamento } from '@modules/rules';
 
@@ -43,12 +44,23 @@ export interface PaqueteDePartido {
   partes: ParteDelPartido[];
   /** Las filas de `match_events` tal como llegan. Las lee el directo (T-207). */
   eventos: Record<string, unknown>[];
+  /**
+   * Las ventanas de posible repetido de `app_settings` (T-209b). Opcional: una
+   * precarga de antes no las trae, y sin ellas valen 30 s.
+   */
+  ventanas?: Ventanas;
 }
 
 /** Lo que se guarda en `matchSnapshots.datos`. */
 export interface Instantanea {
   paquete: PaqueteDePartido;
   descargadoEn: number;
+  /**
+   * Cuándo se pidió la descarga (T-209b). Lo que la cola confirmó desde
+   * entonces puede no venir en el paquete: es desde cuándo hay que mirarla al
+   * fundir. Una precarga de antes no lo trae, y vale `descargadoEn`.
+   */
+  pedidoEn?: number;
   /** El estado del reductor del directo en este aparato (T-207). */
   estado?: EstadoDirecto;
   /**

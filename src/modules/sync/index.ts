@@ -8,9 +8,14 @@
 
 export { BandaDeSincronizacion } from './components/BandaDeSincronizacion';
 
-export { contarDelPartido, contarPendientes, purgarPartido } from './api/almacen';
+export {
+  contarDelPartido,
+  contarPendientes,
+  pendientesDelPartido,
+  purgarPartido,
+} from './api/almacen';
 export { arrancarSincronizacion, sincronizarAhora } from './api/arranque';
 export { encolar, encolarJunto } from './api/encolar';
 
-export type { ColaDelPartido } from './api/almacen';
+export type { ColaDelPartido, PendientesDelPartido } from './api/almacen';
 export type { EntradaDeTrabajo, EstadoDeCola } from './model/cola';

@@ -5,6 +5,52 @@
 
 ---
 
+## Sesión 04/10/2026, noche — T-209b: lo que apuntan los demás, en el momento: ✅ cerrada
+
+Sesión programada, rama `feat/match-tiempo-real`. **Sin base de datos y sin migración.** La T-221
+no estaba hecha ni tenía PR abierta: esta no depende de su código, pero las dos tocan
+`LiveMatchPage.tsx` y a la T-221 le tocará rebasar.
+
+- **Hecho:** el directo vuelve a descargar el partido solo y lo funde con lo del aparato
+  (D06-38). Lo de otros dice «De otro aparato»; lo que parece apuntado dos veces, «Posible
+  repetido», y se anuncia una vez por pareja, sin bloquear ni preguntar. Lo deshecho aquí ya no
+  vuelve al recargar con el borrado en la cola.
+- **Cuándo refresca:** 1 s después del último aviso de Realtime, cada 20 s por seguridad —60 s
+  desde que llega un aviso de verdad—, y al volver a la pantalla o a tener red. Con la pantalla
+  oculta o sin red, no. **Hoy solo trabaja la red de seguridad** (punto 77).
+- **Dónde vive:** `sync/api/almacen.ts` (`pendientesDelPartido`), `match/model/directo.ts`
+  (`fusionar`), `match/model/eventos.ts` (`parejasRepetidas`, `posiblesRepetidos`,
+  `leerVentanas`), `match/api/tiempoReal.ts`, `match/api/directo.ts` (`refrescarDirecto`) y
+  `match/hooks/useRefresco.ts`. El paquete trae `ventanas`, y la instantánea, `pedidoEn`.
+- **Un refresco no se come un toque:** no coge el cerrojo de guardar. Lee la cola sin guardado en
+  marcha, la da por buena solo si el contador de guardados no se ha movido, y cambia el estado en
+  ese turno; si no, medio segundo y otra vez, hasta cinco. Probado con mutaciones: quitar
+  cualquiera de las tres guardas tumba una prueba.
+- **Cuatro cosas que el traspaso no decía**, y que se han decidido aquí:
+  1. El contador se apunta justo antes de cada lectura de la cola, no una vez en el paso 1: con
+     el del paso 1, un toque durante la descarga dejaba el refresco sin hacer hasta el siguiente.
+  2. **Sin cobertura, `cargarDirecto` no quita nada de lo del aparato**: el paquete es el de la
+     última vez y la cola puede haber purgado lo enviado. Lo deshecho sí se respeta.
+  3. Un refresco que no contesta en 15 s caduca, para que una petición colgada no pare los
+     demás.
+  4. El borde de la ventana de repetidos cuenta (`<=`), como en `flag_duplicate_candidates`.
+- **Verificado:** lint, formato, **661 pruebas en 54 archivos** y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. **Paquete inicial: 175,42 kB comprimidos, igual que en `main`**;
+  `match-*.js`, 20,29 kB, y `sync-*.js`, 35,16 kB.
+- **Sin probar con dos móviles en un campo**, ni contra la base de verdad, ni con Realtime
+  publicado.
+- **Deuda:** cada refresco son cinco consultas, y con cuatro anotadores cada 20 s habrá que
+  medirlo; además escribe el paquete en IndexedDB, y un toque que coincida espera a esa
+  transacción, que son milisegundos pero está sin medir en un móvil lento; «De otro aparato» no
+  dice quién, y lo dice también de lo propio cuando el aparato ya no guarda su estado (otro móvil
+  de la misma persona, o un partido olvidado y vuelto a abrir); el aviso de repetido usa los
+  segundos de cada aparato, que dependen de su reloj hasta la T-209c; si un toque cae en los
+  milisegundos entre que el refresco cambia el estado y la pantalla se repinta, lo fundido se
+  pisa y vuelve con el siguiente refresco, sin perder el toque; y un gol ajeno sin aprobar mueve
+  la botonera una línea al aparecer «Incluye 1 gol sin aprobar».
+
+---
+
 ## Sesión 04/10/2026, tarde — revisión de las T-219 a T-303 y tanda siguiente: ✅ cerrada
 
 Sesión de Cowork con Raúl al otro lado. Rama `docs/docs-revision-de-la-tarde`. **Sin código de
@@ -624,6 +670,7 @@ Pendiente de hacer:
     seguridad va cada 20 s hasta que llega el primer aviso de verdad, y a partir de ahí cada 60.
     Aplicar `supabase/pendientes/realtime_del_directo.sql` es una línea y pide la confirmación
     de Raúl.
+    **Desde la T-209b el código está en `main`**: falta solo aplicar el SQL (DOC 05 §14.9).
 
 78. **Entrar al directo a mirar deja una cobertura de duración cero**, y volver tras cerrar la
     aplicación a medias da por cubierto el hueco entero. La fórmula de fiabilidad tendrá que

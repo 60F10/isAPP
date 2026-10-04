@@ -131,6 +131,7 @@ beforeEach(() => {
       error: null,
     },
     match_events: { data: [{ client_event_id: 'ce-1', period: 1 }], error: null },
+    app_settings: { data: null, error: null },
   };
   almacen.anterior = undefined;
   almacen.snapshots = [];
@@ -201,6 +202,27 @@ describe('descargarPaquete', () => {
 
     await expect(descargarPaquete('par-1')).rejects.toBe(fallo);
   });
+
+  it('trae las ventanas de posible repetido de `app_settings` (T-209b)', async () => {
+    red.respuestas.app_settings = {
+      data: { value: { default: 30, by_type: { goal: 30, corner: 10 } } },
+      error: null,
+    };
+
+    const paquete = await descargarPaquete('par-1');
+
+    expect(paquete.ventanas).toEqual({ default: 30, by_type: { goal: 30, corner: 10 } });
+    expect(red.selects.app_settings).toBe('value');
+  });
+
+  it('sin ventanas legibles el paquete sale igual, sin ellas: valen los 30 s', async () => {
+    red.respuestas.app_settings = { data: null, error: { code: '42501', message: 'rls' } };
+
+    const paquete = await descargarPaquete('par-1');
+
+    expect(paquete).not.toHaveProperty('ventanas');
+    expect(paquete.partido.id).toBe('par-1');
+  });
 });
 
 describe('guardarPaquete', () => {
@@ -221,6 +243,18 @@ describe('guardarPaquete', () => {
         period: 1,
         fila: { client_event_id: 'ce-1', period: 1 },
       },
+    ]);
+  });
+});
+
+describe('guardarPaquete con la hora de la petición', () => {
+  it('apunta cuándo se pidió, que es desde cuándo hay que mirar la cola (T-209b)', async () => {
+    const paquete: PaqueteDePartido = await descargarPaquete('par-1');
+
+    await guardarPaquete(paquete, 500, 420);
+
+    expect(almacen.snapshots).toEqual([
+      { matchId: 'par-1', updatedAt: 500, datos: { paquete, descargadoEn: 500, pedidoEn: 420 } },
     ]);
   });
 });

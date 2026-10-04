@@ -7,13 +7,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '@shared/lib/db';
 
 import { desdePaquete } from '../model/directo';
-import { aplicarTransicion, cargarDirecto, SIN_PRECARGA } from './directo';
+import { aplicarTransicion, cargarDirecto, refrescarDirecto, SIN_PRECARGA } from './directo';
 
 import type { EstadoDirecto } from '../model/directo';
 import type { Instantanea, PaqueteDePartido } from '../model/paquete';
 
-const precarga = vi.hoisted(() => ({ precargarPartido: vi.fn(), leerInstantanea: vi.fn() }));
-const sync = vi.hoisted(() => ({ encolarJunto: vi.fn() }));
+const precarga = vi.hoisted(() => ({
+  precargarPartido: vi.fn(),
+  leerInstantanea: vi.fn(),
+  descargarPaquete: vi.fn(),
+  guardarPaquete: vi.fn(),
+}));
+const sync = vi.hoisted(() => ({ encolarJunto: vi.fn(), pendientesDelPartido: vi.fn() }));
 const almacen = vi.hoisted(() => ({ guardada: undefined as unknown, puestas: [] as unknown[] }));
 
 vi.mock('./precarga', () => precarga);
@@ -66,7 +71,12 @@ const PAQUETE: PaqueteDePartido = {
 beforeEach(() => {
   precarga.precargarPartido.mockReset();
   precarga.leerInstantanea.mockReset();
+  precarga.descargarPaquete.mockReset();
+  precarga.guardarPaquete.mockReset();
+  precarga.guardarPaquete.mockResolvedValue(undefined);
   sync.encolarJunto.mockReset();
+  sync.pendientesDelPartido.mockReset();
+  sync.pendientesDelPartido.mockResolvedValue({ altas: new Set(), bajas: new Set() });
   almacen.guardada = undefined;
   almacen.puestas = [];
 });
@@ -143,6 +153,138 @@ describe('cargarDirecto', () => {
 
     expect(estado.fase).toBe('pausado');
     expect(estado.eventos.map((e) => e.clientEventId)).toEqual(['ajeno']);
+  });
+});
+
+// T-209b: al abrir se funde con la misma lectura de la cola que en un refresco.
+describe('cargarDirecto con la cola', () => {
+  const GOL = {
+    client_event_id: 'gol-1',
+    event_type: 'goal',
+    period: 1,
+    seconds: 5,
+    is_opponent: true,
+    player_id: null,
+    status: 'approved',
+  };
+
+  it('deshacer un evento enviado y volver a cargar con el borrado en la cola: no vuelve', async () => {
+    // El servidor todavía lo tiene; este aparato lo deshizo y su estado ya no.
+    const local: EstadoDirecto = { ...desdePaquete(PAQUETE), fase: 'pausado' };
+    precarga.precargarPartido.mockResolvedValue({});
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: { ...PAQUETE, eventos: [GOL] },
+      descargadoEn: 5,
+      estado: local,
+    });
+    sync.pendientesDelPartido.mockResolvedValue({ altas: new Set(), bajas: new Set(['gol-1']) });
+
+    const { estado } = await cargarDirecto('par-1');
+
+    expect(estado.eventos).toEqual([]);
+    expect(estado.fase).toBe('pausado');
+  });
+
+  it('lo apuntado aquí que el paquete no trae se queda si sigue en la cola, y si no, se quita', async () => {
+    const [evento] = desdePaquete({ ...PAQUETE, eventos: [GOL] }).eventos;
+    const local: EstadoDirecto = {
+      ...desdePaquete(PAQUETE),
+      eventos: [
+        { ...evento, clientEventId: 'sin-enviar', propio: true },
+        { ...evento, clientEventId: 'borrado-fuera', propio: true },
+      ],
+    };
+    precarga.precargarPartido.mockResolvedValue({});
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: PAQUETE,
+      descargadoEn: 5,
+      estado: local,
+    });
+    sync.pendientesDelPartido.mockResolvedValue({
+      altas: new Set(['sin-enviar']),
+      bajas: new Set(),
+    });
+
+    const { estado } = await cargarDirecto('par-1');
+
+    expect(estado.eventos.map((e) => e.clientEventId)).toEqual(['sin-enviar']);
+  });
+
+  it('mira la cola desde que se pidió el paquete que acaba de descargar', async () => {
+    precarga.precargarPartido.mockResolvedValue({});
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: PAQUETE,
+      descargadoEn: 90,
+      pedidoEn: 70,
+    });
+
+    await cargarDirecto('par-1');
+
+    expect(sync.pendientesDelPartido).toHaveBeenCalledWith('par-1', 70);
+  });
+
+  it('con una precarga de antes de la T-209b, desde que se descargó', async () => {
+    precarga.precargarPartido.mockRejectedValue(new TypeError('Failed to fetch'));
+    precarga.leerInstantanea.mockResolvedValue({ paquete: PAQUETE, descargadoEn: 90 });
+
+    await cargarDirecto('par-1');
+
+    expect(sync.pendientesDelPartido).toHaveBeenCalledWith('par-1', 90);
+  });
+
+  it('sin cobertura no quita nada de lo del aparato, aunque ya no esté en la cola', async () => {
+    // El paquete es el de la última vez: lo enviado desde entonces no está en
+    // él, y la cola puede haberlo purgado. Nadie ha dicho que se borrara.
+    const [evento] = desdePaquete({ ...PAQUETE, eventos: [GOL] }).eventos;
+    const local: EstadoDirecto = {
+      ...desdePaquete(PAQUETE),
+      eventos: [{ ...evento, clientEventId: 'enviado-hace-dias', propio: true }],
+    };
+    precarga.precargarPartido.mockRejectedValue(new TypeError('Failed to fetch'));
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: PAQUETE,
+      descargadoEn: 5,
+      estado: local,
+    });
+
+    const { estado } = await cargarDirecto('par-1');
+
+    expect(estado.eventos.map((e) => e.clientEventId)).toEqual(['enviado-hace-dias']);
+  });
+
+  it('sin cobertura, lo deshecho aquí tampoco vuelve del paquete guardado', async () => {
+    const local: EstadoDirecto = { ...desdePaquete(PAQUETE), fase: 'pausado' };
+    precarga.precargarPartido.mockRejectedValue(new TypeError('Failed to fetch'));
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: { ...PAQUETE, eventos: [GOL] },
+      descargadoEn: 5,
+      estado: local,
+    });
+    sync.pendientesDelPartido.mockResolvedValue({ altas: new Set(), bajas: new Set(['gol-1']) });
+
+    expect((await cargarDirecto('par-1')).estado.eventos).toEqual([]);
+  });
+});
+
+describe('refrescarDirecto', () => {
+  it('descarga el paquete, lo guarda y devuelve el estado del servidor y desde cuándo mirar la cola', async () => {
+    const horas = [1_000, 1_250];
+    vi.spyOn(Date, 'now').mockImplementation(() => horas.shift() ?? 9_999);
+    precarga.descargarPaquete.mockResolvedValue(PAQUETE);
+
+    const refresco = await refrescarDirecto('par-1');
+
+    expect(precarga.descargarPaquete).toHaveBeenCalledWith('par-1');
+    // Se guarda con la hora de la descarga y con la de la petición.
+    expect(precarga.guardarPaquete).toHaveBeenCalledWith(PAQUETE, 1_250, 1_000);
+    expect(refresco).toEqual({ paquete: PAQUETE, servidor: desdePaquete(PAQUETE), desde: 1_000 });
+  });
+
+  it('si la descarga falla no guarda nada y lanza: quien llama lo calla', async () => {
+    precarga.descargarPaquete.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(refrescarDirecto('par-1')).rejects.toThrow('Failed to fetch');
+    expect(precarga.guardarPaquete).not.toHaveBeenCalled();
   });
 });
 

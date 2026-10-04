@@ -22,7 +22,7 @@
 // derive los segundos de `started_at` no la verá. Con reloj corrido, como el
 // cadete, solo se pausa por un parón largo (DOC 13).
 
-import { calcularEnCampo, desdeFilas, unirEventos } from './eventos';
+import { calcularEnCampo, desdeFilas } from './eventos';
 import { conEventos, deshacer, registrar } from './registro';
 
 import type { EventoDelDirecto } from './eventos';
@@ -394,13 +394,97 @@ export function elegirEstado(
 }
 
 /**
- * Suma a un estado los eventos del servidor que no conocía: los de otros
- * aparatos que llegaron con la precarga. Al abrir el directo, después de
- * `elegirEstado`, para que el estado local no los pierda.
+ * Lo que la cola de este aparato tiene de camino de los eventos del partido:
+ * `pendientesDelPartido` de `sync`. Aquí solo se lee.
  */
-export function conEventosDelServidor(
-  estado: EstadoDirecto,
+export interface Pendientes {
+  altas: ReadonlySet<string>;
+  bajas: ReadonlySet<string>;
+}
+
+/**
+ * Los eventos después de un refresco (T-209b, D06-38): lo del servidor manda,
+ * menos lo que este aparato tiene de camino.
+ *
+ * - Está en el servidor y en `bajas`: no sale. Se ha deshecho aquí y su
+ *   borrado no ha llegado todavía.
+ * - Está en el servidor: sale con la copia del servidor —su minuto, su jugador
+ *   y su estado son los buenos—, y sigue siendo propio si lo era.
+ * - Solo en local y en `altas`: se queda. No ha llegado todavía, o el servidor
+ *   lo rechazó y está en la banda.
+ * - Solo en local y fuera de `altas`: se quita. Alguien lo borró en el servidor.
+ *
+ * El orden es el que tenía el aparato, con lo nuevo del servidor detrás: en
+ * «Últimos eventos», lo que acaba de llegar sale arriba.
+ */
+function fusionarEventos(
+  locales: readonly EventoDelDirecto[],
   servidor: readonly EventoDelDirecto[],
+  pendientes: Pendientes,
+): EventoDelDirecto[] {
+  const delServidor = new Map(
+    servidor
+      .filter((evento) => !pendientes.bajas.has(evento.clientEventId))
+      .map((evento) => [evento.clientEventId, evento]),
+  );
+  const vistos = new Set<string>();
+  const fusionados: EventoDelDirecto[] = [];
+
+  for (const local of locales) {
+    const copia = delServidor.get(local.clientEventId);
+    vistos.add(local.clientEventId);
+
+    if (copia !== undefined) {
+      fusionados.push({ ...copia, propio: local.propio });
+    } else if (
+      pendientes.altas.has(local.clientEventId) &&
+      !pendientes.bajas.has(local.clientEventId)
+    ) {
+      fusionados.push(local);
+    }
+  }
+
+  for (const evento of delServidor.values()) {
+    if (!vistos.has(evento.clientEventId)) {
+      fusionados.push(evento);
+    }
+  }
+
+  return fusionados;
+}
+
+/**
+ * Funde el estado de este aparato con lo que acaba de descargarse del
+ * servidor (T-209b, D06-38). Lo usan el refresco del directo y la carga al
+ * abrirlo, con la misma lectura de la cola: si la carga no la mirase, lo
+ * deshecho aquí volvería al recargar.
+ *
+ * Los eventos, según `fusionarEventos`. Lo demás —la fase, las partes, la
+ * convocatoria y el reglamento—, de `elegirEstado`, tal cual. El campo se
+ * recalcula con los eventos fundidos.
+ *
+ * `pendientes` tiene que haberse leído de la cola DESPUÉS del último guardado
+ * de `local`: con una lectura anterior, un evento recién apuntado no estaría
+ * en `altas` y se quitaría. De eso se encarga quien llama.
+ *
+ * Si no cambia nada, devuelve el mismo estado: un refresco cada 20 s no
+ * repinta la pantalla si no hay nada nuevo.
+ */
+export function fusionar(
+  local: EstadoDirecto | undefined,
+  servidor: EstadoDirecto,
+  pendientes: Pendientes,
 ): EstadoDirecto {
-  return conEventos(estado, unirEventos(estado.eventos, servidor));
+  const elegido = elegirEstado(local, servidor);
+  const eventos = fusionarEventos(
+    local === undefined ? [] : local.eventos,
+    servidor.eventos,
+    pendientes,
+  );
+
+  if (JSON.stringify(eventos) === JSON.stringify(elegido.eventos)) {
+    return elegido;
+  }
+
+  return conEventos(elegido, eventos);
 }
