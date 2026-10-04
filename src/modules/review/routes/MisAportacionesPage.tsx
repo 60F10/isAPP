@@ -41,6 +41,7 @@ import { MinutoDelEvento } from '../components/MinutoDelEvento';
 import { useAportaciones, useCorregirAportacion } from '../hooks/useAportaciones';
 import { accionesDe, agruparPorPartido, candidatos } from '../model/aportaciones';
 import { nombrador, NOMBRES_DE_ESTADO } from '../model/cierre';
+import { EVENTO_YA_NO_SE_PUEDE_CAMBIAR } from '../model/discordancias';
 
 import styles from './MisAportacionesPage.module.css';
 
@@ -66,7 +67,7 @@ const TEXTOS: Record<AccionDeAportacion, string> = {
   borrar: 'Borrar',
 };
 
-const YA_NO_SE_PUEDE = 'Ese evento ya no se puede cambiar: lo han revisado o lo han borrado.';
+const YA_NO_SE_PUEDE = EVENTO_YA_NO_SE_PUEDE_CAMBIAR;
 
 /**
  * Frase para quien está delante cuando corregir no sale bien. Lo que rechaza
@@ -247,6 +248,7 @@ function Lista({ grupos }: ListaProps) {
   const refrescando = useIsFetching({ queryKey: reviewKeys.aportaciones() }) > 0;
   const refDescripciones = useRef(new Map<string, HTMLParagraphElement>());
   const refBorrado = useRef<HTMLParagraphElement>(null);
+  const refEditor = useRef<HTMLDivElement>(null);
   const [editando, setEditando] = useState<Edicion | null>(null);
   const [fallo, setFallo] = useState<Fallo | null>(null);
   /** La descripción de lo último que se borró: su fila ya no está para decirlo. */
@@ -295,6 +297,10 @@ function Lista({ grupos }: ListaProps) {
         if (mensaje === YA_NO_SE_PUEDE) {
           setEditando(null);
           enfocar(correccion.id);
+        } else {
+          // El botón que se pulsó está desactivado y el foco habría caído en
+          // `body`: vuelve a la leyenda del formulario que sigue abierto.
+          refEditor.current?.querySelector<HTMLElement>('[tabindex="-1"]')?.focus();
         }
 
         setFallo({ id: correccion.id, mensaje });
@@ -319,6 +325,7 @@ function Lista({ grupos }: ListaProps) {
           periodos={partido.periodos}
           minutosDeParte={partido.minutosDeParte}
           ocupado={ocupado}
+          guardando={corregir.isPending}
           alGuardar={(periodo, segundos) => {
             guardar(
               { ...base, campo: 'minuto', periodo, segundos },
@@ -388,7 +395,7 @@ function Lista({ grupos }: ListaProps) {
       }
 
       if (abierto !== null) {
-        return abierto;
+        return <div ref={refEditor}>{abierto}</div>;
       }
 
       if (acciones.length === 0) {

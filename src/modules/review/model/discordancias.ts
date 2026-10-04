@@ -111,3 +111,10 @@ export function accionesDe(
       return ['recuperar'];
   }
 }
+
+/**
+ * Lo que se dice cuando corregir un evento no toca ninguna fila: lo ha
+ * revisado otra persona, o lo han borrado, o no es de quien lo intenta.
+ */
+export const EVENTO_YA_NO_SE_PUEDE_CAMBIAR =
+  'Ese evento ya no se puede cambiar: lo han revisado o lo han borrado.';

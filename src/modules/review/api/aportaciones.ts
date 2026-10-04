@@ -13,8 +13,8 @@
 //
 // CADA `update` Y CADA `delete` PIDEN LA FILA DE VUELTA. Si la RLS dice que
 // no, o el evento ya no existe, PostgREST no da error: devuelve cero filas, y
-// aquí se convierte en `SIN_FILAS`. El `id` del evento va en el filtro, y se
-// escribe solo la columna que se cambia.
+// aquí se convierte en `SIN_FILAS`. El `id` del evento y su partido van en el
+// filtro, y se escribe solo la columna que se cambia.
 
 import { desdeFilas } from '@modules/match';
 import { SIN_FILAS } from '@shared/lib/guardado';
@@ -124,9 +124,11 @@ function exigirFila(respuesta: { data: { id: string } | null; error: unknown }):
 /** Cambia de quién es el evento: escribe `player_id`, y nada más. */
 export async function cambiarJugador({
   id,
+  partidoId,
   jugador,
 }: {
   id: string;
+  partidoId: string;
   jugador: string;
 }): Promise<void> {
   exigirFila(
@@ -134,6 +136,7 @@ export async function cambiarJugador({
       .from('match_events')
       .update({ player_id: jugador })
       .eq('id', id)
+      .eq('match_id', partidoId)
       .select('id')
       .maybeSingle(),
   );
@@ -146,9 +149,11 @@ export async function cambiarJugador({
  */
 export async function cambiarSegundo({
   id,
+  partidoId,
   segundo,
 }: {
   id: string;
+  partidoId: string;
   segundo: string | null;
 }): Promise<void> {
   exigirFila(
@@ -156,6 +161,7 @@ export async function cambiarSegundo({
       .from('match_events')
       .update({ secondary_player_id: segundo })
       .eq('id', id)
+      .eq('match_id', partidoId)
       .select('id')
       .maybeSingle(),
   );
@@ -165,6 +171,20 @@ export async function cambiarSegundo({
  * Borra el evento. ES UN `delete` DE VERDAD, no un descarte: la fila
  * desaparece y no se recupera desde la aplicación. Queda en `audit_log`.
  */
-export async function borrarEvento(id: string): Promise<void> {
-  exigirFila(await supabase.from('match_events').delete().eq('id', id).select('id').maybeSingle());
+export async function borrarEvento({
+  id,
+  partidoId,
+}: {
+  id: string;
+  partidoId: string;
+}): Promise<void> {
+  exigirFila(
+    await supabase
+      .from('match_events')
+      .delete()
+      .eq('id', id)
+      .eq('match_id', partidoId)
+      .select('id')
+      .maybeSingle(),
+  );
 }

@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useHasPermission } from '@modules/auth';
 import { useAnnounce } from '@shared/hooks/announceContext';
-import { mensajeDeErrorAlGuardar } from '@shared/lib/guardado';
+import { mensajeDeErrorAlGuardar, SIN_FILAS } from '@shared/lib/guardado';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { StatusChip } from '@shared/ui/StatusChip';
@@ -37,7 +37,12 @@ import {
   useResolverEvento,
 } from '../hooks/useCierre';
 import { contarEventos } from '../model/cierre';
-import { accionesDe, agruparRepetidos, ordenar } from '../model/discordancias';
+import {
+  accionesDe,
+  agruparRepetidos,
+  EVENTO_YA_NO_SE_PUEDE_CAMBIAR,
+  ordenar,
+} from '../model/discordancias';
 
 import { MinutoDelEvento } from './MinutoDelEvento';
 
@@ -61,6 +66,10 @@ const RESOLUCIONES: Record<
 function mensajeDeRevision(error: Error): string {
   if (error.message === EVENTO_CAMBIADO) {
     return 'Ese evento ha cambiado: vuelve a mirar.';
+  }
+
+  if (error.message === SIN_FILAS) {
+    return EVENTO_YA_NO_SE_PUEDE_CAMBIAR;
   }
 
   return mensajeDeErrorAlGuardar(error);
@@ -88,10 +97,13 @@ export function PanelDeEventos({ partido, eventos, describir }: PanelDeEventosPr
   /** El último fallo, y de qué evento: `null` si fue al aprobar en bloque. */
   const [fallo, setFallo] = useState<{ id: string | null; mensaje: string } | null>(null);
 
-  // Una vez al abrir, y solo quien puede: la función exige `event.approve`.
+  // Una vez por partido y por montaje, y solo quien puede: la función exige
+  // `event.approve`. Si los permisos se recargan, no se vuelve a llamar.
   const { mutate: buscarRepetidos } = marcar;
+  const yaBuscado = useRef<string | null>(null);
   useEffect(() => {
-    if (puedeAprobar) {
+    if (puedeAprobar && yaBuscado.current !== partido.id) {
+      yaBuscado.current = partido.id;
       buscarRepetidos(partido.id);
     }
   }, [puedeAprobar, buscarRepetidos, partido.id]);
@@ -139,7 +151,15 @@ export function PanelDeEventos({ partido, eventos, describir }: PanelDeEventosPr
     aprobarTodos.mutate(
       pendientes.map((evento) => evento.id),
       {
-        onSuccess: (aprobados) => {
+        onSuccess: ({ pedidos, aprobados }) => {
+          if (aprobados < pedidos) {
+            const mensaje = `Aprobados ${String(aprobados)} de ${String(pedidos)}. Los demás habían cambiado: vuelve a mirar.`;
+
+            setFallo({ id: null, mensaje });
+            anunciar(mensaje);
+            return;
+          }
+
           anunciar(
             aprobados === 1 ? '1 evento aprobado.' : `${String(aprobados)} eventos aprobados.`,
           );
@@ -274,6 +294,7 @@ export function PanelDeEventos({ partido, eventos, describir }: PanelDeEventosPr
                         periodos={partido.periodos}
                         minutosDeParte={partido.minutosDeParte}
                         ocupado={ocupado}
+                        guardando={minuto.isPending}
                         alGuardar={(periodo, segundos) => {
                           guardarMinuto(evento, periodo, segundos);
                         }}

@@ -44,15 +44,24 @@ function aplicar(correccion: Correccion): Promise<void> {
     case 'minuto':
       return cambiarMinuto({
         id: correccion.id,
+        partidoId: correccion.partidoId,
         periodo: correccion.periodo,
         segundos: correccion.segundos,
       });
     case 'jugador':
-      return cambiarJugador({ id: correccion.id, jugador: correccion.jugador });
+      return cambiarJugador({
+        id: correccion.id,
+        partidoId: correccion.partidoId,
+        jugador: correccion.jugador,
+      });
     case 'segundo':
-      return cambiarSegundo({ id: correccion.id, segundo: correccion.segundo });
+      return cambiarSegundo({
+        id: correccion.id,
+        partidoId: correccion.partidoId,
+        segundo: correccion.segundo,
+      });
     case 'borrar':
-      return borrarEvento(correccion.id);
+      return borrarEvento({ id: correccion.id, partidoId: correccion.partidoId });
   }
 }
 

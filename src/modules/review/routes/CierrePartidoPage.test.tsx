@@ -305,6 +305,7 @@ describe('A13 · Panel de eventos (T-210b)', () => {
 
     expect(discordancias.resolverEvento).toHaveBeenCalledWith({
       id: 'id-1',
+      partidoId: 'par-1',
       de: 'pending',
       a: 'approved',
       userId: 'usuario-1',
@@ -323,7 +324,7 @@ describe('A13 · Panel de eventos (T-210b)', () => {
     discordancias.aprobarPendientes.mockImplementation(() => {
       estado.eventos = estado.eventos.map((uno) => ({ ...uno, estado: 'approved' }));
 
-      return Promise.resolve(2);
+      return Promise.resolve({ pedidos: 2, aprobados: 2 });
     });
     montar();
 
@@ -332,10 +333,73 @@ describe('A13 · Panel de eventos (T-210b)', () => {
     expect(discordancias.aprobarPendientes).toHaveBeenCalledTimes(1);
     expect(discordancias.aprobarPendientes).toHaveBeenCalledWith({
       ids: ['id-1', 'id-2'],
+      partidoId: 'par-1',
       userId: 'usuario-1',
     });
     expect(await screen.findByText('No queda ningún evento pendiente.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Aprobar los/ })).toBeNull();
+  });
+
+  it('aprobar cinco y que vuelvan dos anuncia «Aprobados 2 de 5»', async () => {
+    servidor([
+      evento({ id: 'id-1' }),
+      evento({ id: 'id-2', segundos: 700 }),
+      evento({ id: 'id-3', segundos: 800 }),
+      evento({ id: 'id-4', segundos: 900 }),
+      evento({ id: 'id-5', segundos: 1000 }),
+    ]);
+    discordancias.aprobarPendientes.mockResolvedValue({ pedidos: 5, aprobados: 2 });
+    const { anunciar } = montar();
+
+    await pulsar('Aprobar los 5 pendientes');
+
+    const frase = 'Aprobados 2 de 5. Los demás habían cambiado: vuelve a mirar.';
+
+    expect(await screen.findByText(frase)).toBeInTheDocument();
+    expect(anunciar).toHaveBeenCalledWith(frase);
+    expect(anunciar).not.toHaveBeenCalledWith('2 eventos aprobados.');
+  });
+
+  it('si `marcarRepetidos` falla, la lista sigue ahí y se puede aprobar', async () => {
+    const estado = servidor([evento({ id: 'id-1' })]);
+    discordancias.marcarRepetidos.mockRejectedValue(new Error('sin permiso'));
+    discordancias.resolverEvento.mockImplementation(() => {
+      estado.eventos = [evento({ id: 'id-1', estado: 'approved' })];
+
+      return Promise.resolve();
+    });
+    montar();
+
+    expect(
+      await screen.findByText(/No se han podido buscar los posibles repetidos/),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Evento de prueba')).toBeInTheDocument();
+
+    await pulsar(/^Aprobar: /);
+
+    expect(discordancias.resolverEvento).toHaveBeenCalledTimes(1);
+  });
+
+  it('un partido cerrado no ofrece ninguna acción sobre sus eventos', async () => {
+    api.fetchCierre.mockResolvedValue(
+      datos({
+        partido: {
+          status: 'closed',
+          actaAFavor: 1,
+          actaEnContra: 1,
+          cerradoEn: new Date(2026, 9, 3, 14, 0).toISOString(),
+        },
+        eventos: [evento({ id: 'id-1' }), evento({ id: 'id-2', estado: 'approved' })],
+      }),
+    );
+    montar();
+
+    await screen.findByRole('button', { name: 'Reabrir el partido' });
+
+    expect(
+      screen.queryByRole('button', { name: /^(Aprobar|Descartar|Recuperar|Cambiar minuto)/ }),
+    ).toBeNull();
+    expect(discordancias.marcarRepetidos).not.toHaveBeenCalled();
   });
 
   it('«Descartar» y luego «Recuperar» sobre el mismo evento', async () => {
@@ -351,6 +415,7 @@ describe('A13 · Panel de eventos (T-210b)', () => {
 
     expect(discordancias.resolverEvento).toHaveBeenLastCalledWith({
       id: 'id-1',
+      partidoId: 'par-1',
       de: 'approved',
       a: 'rejected',
       userId: 'usuario-1',
@@ -364,6 +429,7 @@ describe('A13 · Panel de eventos (T-210b)', () => {
 
     expect(discordancias.resolverEvento).toHaveBeenLastCalledWith({
       id: 'id-1',
+      partidoId: 'par-1',
       de: 'rejected',
       a: 'approved',
       userId: 'usuario-1',
@@ -411,6 +477,7 @@ describe('A13 · Panel de eventos (T-210b)', () => {
 
     expect(discordancias.cambiarMinuto).toHaveBeenCalledWith({
       id: 'id-1',
+      partidoId: 'par-1',
       periodo: 2,
       segundos: 14 * 60,
     });

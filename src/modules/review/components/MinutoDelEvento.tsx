@@ -21,7 +21,10 @@ interface MinutoDelEventoProps {
   descripcion: string;
   periodos: number;
   minutosDeParte: number;
+  /** Hay algo ocupando los botones. */
   ocupado: boolean;
+  /** La mutación de guardar está en marcha: solo entonces dice «Guardando…». */
+  guardando: boolean;
   alGuardar: (periodo: number, segundos: number) => void;
   alCancelar: () => void;
 }
@@ -38,6 +41,7 @@ export function MinutoDelEvento({
   periodos,
   minutosDeParte,
   ocupado,
+  guardando,
   alGuardar,
   alCancelar,
 }: MinutoDelEventoProps) {
@@ -81,48 +85,54 @@ export function MinutoDelEvento({
         alGuardar(parte, segundos);
       }}
     >
-      <div className={styles.campo}>
-        <label className={styles.etiqueta} htmlFor={id}>
-          Parte
-        </label>
-        <select
-          ref={refParte}
-          id={id}
-          className={styles.selector}
-          value={periodo}
+      <fieldset className={styles.conjunto}>
+        {/* Recibe el foco si guardar falla y el formulario sigue abierto. */}
+        <legend className={styles.leyenda} tabIndex={-1}>
+          Cambiar el minuto
+        </legend>
+        <div className={styles.campo}>
+          <label className={styles.etiqueta} htmlFor={id}>
+            Parte
+          </label>
+          <select
+            ref={refParte}
+            id={id}
+            className={styles.selector}
+            value={periodo}
+            onChange={(cambio) => {
+              setPeriodo(cambio.target.value);
+              // El rango es otro: el error de antes ya no dice la verdad.
+              setError(undefined);
+            }}
+          >
+            {/* Un evento apuntado en una parte que el reglamento ya no tiene sigue pudiendo elegirla. */}
+            {Array.from({ length: Math.max(periodos, evento.periodo) }, (_, i) => (
+              <option key={i + 1} value={String(i + 1)}>
+                {i + 1}.ª parte
+              </option>
+            ))}
+          </select>
+        </div>
+        <Field
+          label="Minuto"
+          hint={`De ${desde} a ${hasta}, como en el acta. En el descuento, ${hasta}+2.`}
+          inputMode="text"
+          autoComplete="off"
+          value={minuto}
+          error={error}
           onChange={(cambio) => {
-            setPeriodo(cambio.target.value);
-            // El rango es otro: el error de antes ya no dice la verdad.
-            setError(undefined);
+            setMinuto(cambio.target.value);
           }}
-        >
-          {/* Un evento apuntado en una parte que el reglamento ya no tiene sigue pudiendo elegirla. */}
-          {Array.from({ length: Math.max(periodos, evento.periodo) }, (_, i) => (
-            <option key={i + 1} value={String(i + 1)}>
-              {i + 1}.ª parte
-            </option>
-          ))}
-        </select>
-      </div>
-      <Field
-        label="Minuto"
-        hint={`De ${desde} a ${hasta}, como en el acta. En el descuento, ${hasta}+2.`}
-        inputMode="text"
-        autoComplete="off"
-        value={minuto}
-        error={error}
-        onChange={(cambio) => {
-          setMinuto(cambio.target.value);
-        }}
-      />
-      <div className={styles.acciones}>
-        <Button type="submit" variant="primary" disabled={ocupado}>
-          {ocupado ? 'Guardando…' : 'Guardar el minuto'}
-        </Button>
-        <Button variant="secondary" disabled={ocupado} onClick={alCancelar}>
-          Cancelar
-        </Button>
-      </div>
+        />
+        <div className={styles.acciones}>
+          <Button type="submit" variant="primary" disabled={ocupado}>
+            {guardando ? 'Guardando…' : 'Guardar el minuto'}
+          </Button>
+          <Button variant="secondary" disabled={ocupado} onClick={alCancelar}>
+            Cancelar
+          </Button>
+        </div>
+      </fieldset>
     </form>
   );
 }
