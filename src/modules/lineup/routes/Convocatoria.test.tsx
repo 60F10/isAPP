@@ -17,7 +17,7 @@ import { ConvocatoriaPage } from './ConvocatoriaPage';
 
 import type { LineaGuardada } from '../model/convocatoria';
 import type { Partido } from '@modules/agenda';
-import type { AuthState } from '@modules/auth';
+import type { AppPermission, AuthState } from '@modules/auth';
 import type { Inscripcion } from '@modules/core';
 import type { Session } from '@supabase/supabase-js';
 
@@ -88,11 +88,11 @@ function partido(cambios: Partial<Partido> = {}): Partido {
   };
 }
 
-function auth(): AuthState {
+function auth(permisos: AppPermission[]): AuthState {
   return {
     session: { user: { id: 'usuario-1' } } as Session,
     cargando: false,
-    permisos: new Set(['lineup.manage']),
+    permisos: new Set(permisos),
     profile: null,
     teams: [
       {
@@ -106,7 +106,7 @@ function auth(): AuthState {
           crestUrl: null,
           primaryColor: null,
         },
-        permissions: new Set(['lineup.manage']),
+        permissions: new Set(permisos),
       },
     ],
     activeTeamId: 'eq-1',
@@ -117,7 +117,10 @@ function auth(): AuthState {
   };
 }
 
-function montar(props: Parameters<typeof ConvocatoriaPage>[0] = {}) {
+function montar(
+  props: Parameters<typeof ConvocatoriaPage>[0] = {},
+  permisos: AppPermission[] = ['lineup.manage'],
+) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
@@ -131,7 +134,7 @@ function montar(props: Parameters<typeof ConvocatoriaPage>[0] = {}) {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <AuthContext value={auth()}>
+      <AuthContext value={auth(permisos)}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
         </AnnounceContext>
@@ -331,6 +334,42 @@ describe('A11 · Convocatoria', () => {
     expect(screen.getByText('8 · Luis')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Guardar convocatoria' })).toBeNull();
     expect(screen.queryByRole('radio')).toBeNull();
+  });
+
+  it('con el partido convocado y match.live.write, enlaza el directo; si no, no', async () => {
+    agenda.fetchPartido.mockResolvedValue(partido({ status: 'called' }));
+    montar({}, ['lineup.manage', 'match.live.write']);
+
+    expect(await screen.findByRole('link', { name: 'Ir al directo' })).toHaveAttribute(
+      'href',
+      '/partidos/par-1/directo',
+    );
+  });
+
+  it('en diferido, el enlace dice «Ir a apuntar», y con el partido en juego sale en solo lectura', async () => {
+    agenda.fetchPartido.mockResolvedValue(partido({ status: 'live', isRetroactive: true }));
+    montar({}, ['lineup.manage', 'match.live.write']);
+
+    expect(await screen.findByText(/la convocatoria ya no se cambia/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ir a apuntar' })).toHaveAttribute(
+      'href',
+      '/partidos/par-1/directo',
+    );
+  });
+
+  it('sin match.live.write, o con el partido programado, no enlaza el directo', async () => {
+    agenda.fetchPartido.mockResolvedValue(partido({ status: 'called' }));
+    montar();
+
+    await screen.findByRole('button', { name: 'Guardar convocatoria' });
+    expect(screen.queryByRole('link', { name: /Ir al directo|Ir a apuntar/ })).toBeNull();
+  });
+
+  it('con el partido programado y match.live.write, tampoco enlaza el directo', async () => {
+    montar({}, ['lineup.manage', 'match.live.write']);
+
+    await screen.findByRole('button', { name: 'Guardar convocatoria' });
+    expect(screen.queryByRole('link', { name: /Ir al directo|Ir a apuntar/ })).toBeNull();
   });
 
   it('con la plantilla vacía, lleva a darla de alta', async () => {

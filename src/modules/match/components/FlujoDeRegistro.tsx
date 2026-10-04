@@ -91,7 +91,7 @@ function Minuto({
         >
           {Array.from({ length: periodos }, (_, i) => (
             <option key={i + 1} value={String(i + 1)}>
-              {i + 1}ª parte
+              {i + 1}.ª parte
             </option>
           ))}
         </select>
@@ -186,6 +186,33 @@ export function FlujoDeRegistro({
     pregunta.current?.focus();
   }, [clave]);
 
+  // Si el guardado falla, el botón pulsado se desactivó con el foco puesto y
+  // el foco se iba a `body`: al soltarse el paso, vuelve a la pregunta.
+  const estabaOcupado = useRef(ocupado);
+
+  useEffect(() => {
+    if (estabaOcupado.current && !ocupado) {
+      pregunta.current?.focus();
+    }
+
+    estabaOcupado.current = ocupado;
+  }, [ocupado]);
+
+  // «Sin asistencia», «Sin motivo»: va encima de la lista, el primero del paso.
+  const saltar =
+    paso.clase !== 'minuto' && paso.clase !== 'texto' && paso.saltar !== undefined ? (
+      <Button
+        variant="secondary"
+        className={styles.saltar}
+        disabled={ocupado}
+        onClick={() => {
+          alResponder(paso.clave, null);
+        }}
+      >
+        {paso.saltar}
+      </Button>
+    ) : null;
+
   const cuerpo = () => {
     switch (paso.clase) {
       case 'minuto':
@@ -212,50 +239,58 @@ export function FlujoDeRegistro({
 
       case 'opciones':
         return (
-          <ul className={styles.opciones}>
-            {paso.opciones.map((opcion) => (
-              <li key={opcion.valor}>
-                <button
-                  type="button"
-                  className={styles.opcion}
-                  disabled={ocupado}
-                  onClick={() => {
-                    alResponder(paso.clave, opcion.valor);
-                  }}
-                >
-                  {opcion.etiqueta}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            {saltar}
+            <ul className={styles.opciones}>
+              {paso.opciones.map((opcion) => (
+                <li key={opcion.valor}>
+                  <button
+                    type="button"
+                    className={styles.opcion}
+                    disabled={ocupado}
+                    onClick={() => {
+                      alResponder(paso.clave, opcion.valor);
+                    }}
+                  >
+                    {opcion.etiqueta}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
         );
 
       case 'jugador':
-        return paso.candidatos.length === 0 ? (
-          <p className={styles.nota}>No hay nadie que pueda ser.</p>
-        ) : (
-          <ul className={styles.opciones}>
-            {paso.candidatos.map((id) => {
-              const numero = dorsal(id);
+        return (
+          <>
+            {saltar}
+            {paso.candidatos.length === 0 ? (
+              <p className={styles.nota}>No hay nadie que pueda ser.</p>
+            ) : (
+              <ul className={styles.opciones}>
+                {paso.candidatos.map((id) => {
+                  const numero = dorsal(id);
 
-              return (
-                <li key={id}>
-                  <button
-                    type="button"
-                    className={styles.jugador}
-                    aria-label={nombre(id)}
-                    disabled={ocupado}
-                    onClick={() => {
-                      alResponder(paso.clave, id);
-                    }}
-                  >
-                    {numero === null ? null : <span className={styles.dorsal}>{numero}</span>}
-                    <span>{nombre(id).replace(/^\d+ · /, '')}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                  return (
+                    <li key={id}>
+                      <button
+                        type="button"
+                        className={styles.jugador}
+                        aria-label={nombre(id)}
+                        disabled={ocupado}
+                        onClick={() => {
+                          alResponder(paso.clave, id);
+                        }}
+                      >
+                        {numero === null ? null : <span className={styles.dorsal}>{numero}</span>}
+                        <span>{nombre(id).replace(/^\d+ · /, '')}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
         );
     }
   };
@@ -289,18 +324,6 @@ export function FlujoDeRegistro({
       </p>
       {cuerpo()}
       <div className={styles.acciones}>
-        {paso.clase !== 'minuto' && paso.clase !== 'texto' && paso.saltar !== undefined ? (
-          <Button
-            variant="secondary"
-            className={styles.grande}
-            disabled={ocupado}
-            onClick={() => {
-              alResponder(paso.clave, null);
-            }}
-          >
-            {paso.saltar}
-          </Button>
-        ) : null}
         {alAtras === null ? null : (
           <Button
             variant="secondary"
