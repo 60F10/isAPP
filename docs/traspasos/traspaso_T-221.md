@@ -1,7 +1,7 @@
 # Traspaso T-221 — Arreglos de la revisión: la banda y la cobertura
 
 > **Esfuerzo:** medio · **Rama:** `fix/match-arreglos-de-la-revision` · **Depende de:** T-209a y T-219 fusionadas · **Sin base de datos**
-> Preparado el 04/10/2026 sobre `main` en `00669e9`. Si un símbolo de los que se nombran aquí no existe, para y dilo.
+> Preparado el 04/10/2026 sobre `main` en `00669e9` y repasado sobre `e633df4`: los símbolos siguen ahí. `LiveMatchPage.tsx` ha crecido con la T-209b (el refresco y el contador `guardados`): no los toques. Si un símbolo de los que se nombran aquí no existe, para y dilo.
 
 ## Qué es
 
