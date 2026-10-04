@@ -1,6 +1,6 @@
 # DOC 04 — Reglas de negocio y glosario
 
-> **Versión:** 1.2 — 26/09/2026 (§4.2: valores del cadete confirmados por Isaac y su liga, T-203) · 1.1 — 12/09/2026 (correcciones de la auditoría A-01, A-03, A-04, A-07, A-08 y A-11) · anterior 1.0 — 11/09/2026
+> **Versión:** 1.3 — 04/10/2026 (§15.3: cómo se llega a miembro y a seguidor, decisión I1) · 1.2 — 26/09/2026 (§4.2: valores del cadete confirmados por Isaac y su liga, T-203) · 1.1 — 12/09/2026 (correcciones de la auditoría A-01, A-03, A-04, A-07, A-08 y A-11) · anterior 1.0 — 11/09/2026
 > **Depende de:** DOC 03 (decisiones), DOC 01 (backlog), DOC 02 (pantallas)
 > **Alimenta a:** DOC 05 (modelo de datos), DOC 06 (arquitectura), DOC 08 (tareas), DOC 09 (observabilidad), DOC 11 (RGPD)
 
@@ -632,6 +632,8 @@ El administrador de la plataforma es una condición del usuario, no un permiso d
 - **Seguidor** — solo consulta estadísticas aprobadas del equipo. No tiene permisos, no sale en la pantalla de personas y no puede escribir nada.
 
 Un mismo usuario no debería estar en las dos tablas del mismo equipo. Si ocurre, manda la de miembro.
+
+**Cómo se llega a cada una (decisión I1, 04/10/2026).** A miembro, por invitación a un correo o pidiendo permisos, y en los dos casos acepta quien tiene `members.manage`. A seguidor, sin esperar a nadie: basta con que el equipo esté en la lista, y está solo si quien lo lleva lo ha encendido. El seguidor lee el calendario, los resultados y los eventos aprobados; de los jugadores, el apodo y el dorsal, nunca el nombre real.
 
 > **Deuda técnica asumida.** Esta separación duplica las políticas de lectura: cada tabla consultable necesita una regla para miembros y otra para seguidores. A cambio, distingue con claridad seguir a un equipo de tener función en él, y evita inflar la pantalla de personas con la grada. Coste estimado: una decena de políticas adicionales y una función auxiliar.
 

@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.11 — 04/10/2026 (§14.8: personas, invitaciones y solicitudes, escrita y sin aplicar) · 1.10 — 26/09/2026 (§14: los puntos del DOC 13 citados son de su día; §14.4 conectada en la T-203b) · 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.12 — 04/10/2026 (§14.8: seguir no se aprueba, el nombre real deja de salir por la API, ensayo pasado en local) · 1.11 — 04/10/2026 (§14.8: personas, invitaciones y solicitudes, escrita y sin aplicar) · 1.10 — 26/09/2026 (§14: los puntos del DOC 13 citados son de su día; §14.4 conectada en la T-203b) · 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — ocho archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
@@ -897,36 +897,41 @@ Con esto queda comprobado lo que el §14.5 dejaba en el aire: **un `upsert` disp
 
 ---
 
-### 14.8 Personas: invitaciones a un correo y solicitudes de acceso — SIN APLICAR
+### 14.8 Personas: invitaciones, seguir y solicitudes de permisos — SIN APLICAR
 
-Decisión I1 del DOC 03, del 04/10/2026. La aplica la T-301a. **El SQL está escrito y sin probar contra la base**: el ensayo, que lo aplica, lo prueba y lo deshace en una sola sentencia, no se pudo lanzar desde la sesión que lo escribió.
+Decisión I1 del DOC 03, cerrada por Raúl el 04/10/2026: **seguir a un equipo no necesita aprobación**. La aplica la T-301a. **El SQL no se ha ejecutado contra la base de Supabase**, pero el ensayo sí ha pasado en un PostgreSQL local (PGlite) con las ocho migraciones del repositorio y una siembra mínima: termina en `ENSAYO_CORRECTO: 18 pruebas, nada aplicado` y no deja nada. Quitarle a la migración la comprobación de la lista o el cierre del nombre real hace fallar el ensayo, así que las pruebas muerden. Lo que el local no tiene es lo propio de Supabase: su esquema `auth` de verdad y sus permisos por defecto.
 
 | Archivo                                          | Qué es                                                                                                       |
 | :----------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
 | `supabase/pendientes/personas_y_solicitudes.sql` | La migración. Al aplicarla se mueve a `supabase/migrations/` con su marca de tiempo                          |
-| `supabase/pruebas/personas_ensayo.sql`           | La misma migración más 17 comprobaciones, dentro de un bloque que termina en error a propósito: no deja nada |
+| `supabase/pruebas/personas_ensayo.sql`           | La misma migración más 18 comprobaciones, dentro de un bloque que termina en error a propósito: no deja nada |
 
-**Dos puertas, y las dos pasan por quien tiene `members.manage`.**
+**Tres maneras de llegar a un equipo.**
 
-| Puerta         | Quién empieza          | Cómo                                                                                                                                                                                                                |
-| :------------- | :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Invitación** | Quien lleva el equipo  | Una fila en `invitations` con el correo, el rol y los permisos. La cuenta de Google con ese correo la ve al entrar (`mis_invitaciones`) y la acepta (`aceptar_invitacion`). No se envía ningún correo               |
-| **Solicitud**  | Quien entra sin equipo | Ve los equipos con `teams.accepts_requests` (`equipos_que_admiten_solicitudes`), pide seguir o pide permisos (`solicitar_acceso`), y quien lleva el equipo resuelve (`resolver_solicitud`) eligiendo rol y permisos |
+| Puerta         | Quién empieza          | Cómo                                                                                                                                                                                                  |
+| :------------- | :--------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Invitación** | Quien lleva el equipo  | Una fila en `invitations` con el correo, el rol y los permisos. La cuenta de Google con ese correo la ve al entrar (`mis_invitaciones`) y la acepta (`aceptar_invitacion`). No se envía ningún correo |
+| **Seguir**     | Quien tiene una cuenta | Ve los equipos con `teams.accepts_requests` (`equipos_que_admiten_solicitudes`) y sigue el que quiera (`seguir_equipo`). **Es inmediato: no lo aprueba nadie.** El seguidor solo lee                  |
+| **Solicitud**  | Quien quiere anotar    | Sobre un equipo de la lista, pide permisos (`solicitar_acceso`), y quien tiene `members.manage` resuelve (`resolver_solicitud`) eligiendo rol y permisos                                              |
 
 **Lo que añade.**
 
-| Pieza                                              | Detalle                                                                                                                                                              |
-| :------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `teams.accepts_requests`                           | `boolean`, `false` por defecto: un equipo de menores no sale en ninguna lista hasta que quien lo lleva lo enciende                                                   |
-| `invitations`                                      | El `token` se genera solo; un disparador normaliza el correo y pone `created_by`; índice único de una pendiente por equipo y correo                                  |
-| `access_requests`                                  | Equipo, usuario, `kind` (`follower` o `member`), mensaje de hasta 280 caracteres, `status` (`pending`, `approved`, `rejected`, `cancelled`), quién y cuándo resolvió |
-| RLS de `access_requests`                           | Solo lectura por política: la propia, o las del equipo con `members.manage`. **Ninguna política de escritura**: se escribe por las funciones                         |
-| `solicitudes_del_equipo` y `seguidores_del_equipo` | Con el nombre de la persona: `profiles_select` solo enseña a los compañeros, y quien pide todavía no lo es                                                           |
-| `cancelar_solicitud` y `dejar_de_seguir`           | Lo único que quien pide puede deshacer por su cuenta                                                                                                                 |
+| Pieza                                              | Detalle                                                                                                                                                 |
+| :------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `teams.accepts_requests`                           | `boolean`, `false` por defecto: un equipo de menores no sale en ninguna lista, ni se le sigue ni se le pide nada, hasta que quien lo lleva lo enciende  |
+| `invitations`                                      | El `token` se genera solo; un disparador normaliza el correo y pone `created_by`; índice único de una pendiente por equipo y correo                     |
+| `access_requests`                                  | Equipo, usuario, mensaje de hasta 280 caracteres, `status` (`pending`, `approved`, `rejected`, `cancelled`), quién y cuándo resolvió. Solo de permisos  |
+| RLS de `access_requests`                           | Solo lectura por política: la propia, o las del equipo con `members.manage`. **Ninguna política de escritura**: se escribe por las funciones            |
+| `seguir_equipo` y `dejar_de_seguir`                | Lo que el seguidor hace por su cuenta. Seguir exige que el equipo esté en la lista y no ser ya miembro                                                  |
+| `solicitudes_del_equipo` y `seguidores_del_equipo` | Con el nombre de la persona: `profiles_select` solo enseña a los compañeros, y quien pide o sigue no lo es                                              |
+| `cancelar_solicitud`                               | Lo único que quien pide puede deshacer por su cuenta                                                                                                    |
+| Permisos de columna en `players`                   | `authenticated` deja de leer `full_name`, `name_consent_at` y `name_consent_note`. Lee `id`, `club_id`, `nickname`, `is_active` y las tres de auditoría |
 
-**Reglas que imponen las funciones.** Nadie entra solo, tampoco como seguidor. Una invitación solo la acepta la cuenta cuyo correo coincide. Quien ya es miembro no baja a seguidor, y quien pasa a miembro deja de ser seguidor (DOC 04 §15.3). Una solicitud pendiente por equipo y persona, y tras un rechazo, una semana sin volver a pedir. Todas las funciones son `SECURITY DEFINER` con `search_path` fijo, sin permiso para `anon`.
+**Por qué se cierra el nombre real.** La política `players_select` deja leer la fila del jugador a quien sigue al equipo (decisión H4), y los permisos de la tabla dejaban leer todas sus columnas. Mientras alguien aprobaba a cada seguidor, eso era un riesgo acotado; con seguir libre, cualquier cuenta de Google podría pedir `full_name` por la API de un equipo de la lista. Hoy la columna está vacía en todos los jugadores y la aplicación nunca la ha pedido (T-202). El día que se active el nombre real con su consentimiento, saldrá por una función que lo compruebe, no por la tabla.
 
-**Lo que no hace.** No envía correos: el plan gratuito no da un servidor de correo que sirva para eso. No impide que el último que tiene `members.manage` se lo quite. Y no toca las políticas de `team_members`, `team_followers` ni `team_member_permissions`: quien tiene `members.manage` sigue escribiendo en ellas directamente desde la A07.
+**Reglas que imponen las funciones.** Para tener permisos hace falta que alguien acepte; para seguir, que el equipo esté en la lista. Una invitación solo la acepta la cuenta cuyo correo coincide. Quien ya es miembro no baja a seguidor, y quien pasa a miembro deja de ser seguidor (DOC 04 §15.3). Una solicitud pendiente por equipo y persona, y tras un rechazo, una semana sin volver a pedir; el rechazado sigue pudiendo seguir. Todas las funciones son `SECURITY DEFINER` con `search_path` fijo, sin permiso para `anon`.
+
+**Lo que no hace.** No envía correos: el plan gratuito no da un servidor de correo que sirva para eso. No impide que el último que tiene `members.manage` se lo quite. **No hay lista de bloqueados**: a quien se le quita de seguidor puede volver a seguir mientras el equipo esté en la lista; para cerrarle el paso hay que sacar al equipo de ella. Y no toca las políticas de `team_members`, `team_followers` ni `team_member_permissions`: quien tiene `members.manage` sigue escribiendo en ellas directamente desde la A07.
 
 ---
 
