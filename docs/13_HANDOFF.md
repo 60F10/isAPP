@@ -5,6 +5,26 @@
 
 ---
 
+## Sesión 04/10/2026, tarde — revisión de las T-219 a T-303 y tanda siguiente: ✅ cerrada
+
+Sesión de Cowork con Raúl al otro lado. Rama `docs/docs-revision-de-la-tarde`. **Sin código de
+aplicación.**
+
+- **Las seis están en `main`** (PR #67 a #72): T-219, T-220, T-210b, T-209a, T-211 y T-303. Lint,
+  formato, **597 pruebas en 52 archivos** y build en verde, sin `INEFFECTIVE_DYNAMIC_IMPORT`. El
+  registro de errores sale en su trozo perezoso, 2,2 kB comprimidos, y `sync` no lo arrastra.
+- **Revisadas contra su traspaso**, con cuatro pasadas del `revisor` y una lectura a mano de lo
+  delicado. **Nada que rompa datos en el uso normal.** Lo que sí hay son fallos medianos, que van
+  a dos tareas nuevas, la T-221 y la T-222, y dos deudas que piden base (puntos 73 a 78).
+- **La base cuadra con lo que la T-209a da por bueno**: `coverage_declarations` admite la fila que
+  se encola y un cierre en el mismo instante que el alta.
+- **La T-209b se parte**: el código va hoy, sin tocar la base; la publicación de Realtime es una
+  línea que espera a Raúl, en `supabase/pendientes/realtime_del_directo.sql` (punto 77).
+- **Programadas para hoy**, en la nube: T-221, T-209b, T-209c y T-222.
+- **Ninguna de las seis se ha probado en un móvil ni contra la base de verdad.**
+
+---
+
 ## Sesión 04/10/2026, noche — T-303: registro de errores para administración (C02): ✅ cerrada
 
 Sesión programada, rama `feat/logging-panel-admin`. **Sin base de datos y sin migración.**
@@ -255,7 +275,7 @@ cola. El partido lo cerró Raúl desde la aplicación a las 10:11, 0 – 9.
 
 ## DEUDA TÉCNICA GENERADA
 
-Los puntos 59 a 72 de abajo.
+Los puntos 59 a 78 de abajo.
 
 ---
 
@@ -543,10 +563,12 @@ Pendiente de hacer:
     **Tras la T-209a sigue igual:** el primer partido no tiene cobertura hasta que alguien se la
     ponga a mano.
 
-67. **Los traspasos guiados viven en el proyecto de Claude, no en el repositorio**:
-    `claude/traspaso_T-xxx.md`. Cada sesión que ejecuta uno añade su cierre aquí arriba, corto, y
-    la siguiente sesión de revisión los junta. Si el método se queda, pide su sitio en el DOC 00
-    §5.
+67. **Los traspasos guiados van en `docs/traspasos/`** desde la tarde del 04/10, y el proyecto de
+    Claude guarda una copia como `claude/traspaso_T-xxx.md`. Los de la T-212 a la T-220, la
+    T-210b, la T-209a, la T-211, la T-303 y las tres T-301 siguen solo en el proyecto. Las
+    sesiones programadas corren en la nube, clonan el repositorio y leen el traspaso de ahí:
+    así no dependen de tener el proyecto a mano. Cada sesión añade su cierre aquí arriba, corto,
+    y la siguiente sesión de revisión los junta. Falta darle su sitio en el DOC 00 §5.
 
 68. **El nombre real de los jugadores se podía pedir por la API.** `authenticated` tiene permiso
     de lectura sobre toda la tabla `players`, y la política deja leer la fila a quien sigue al
@@ -574,6 +596,38 @@ Pendiente de hacer:
     temporal de la sesión, sin tocar el repositorio: tres roles, un esquema `auth` mínimo, las ocho
     migraciones, `seed.sql` y dos jugadores. Si se quiere repetible, pide una dependencia de
     desarrollo y un script; no se ha añadido.
+
+73. **Lo de un partido cerrado se puede cambiar con una pantalla vieja.** El panel del cierre
+    (T-210b) y «Mis aportaciones» (T-211) solo esconden las acciones si el partido está cerrado;
+    sus `update` y `delete` van por el `id` del evento y la base no mira el estado del partido.
+    Si otro aparato cierra mientras, quien tiene `event.approve` cambia o borra un evento de un
+    partido cerrado y los tramos ya no cuadran. La T-222 añade el `match_id` al filtro; cerrarlo
+    de verdad es un disparador en la base, **sin escribir y sin tarea**: pide decidir antes cómo
+    se corrige entonces un partido cerrado desde SQL.
+
+74. **La banda pierde el foco al descartar**, su borrado no es una sola operación y un fallo de
+    Dexie al descartar se queda sin decir nada (T-219). Va en la T-221.
+
+75. **La cobertura es del aparato, no de la persona.** Si alguien deja una abierta y otra cuenta
+    entra en ese móvil, no declara la suya y al salir encola un cierre que la base rechaza.
+    Además: salir del directo espera a que se guarde el cierre de la cobertura, sin límite de
+    tiempo; cambiar lo que se sigue anuncia el cambio aunque no se haya guardado; y abrir el
+    directo sin red deja «1 anotación sin enviar» sin haber apuntado nada. Va en la T-221.
+
+76. **Flecos del cierre, de «Mis aportaciones» y del registro de errores**: aprobar en bloque no
+    avisa si aprobó menos de los pedidos; el registro pagina por desplazamiento y repite o se
+    salta filas si entran errores mientras; faltan regiones vivas y foco tras «Cargar 50 más» y
+    tras un fallo; y ninguna de las tres `api/` nuevas tiene prueba propia: sus pantallas las
+    prueban con dobles. Va en la T-222.
+
+77. **Realtime sin publicar.** La T-209b deja escrito el canal y funciona sin él: el refresco de
+    seguridad va cada 20 s hasta que llega el primer aviso de verdad, y a partir de ahí cada 60.
+    Aplicar `supabase/pendientes/realtime_del_directo.sql` es una línea y pide la confirmación
+    de Raúl.
+
+78. **Entrar al directo a mirar deja una cobertura de duración cero**, y volver tras cerrar la
+    aplicación a medias da por cubierto el hueco entero. La fórmula de fiabilidad tendrá que
+    ignorar las primeras; lo segundo se asume. Es del bloque B.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
@@ -610,32 +664,28 @@ cifra de referencia. En crudo, `precache 37 entries (940.82 KiB)`.
 
 1. **Publicar en pro**: `git push origin main:release`. Sin eso, el móvil sigue con lo del 27/09
    (punto 13). Pre ya lo tiene todo.
-2. **Aceptar las confirmaciones de Supabase** cuando una sesión se las pida: el borrado del cambio
-   repetido (punto 65), la T-301a y la T-209b. Si no llegan al móvil, se hacen delante del
-   ordenador.
-3. **Decir si los equipos nacen fuera de la lista** (punto 14). Es como está escrito.
-4. **Cerrar las pestañas viejas de la aplicación** en el móvil hasta que la T-216 esté publicada.
+2. **Estar delante para lo que toca la base**: la T-301a, que desbloquea la T-301b y la T-301c;
+   la línea de Realtime (punto 77); y el borrado del cambio repetido (punto 65), que ya se
+   puede hacer también desde el cierre, reabriendo el partido.
+3. **Probar en el móvil, en pre, lo de hoy**: descartar el rechazado de la banda, «Sin
+   asistencia» arriba, el panel del cierre y «Mis aportaciones».
+4. **Decir si los equipos nacen fuera de la lista** (punto 14). Es como está escrito.
 
 **Las tareas, en orden**, cada una con su traspaso en el proyecto de Claude:
 
-| Orden | Tarea      | Qué                                                              | Esfuerzo |
-| :---- | :--------- | :--------------------------------------------------------------- | :------- |
-| 1     | **T-219**  | La banda lista lo rechazado y deja descartarlo                   | Bajo     |
-| 2     | **T-220**  | Flecos del flujo, «Sin asistencia» arriba y enlace al directo    | Bajo     |
-| 3     | **T-210b** | Panel de discordancias: aprobar, descartar, duplicados y minuto  | Medio    |
-| 4     | **T-301a** | Migración de personas: invitaciones, seguir y solicitudes        | Alto     |
-| 5     | **T-301b** | A07, personas y permisos                                         | Medio    |
-| 6     | **T-301c** | Entrar sin equipo: seguir, pedir permisos y el seguidor que mira | Medio    |
-| 7     | **T-209a** | Cobertura declarada                                              | Medio    |
-| 8     | **T-209b** | Ver lo que apuntan los demás: tiempo real y sondeo               | Alto     |
-| 9     | **T-209c** | Partes compartidas entre aparatos                                | Medio    |
-| 10    | **T-211**  | Mis aportaciones: corregir y borrar lo apuntado por uno mismo    | Medio    |
-| 11    | **T-303**  | Registro de errores para administración                          | Bajo     |
-| 12    | **T-302**  | Prueba de campo, el sábado 17 de octubre en casa. Tiene guion    | —        |
+| Orden | Tarea      | Qué                                                              | Esfuerzo | Necesita a Raúl |
+| :---- | :--------- | :--------------------------------------------------------------- | :------- | :-------------- |
+| 1     | **T-221**  | Arreglos de la revisión: la banda y la cobertura                 | Medio    | No              |
+| 2     | **T-209b** | Ver lo que apuntan los demás, sin tocar la base                  | Alto     | No              |
+| 3     | **T-209c** | Partes compartidas entre aparatos                                | Medio    | No              |
+| 4     | **T-222**  | Arreglos de la revisión: cierre, aportaciones y registro         | Bajo     | No              |
+| 5     | **T-301a** | Migración de personas: invitaciones, seguir y solicitudes        | Alto     | Sí              |
+| 6     | **T-301b** | A07, personas y permisos                                         | Medio    | No, tras la a   |
+| 7     | **T-301c** | Entrar sin equipo: seguir, pedir permisos y el seguidor que mira | Medio    | No, tras la b   |
+| 8     | **T-302**  | Prueba de campo, el sábado 17 de octubre en casa. Tiene guion    | —        | Sí              |
 
 La T-302 tiene fecha y no espera a nadie: lo que no esté fusionado y publicado el jueves 15 no
-entra en la prueba. La T-211 y la T-303 son las que se recortan si aprieta. Todas tocan el DOC 08 y este documento:
-de una en una.
+entra en la prueba. Todas tocan el DOC 08 y este documento: de una en una.
 
 ---
 
