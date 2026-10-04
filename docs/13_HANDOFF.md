@@ -5,6 +5,26 @@
 
 ---
 
+## Sesión 04/10/2026, mediodía — I1 cerrada y traspasos del lote siguiente: ✅ cerrada
+
+Misma sesión de Cowork, con las respuestas de Raúl. Rama `docs/docs-seguir-sin-aprobacion`. **Sin
+código de aplicación.**
+
+- **I1 cerrada: seguir a un equipo no necesita aprobación** (DOC 03). La migración pendiente y su
+  ensayo están reescritos: `seguir_equipo`, solicitudes solo de permisos y el nombre real fuera de
+  la API (DOC 05 §14.8, puntos 14 y 68 de abajo).
+- **El ensayo ha pasado en local**: las ocho migraciones más el ensayo sobre PGlite, con
+  `ENSAYO_CORRECTO: 18 pruebas, nada aplicado`. Contra Supabase sigue sin lanzarse.
+- **La asistencia del primer gol, quitada** en la base: Raúl la puso sin querer. **El cambio
+  repetido sigue ahí**: Raúl dio el visto bueno, pero el borrado pide una confirmación en la
+  aplicación que no llegó (punto 65).
+- **Pre comprobado**: `main--gavetastats.netlify.app` sirve lo de la T-215 a la T-218. Producción
+  sigue en el 27/09.
+- **Traspasos nuevos o cambiados** en el proyecto de Claude: T-220 (gana «Sin asistencia»
+  arriba), T-301a y T-301c (seguir directo), T-209a a c, T-211, T-303 y el guion de la T-302.
+
+---
+
 ## Sesión 04/10/2026 — primer partido y revisión de las T-212 a T-218: ✅ cerrada
 
 Sesión de Cowork con Raúl al otro lado, desde el móvil. El sábado 3 se jugó el primer partido de
@@ -80,6 +100,7 @@ Todo sobre el partido `62493b88-…`, por SQL y sin sesión de usuario, a petici
 | Los dorsales 17 y 18, de no convocados a suplentes    | Están en el acta y los dos entraron |
 | Los minutos de seis goles, a los del acta             | Iban uno o dos por encima           |
 | Cinco cambios insertados a nombre de Raúl, sin motivo | Solo había llegado uno de los seis  |
+| La asistencia del gol del 18', quitada (a las 11:14)  | Raúl la puso sin querer             |
 
 Salió mal una cosa, y está en los puntos 64 y 65: el móvil de Raúl tenía dos de esos cambios en la
 cola. El partido lo cerró Raúl desde la aplicación a las 10:11, 0 – 9.
@@ -88,7 +109,7 @@ cola. El partido lo cerró Raúl desde la aplicación a las 10:11, 0 – 9.
 
 ## DEUDA TÉCNICA GENERADA
 
-Los puntos 59 a 67 de abajo.
+Los puntos 59 a 72 de abajo.
 
 ---
 
@@ -146,12 +167,13 @@ Pendiente de hacer:
     `git push origin main:release`, 15 créditos. Pre, `main--gavetastats`, compila sola cada fusión
     a `main` desde que se quitó el `ignore` (punto 12); **el 04/10 no se pudo comprobar desde la
     sesión qué build sirve**.
-14. **Cómo entra alguien nuevo, decidido el 04/10 (DOC 03, I1).** Dos puertas, y las dos pasan por
-    quien tiene `members.manage`: la invitación a un correo, que esa cuenta ve y acepta al entrar
-    con Google, y la solicitud, de quien entra sin equipo, elige uno de los que admiten solicitudes
-    y pide seguirlo o pide permisos. Es la T-301, partida en tres: la migración (T-301a, DOC 05
-    §14.8, **sin aplicar**), la A07 (T-301b) y la entrada (T-301c). **Pendiente del visto bueno de
-    Raúl**: que seguir a un equipo también se apruebe, que es como está escrita la migración.
+14. **Cómo entra alguien nuevo, cerrado el 04/10 (DOC 03, I1).** Tres puertas: la invitación a un
+    correo, que esa cuenta ve y acepta al entrar con Google; **seguir, que es inmediato y no lo
+    aprueba nadie**; y la solicitud de permisos, que acepta quien tiene `members.manage`. Un equipo
+    solo se puede seguir, y solo se le puede pedir, si quien lo lleva lo ha puesto en la lista.
+    Es la T-301, partida en tres: la migración (T-301a, DOC 05 §14.8, **sin aplicar**), la A07
+    (T-301b) y la entrada (T-301c). Raúl no ha dicho nada de que los equipos nazcan fuera de la
+    lista: es como está escrito, y se cambia con una casilla.
 15. **A01b no está en el inventario del DOC 02.** O entra como parada técnica, o se le da otro sitio.
 16. **El contrato de `AuthState` mezcla idiomas**: `cargando`, `permisos` y `reintentarContexto`
     junto a `profile` y `activeTeamId`. Decidir y unificar con el DOC 06 §5.5.
@@ -356,8 +378,10 @@ Pendiente de hacer:
 
 65. **El primer partido tiene un cambio repetido**: el 14 por el 4, en el 46, dos veces. Los
     minutos están bien, porque `rebuild_match_stints` ignora el repetido, pero el partido cuenta
-    siete cambios y fueron seis. Borrarlo es una fila; **espera el visto bueno de Raúl**, y después
-    hay que recalcular los tramos.
+    siete cambios y fueron seis. **Raúl dio el visto bueno a borrarlo el 04/10**, y el borrado
+    volvió cancelado: la herramienta pide una confirmación en la aplicación de Claude y no llegó.
+    La fila que sobra es la `abcea703-…`, la que no tiene motivo. Dos salidas: repetirlo con Raúl
+    mirando la pantalla, o descartarlo desde la A13 cuando esté la T-210b, reabriendo el partido.
 
 66. **El primer partido no tiene cobertura declarada**, porque la declaración llega con la T-209a.
     Su fiabilidad saldrá «Sin cobertura declarada» hasta que se le ponga la del diferido, que el
@@ -367,6 +391,31 @@ Pendiente de hacer:
     `claude/traspaso_T-xxx.md`. Cada sesión que ejecuta uno añade su cierre aquí arriba, corto, y
     la siguiente sesión de revisión los junta. Si el método se queda, pide su sitio en el DOC 00
     §5.
+
+68. **El nombre real de los jugadores se podía pedir por la API.** `authenticated` tiene permiso
+    de lectura sobre toda la tabla `players`, y la política deja leer la fila a quien sigue al
+    equipo. La aplicación nunca pide `full_name` y hoy está vacío en todos, así que no ha salido
+    nada. La T-301a lo cierra con permisos de columna (DOC 05 §14.8). **Hasta que se aplique, que
+    nadie rellene `full_name`.** Tampoco está cerrada la escritura: quien tiene `roster.manage`
+    puede escribirlo por la API.
+
+69. **Sin lista de bloqueados.** A quien se le quita de seguidor puede volver a seguir mientras el
+    equipo esté en la lista. Para cerrarle el paso hay que sacar al equipo de ella. Se asume para
+    el MVP: el seguidor solo lee calendario, resultados, dorsales y apodos.
+
+70. **«Sin asistencia» está, pero no se ve.** Va debajo de la lista de jugadores, junto a «Atrás».
+    La noche del primer partido era además el último paso del flujo, el que daba el error falso de
+    la T-215: Raúl acabó eligiendo a un jugador para poder guardar. La T-220 lo sube encima de la
+    lista, y lo mismo con «Sin motivo».
+
+71. **Lo apuntado mal no se corrige desde la aplicación**, salvo el minuto (T-210b). Cambiar el
+    jugador o la asistencia, o borrar un evento propio, es la A14, «Mis aportaciones» (T-211), que
+    ya tiene traspaso. Hasta entonces, por SQL y con el punto 64 delante.
+
+72. **El ensayo de la T-301a pasa en local y no en Supabase.** Se montó con PGlite en la carpeta
+    temporal de la sesión, sin tocar el repositorio: tres roles, un esquema `auth` mínimo, las ocho
+    migraciones, `seed.sql` y dos jugadores. Si se quiere repetible, pide una dependencia de
+    desarrollo y un script; no se ha añadido.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
@@ -402,27 +451,32 @@ cifra de referencia. En crudo, `precache 37 entries (940.82 KiB)`.
 **Lo que tiene que hacer o decidir Raúl:**
 
 1. **Publicar en pro**: `git push origin main:release`. Sin eso, el móvil sigue con lo del 27/09
-   (punto 13).
-2. **Decir si seguir a un equipo se aprueba** (punto 14). La T-301a no se lanza sin eso.
-3. **Dar el visto bueno a borrar el cambio repetido** del primer partido (punto 65).
+   (punto 13). Pre ya lo tiene todo.
+2. **Aceptar las confirmaciones de Supabase** cuando una sesión se las pida: el borrado del cambio
+   repetido (punto 65), la T-301a y la T-209b. Si no llegan al móvil, se hacen delante del
+   ordenador.
+3. **Decir si los equipos nacen fuera de la lista** (punto 14). Es como está escrito.
 4. **Cerrar las pestañas viejas de la aplicación** en el móvil hasta que la T-216 esté publicada.
 
 **Las tareas, en orden**, cada una con su traspaso en el proyecto de Claude:
 
-| Orden | Tarea      | Qué                                                             | Esfuerzo |
-| :---- | :--------- | :-------------------------------------------------------------- | :------- |
-| 1     | **T-219**  | La banda lista lo rechazado y deja descartarlo                  | Bajo     |
-| 2     | **T-220**  | Flecos del flujo y enlace al directo desde la convocatoria      | Bajo     |
-| 3     | **T-210b** | Panel de discordancias: aprobar, descartar, duplicados y minuto | Medio    |
-| 4     | **T-301a** | Migración de personas: invitaciones y solicitudes               | Alto     |
-| 5     | **T-301b** | A07, personas y permisos                                        | Medio    |
-| 6     | **T-301c** | Entrar sin equipo: aceptar invitación o pedir acceso            | Medio    |
-| 7     | **T-209a** | Cobertura declarada                                             | Medio    |
-| 8     | **T-209b** | Ver lo que apuntan los demás: tiempo real y sondeo              | Alto     |
-| 9     | **T-209c** | Partes compartidas entre aparatos                               | Medio    |
-| 10    | **T-302**  | Prueba de campo, el sábado 17 de octubre en casa                | —        |
+| Orden | Tarea      | Qué                                                              | Esfuerzo |
+| :---- | :--------- | :--------------------------------------------------------------- | :------- |
+| 1     | **T-219**  | La banda lista lo rechazado y deja descartarlo                   | Bajo     |
+| 2     | **T-220**  | Flecos del flujo, «Sin asistencia» arriba y enlace al directo    | Bajo     |
+| 3     | **T-210b** | Panel de discordancias: aprobar, descartar, duplicados y minuto  | Medio    |
+| 4     | **T-301a** | Migración de personas: invitaciones, seguir y solicitudes        | Alto     |
+| 5     | **T-301b** | A07, personas y permisos                                         | Medio    |
+| 6     | **T-301c** | Entrar sin equipo: seguir, pedir permisos y el seguidor que mira | Medio    |
+| 7     | **T-209a** | Cobertura declarada                                              | Medio    |
+| 8     | **T-209b** | Ver lo que apuntan los demás: tiempo real y sondeo               | Alto     |
+| 9     | **T-209c** | Partes compartidas entre aparatos                                | Medio    |
+| 10    | **T-211**  | Mis aportaciones: corregir y borrar lo apuntado por uno mismo    | Medio    |
+| 11    | **T-303**  | Registro de errores para administración                          | Bajo     |
+| 12    | **T-302**  | Prueba de campo, el sábado 17 de octubre en casa. Tiene guion    | —        |
 
-La T-211 y la T-303 son las que se recortan si aprieta. Todas tocan el DOC 08 y este documento:
+La T-302 tiene fecha y no espera a nadie: lo que no esté fusionado y publicado el jueves 15 no
+entra en la prueba. La T-211 y la T-303 son las que se recortan si aprieta. Todas tocan el DOC 08 y este documento:
 de una en una.
 
 ---

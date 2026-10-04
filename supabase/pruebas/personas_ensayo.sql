@@ -1,12 +1,12 @@
 -- =========================================================================
 -- ENSAYO de la migración de personas (DOC 05 §14.8, T-301a).
 --
--- Es la migración de `supabase/pendientes/personas_y_solicitudes.sql` más 17
+-- Es la migración de `supabase/pendientes/personas_y_solicitudes.sql` más 18
 -- comprobaciones, todo dentro de un solo bloque que TERMINA EN ERROR A
 -- PROPÓSITO. Al fallar, PostgreSQL deshace el bloque entero: no queda ni la
--- tabla, ni las funciones, ni el usuario de prueba.
+-- tabla, ni las funciones, ni los permisos de columna, ni el usuario de prueba.
 --
---   · Si acaba en «ENSAYO_CORRECTO: 17 pruebas, nada aplicado», la migración
+--   · Si acaba en «ENSAYO_CORRECTO: 18 pruebas, nada aplicado», la migración
 --     se puede aplicar.
 --   · Si acaba en «Tn falla» o «Tn no falló», esa comprobación no pasa: no se
 --     aplica nada y se arregla primero.
@@ -21,22 +21,27 @@ declare
 begin
 -- =========================================================================
 -- DOC 05 §14.8 · Personas: invitaciones por correo y solicitudes de acceso
--- T-301a. Decisión de Raúl del 04/10/2026 (DOC 03, H5).
+-- T-301a. Decisión de Raúl del 04/10/2026 (DOC 03, I1).
 --
--- Dos puertas para entrar en un equipo, y las dos pasan por quien tiene
--- members.manage:
+-- Tres maneras de llegar a un equipo:
 --   · INVITACIÓN: quien lleva el equipo apunta un correo. Esa cuenta, al
 --     entrar con Google, ve la invitación y la acepta. No se envía ningún
 --     correo: la invitación se casa con el correo de la cuenta.
---   · SOLICITUD: quien no tiene equipo ve los equipos que admiten solicitudes,
---     pide seguirlo o pide permisos, y quien lleva el equipo acepta o rechaza.
+--   · SEGUIR: quien tiene cuenta ve los equipos que salen en la lista y sigue
+--     el que quiera, sin esperar a nadie. El seguidor solo lee.
+--   · SOLICITUD: quien quiere anotar pide permisos, y acepta o rechaza quien
+--     tiene members.manage.
 --
--- Nadie entra solo: seguir a un equipo de menores también se aprueba.
+-- Un equipo solo sale en la lista si quien lo lleva lo enciende. Para tener
+-- permisos sigue haciendo falta que alguien acepte.
 -- Todas las escrituras van por funciones SECURITY DEFINER; las tablas no
 -- ganan ninguna política de escritura para quien pide.
+--
+-- Como seguir es libre, el nombre real deja de salir por la API (punto 8).
 -- =========================================================================
 
--- 1. Cada equipo decide si sale en la lista. Por defecto, no.
+-- 1. Cada equipo decide si sale en la lista: se le puede seguir y pedir
+--    permisos. Por defecto, no.
 alter table public.teams
   add column accepts_requests boolean not null default false;
 
@@ -74,15 +79,13 @@ create unique index invitations_una_pendiente
 create index invitations_email_pendiente
   on public.invitations (email) where status = 'pending';
 
--- 3. Solicitudes de acceso.
-create type public.access_request_kind as enum ('follower', 'member');
+-- 3. Solicitudes de permisos. Seguir no pasa por aquí.
 create type public.access_request_status as enum ('pending', 'approved', 'rejected', 'cancelled');
 
 create table public.access_requests (
   id          uuid primary key default gen_random_uuid(),
   team_id     uuid not null references public.teams(id) on delete cascade,
   user_id     uuid not null references public.profiles(id) on delete cascade,
-  kind        public.access_request_kind not null default 'follower',
   message     text,
   status      public.access_request_status not null default 'pending',
   decided_by  uuid references public.profiles(id),
@@ -206,7 +209,8 @@ $$;
 revoke execute on function public.aceptar_invitacion(uuid) from public, anon;
 grant execute on function public.aceptar_invitacion(uuid) to authenticated;
 
--- 6. Solicitudes: los equipos que las admiten, pedir, cancelar, ver y resolver.
+-- 6. Los equipos de la lista, seguir uno, y las solicitudes de permisos:
+--    pedir, cancelar, ver y resolver.
 create or replace function public.equipos_que_admiten_solicitudes()
 returns table (team_id uuid, team_name text, category text, club_name text)
 language sql stable security definer set search_path = public
@@ -223,11 +227,40 @@ $$;
 revoke execute on function public.equipos_que_admiten_solicitudes() from public, anon;
 grant execute on function public.equipos_que_admiten_solicitudes() to authenticated;
 
-create or replace function public.solicitar_acceso(
-  p_team_id uuid,
-  p_kind public.access_request_kind,
-  p_message text default null
-)
+-- Seguir es directo: basta con que el equipo salga en la lista.
+create or replace function public.seguir_equipo(p_team_id uuid)
+returns void language plpgsql security definer set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception insufficient_privilege using message = 'Seguir a un equipo exige sesión';
+  end if;
+
+  if not exists (
+    select 1 from teams where id = p_team_id and kind = 'managed' and accepts_requests
+  ) then
+    raise exception no_data_found using message = 'Ese equipo no admite seguidores';
+  end if;
+
+  -- Quien ya es miembro no baja a seguidor: manda la de miembro (DOC 04 §15.3).
+  if exists (
+    select 1 from team_members where team_id = p_team_id and user_id = v_uid and is_active
+  ) then
+    raise exception check_violation using message = 'Ya perteneces a ese equipo';
+  end if;
+
+  insert into team_followers (team_id, user_id)
+  values (p_team_id, v_uid)
+  on conflict (team_id, user_id) do nothing;
+end;
+$$;
+
+revoke execute on function public.seguir_equipo(uuid) from public, anon;
+grant execute on function public.seguir_equipo(uuid) to authenticated;
+
+create or replace function public.solicitar_acceso(p_team_id uuid, p_message text default null)
 returns uuid language plpgsql security definer set search_path = public
 as $$
 declare
@@ -236,7 +269,7 @@ declare
   v_id      uuid;
 begin
   if v_uid is null then
-    raise exception insufficient_privilege using message = 'Pedir acceso exige sesión';
+    raise exception insufficient_privilege using message = 'Pedir permisos exige sesión';
   end if;
 
   if not exists (
@@ -249,12 +282,6 @@ begin
     select 1 from team_members where team_id = p_team_id and user_id = v_uid and is_active
   ) then
     raise exception check_violation using message = 'Ya perteneces a ese equipo';
-  end if;
-
-  if p_kind = 'follower' and exists (
-    select 1 from team_followers where team_id = p_team_id and user_id = v_uid
-  ) then
-    raise exception check_violation using message = 'Ya sigues a ese equipo';
   end if;
 
   if exists (
@@ -274,16 +301,16 @@ begin
       using message = 'Ese equipo rechazó tu solicitud hace poco. Podrás volver a pedirlo en unos días';
   end if;
 
-  insert into access_requests (team_id, user_id, kind, message)
-  values (p_team_id, v_uid, p_kind, v_message)
+  insert into access_requests (team_id, user_id, message)
+  values (p_team_id, v_uid, v_message)
   returning id into v_id;
 
   return v_id;
 end;
 $$;
 
-revoke execute on function public.solicitar_acceso(uuid, public.access_request_kind, text) from public, anon;
-grant execute on function public.solicitar_acceso(uuid, public.access_request_kind, text) to authenticated;
+revoke execute on function public.solicitar_acceso(uuid, text) from public, anon;
+grant execute on function public.solicitar_acceso(uuid, text) to authenticated;
 
 create or replace function public.cancelar_solicitud(p_request_id uuid)
 returns void language plpgsql security definer set search_path = public
@@ -306,12 +333,11 @@ grant execute on function public.cancelar_solicitud(uuid) to authenticated;
 -- la política de profiles, que solo enseña a los compañeros.
 create or replace function public.solicitudes_del_equipo(p_team_id uuid)
 returns table (
-  id uuid, user_id uuid, display_name text,
-  kind public.access_request_kind, message text, created_at timestamptz
+  id uuid, user_id uuid, display_name text, message text, created_at timestamptz
 )
 language sql stable security definer set search_path = public
 as $$
-  select r.id, r.user_id, p.display_name, r.kind, r.message, r.created_at
+  select r.id, r.user_id, p.display_name, r.message, r.created_at
     from access_requests r
     join profiles p on p.id = r.user_id
    where r.team_id = p_team_id
@@ -347,16 +373,7 @@ begin
     raise exception check_violation using message = 'La solicitud ya está resuelta';
   end if;
 
-  if p_aprobar and v_req.kind = 'follower' then
-    if not exists (
-      select 1 from team_members
-       where team_id = v_req.team_id and user_id = v_req.user_id and is_active
-    ) then
-      insert into team_followers (team_id, user_id, granted_by)
-      values (v_req.team_id, v_req.user_id, v_uid)
-      on conflict (team_id, user_id) do nothing;
-    end if;
-  elsif p_aprobar then
+  if p_aprobar then
     insert into team_members (team_id, user_id, role, is_active, invited_by)
     values (v_req.team_id, v_req.user_id, p_role, true, v_uid)
     on conflict (team_id, user_id) do update set role = excluded.role, is_active = true
@@ -405,6 +422,15 @@ $$;
 revoke execute on function public.dejar_de_seguir(uuid) from public, anon;
 grant execute on function public.dejar_de_seguir(uuid) to authenticated;
 
+-- 8. El nombre real no sale por la API. La fila de `players` la lee quien
+--    sigue al equipo (decisión H4), y seguir ya no lo aprueba nadie: de esa
+--    fila solo pueden salir el apodo y lo que no dice quién es. La aplicación
+--    nunca ha pedido las otras tres columnas (T-202). El día que se active el
+--    nombre real con su consentimiento, saldrá por una función que lo compruebe.
+revoke select on public.players from authenticated;
+grant select (id, club_id, nickname, is_active, created_by, created_at, updated_at)
+  on public.players to authenticated;
+
   -- ===================== PRUEBAS (todo se deshace al final) =====================
   select tm.team_id, tm.user_id into v_team, v_coach
     from team_members tm join team_member_permissions p on p.team_member_id = tm.id
@@ -430,13 +456,11 @@ grant execute on function public.dejar_de_seguir(uuid) to authenticated;
   exception when unique_violation then null;
   end;
 
-  -- T3: quien invita no la ve como suya.
+  -- T3: quien invita no la ve como suya, ni la puede aceptar.
   if (select count(*) from mis_invitaciones()) <> 0 then raise exception 'T3 falla'; end if;
-
-  -- T5: ni la puede aceptar.
   begin
     perform aceptar_invitacion(v_inv);
-    raise exception 'T5 no falló';
+    raise exception 'T3b no falló';
   exception when no_data_found then null;
   end;
 
@@ -446,91 +470,119 @@ grant execute on function public.dejar_de_seguir(uuid) to authenticated;
     raise exception 'T4 falla';
   end if;
 
-  -- T6: al aceptar es miembro con sus dos permisos.
+  -- T5: al aceptar es miembro con sus dos permisos.
   perform aceptar_invitacion(v_inv);
   if not exists (select 1 from team_members where team_id = v_team and user_id = v_b and role = 'delegate' and is_active and invited_by = v_coach)
      or (select count(*) from team_member_permissions p join team_members tm on tm.id = p.team_member_id where tm.user_id = v_b) <> 2
      or (select status from invitations where id = v_inv) <> 'accepted' then
-    raise exception 'T6 falla';
+    raise exception 'T5 falla';
   end if;
   if not has_team_permission(v_team, 'match.live.write') or has_team_permission(v_team, 'members.manage') then
-    raise exception 'T6b falla';
+    raise exception 'T5b falla';
   end if;
 
-  -- T7: no se acepta dos veces.
+  -- T6: no se acepta dos veces.
   begin
     perform aceptar_invitacion(v_inv);
-    raise exception 'T7 no falló';
+    raise exception 'T6 no falló';
   exception when check_violation then null;
   end;
 
-  -- T8: con el equipo cerrado a solicitudes, ni sale en la lista ni se puede pedir.
+  -- T7: un miembro no puede seguir a su equipo ni pedirle permisos.
+  update teams set accepts_requests = true where id = v_team;
+  begin
+    perform seguir_equipo(v_team);
+    raise exception 'T7 no falló';
+  exception when check_violation then null;
+  end;
+  begin
+    perform solicitar_acceso(v_team, null);
+    raise exception 'T7b no falló';
+  exception when check_violation then null;
+  end;
+  update teams set accepts_requests = false where id = v_team;
+
+  -- T8: con el equipo fuera de la lista, ni sale, ni se le sigue, ni se le pide.
   delete from team_members where user_id = v_b;
   if (select count(*) from equipos_que_admiten_solicitudes()) <> 0 then raise exception 'T8 falla'; end if;
   begin
-    perform solicitar_acceso(v_team, 'follower', null);
+    perform seguir_equipo(v_team);
     raise exception 'T8b no falló';
   exception when no_data_found then null;
   end;
+  begin
+    perform solicitar_acceso(v_team, null);
+    raise exception 'T8c no falló';
+  exception when no_data_found then null;
+  end;
 
-  -- T9: abierto, sale en la lista, se pide una vez y no dos.
+  -- T9: en la lista, se le sigue sin esperar a nadie. Dos veces, una sola fila.
   update teams set accepts_requests = true where id = v_team;
   if (select count(*) from equipos_que_admiten_solicitudes() where team_id = v_team and club_name is not null) <> 1 then
     raise exception 'T9 falla';
   end if;
-  v_req := solicitar_acceso(v_team, 'follower', '  Soy el padre del 7  ');
-  if (select message from access_requests where id = v_req) <> 'Soy el padre del 7' then raise exception 'T9b falla'; end if;
+  perform seguir_equipo(v_team);
+  perform seguir_equipo(v_team);
+  if (select count(*) from team_followers where team_id = v_team and user_id = v_b) <> 1 then raise exception 'T9b falla'; end if;
+  if not can_read_team(v_team) or has_team_permission(v_team, 'stats.view') then raise exception 'T9c falla'; end if;
+
+  -- T10: pedir permisos recorta el mensaje, y no se pide dos veces.
+  v_req := solicitar_acceso(v_team, '  Puedo anotar los sábados  ');
+  if (select message from access_requests where id = v_req) <> 'Puedo anotar los sábados' then raise exception 'T10 falla'; end if;
   begin
-    perform solicitar_acceso(v_team, 'member', null);
-    raise exception 'T9c no falló';
+    perform solicitar_acceso(v_team, null);
+    raise exception 'T10b no falló';
   exception when unique_violation then null;
   end;
 
-  -- T10: quien pide no ve la bandeja del equipo; quien lo lleva, sí, con nombre.
-  if (select count(*) from solicitudes_del_equipo(v_team)) <> 0 then raise exception 'T10 falla'; end if;
+  -- T11: quien pide no ve la bandeja del equipo ni resuelve; quien lo lleva la ve con nombre.
+  if (select count(*) from solicitudes_del_equipo(v_team)) <> 0 then raise exception 'T11 falla'; end if;
   begin
     perform resolver_solicitud(v_req, true);
-    raise exception 'T11 no falló';
+    raise exception 'T11b no falló';
   exception when insufficient_privilege then null;
   end;
   perform set_config('request.jwt.claims', json_build_object('sub', v_coach, 'role', 'authenticated')::text, true);
-  if (select count(*) from solicitudes_del_equipo(v_team) where display_name = 'Prueba T301' and kind = 'follower') <> 1 then
-    raise exception 'T10b falla';
+  if (select count(*) from solicitudes_del_equipo(v_team) where display_name = 'Prueba T301' and message is not null) <> 1 then
+    raise exception 'T11c falla';
+  end if;
+  if (select count(*) from seguidores_del_equipo(v_team) where user_id = v_b and display_name = 'Prueba T301') <> 1 then
+    raise exception 'T11d falla';
   end if;
 
-  -- T12: rechazada, no se puede volver a pedir en una semana.
+  -- T12: rechazada, sigue siendo seguidor y no puede volver a pedir en una semana.
   perform resolver_solicitud(v_req, false);
   if (select status from access_requests where id = v_req) <> 'rejected' then raise exception 'T12 falla'; end if;
+  if not exists (select 1 from team_followers where team_id = v_team and user_id = v_b) then raise exception 'T12b falla'; end if;
   perform set_config('request.jwt.claims', json_build_object('sub', v_b, 'role', 'authenticated')::text, true);
   begin
-    perform solicitar_acceso(v_team, 'follower', null);
-    raise exception 'T12b no falló';
+    perform solicitar_acceso(v_team, null);
+    raise exception 'T12c no falló';
   exception when check_violation then null;
   end;
 
-  -- T13: pasada la semana, pide seguir y se le aprueba: seguidor, y lee el equipo.
+  -- T13: pasada la semana, pide y se le aprueba: miembro, y deja de ser seguidor.
   update access_requests set decided_at = now() - interval '8 days' where id = v_req;
-  v_req := solicitar_acceso(v_team, 'follower', null);
-  perform set_config('request.jwt.claims', json_build_object('sub', v_coach, 'role', 'authenticated')::text, true);
-  perform resolver_solicitud(v_req, true);
-  if (select count(*) from seguidores_del_equipo(v_team) where user_id = v_b) <> 1 then raise exception 'T13 falla'; end if;
-  perform set_config('request.jwt.claims', json_build_object('sub', v_b, 'role', 'authenticated')::text, true);
-  if not can_read_team(v_team) or has_team_permission(v_team, 'stats.view') then raise exception 'T13b falla'; end if;
-
-  -- T14: siendo seguidor, pide permisos y se le aprueban: miembro, y deja de ser seguidor.
-  v_req := solicitar_acceso(v_team, 'member', 'Puedo anotar los sábados');
+  v_req := solicitar_acceso(v_team, null);
   perform set_config('request.jwt.claims', json_build_object('sub', v_coach, 'role', 'authenticated')::text, true);
   perform resolver_solicitud(v_req, true, 'scout', array['match.live.write']::app_permission[]);
   if not exists (select 1 from team_members where team_id = v_team and user_id = v_b and role = 'scout' and is_active)
      or exists (select 1 from team_followers where team_id = v_team and user_id = v_b) then
-    raise exception 'T14 falla';
+    raise exception 'T13 falla';
   end if;
 
-  -- T15: por RLS, un tercero no ve solicitudes ajenas ni escribe en la tabla.
+  -- T14: una solicitud resuelta no se resuelve otra vez.
+  begin
+    perform resolver_solicitud(v_req, false);
+    raise exception 'T14 no falló';
+  exception when check_violation then null;
+  end;
+
+  -- T15: por RLS, cada uno ve sus solicitudes, nadie escribe en la tabla y un tercero no ve nada.
   perform set_config('request.jwt.claims', json_build_object('sub', v_b, 'role', 'authenticated')::text, true);
   execute 'set local role authenticated';
   select count(*) into v_n from access_requests;
-  if v_n <> 3 then raise exception 'T15 falla: el dueño ve % y son 3', v_n; end if;
+  if v_n <> 2 then raise exception 'T15 falla: el dueño ve % y son 2', v_n; end if;
   begin
     insert into access_requests (team_id, user_id) values (v_team, v_b);
     raise exception 'T15b no falló';
@@ -543,8 +595,9 @@ grant execute on function public.dejar_de_seguir(uuid) to authenticated;
   if v_n <> 1 then raise exception 'T15d falla'; end if;
   execute 'reset role';
 
-  -- T16: anónimo no ejecuta nada.
-  if has_function_privilege('anon', 'public.solicitar_acceso(uuid, public.access_request_kind, text)', 'execute')
+  -- T16: anónimo no ejecuta nada, y nadie llama a correo_actual desde fuera.
+  if has_function_privilege('anon', 'public.seguir_equipo(uuid)', 'execute')
+     or has_function_privilege('anon', 'public.solicitar_acceso(uuid, text)', 'execute')
      or has_function_privilege('anon', 'public.mis_invitaciones()', 'execute')
      or has_function_privilege('anon', 'public.aceptar_invitacion(uuid)', 'execute')
      or has_function_privilege('anon', 'public.resolver_solicitud(uuid, boolean, public.team_role, public.app_permission[])', 'execute')
@@ -552,17 +605,43 @@ grant execute on function public.dejar_de_seguir(uuid) to authenticated;
     raise exception 'T16 falla';
   end if;
 
-  -- T17: cancelar la propia y dejar de seguir.
+  -- T17: cancelar la propia, y dejar de seguir.
   perform set_config('request.jwt.claims', json_build_object('sub', v_b, 'role', 'authenticated')::text, true);
   delete from team_members where user_id = v_b;
-  v_req := solicitar_acceso(v_team, 'follower', null);
+  v_req := solicitar_acceso(v_team, null);
   perform cancelar_solicitud(v_req);
   if (select status from access_requests where id = v_req) <> 'cancelled' then raise exception 'T17 falla'; end if;
-  insert into team_followers (team_id, user_id) values (v_team, v_b);
+  perform seguir_equipo(v_team);
   perform dejar_de_seguir(v_team);
   if exists (select 1 from team_followers where user_id = v_b) then raise exception 'T17b falla'; end if;
 
-  raise exception 'ENSAYO_CORRECTO: 17 pruebas, nada aplicado';
+  -- T18: el nombre real no sale por la API. El seguidor lee apodos; ni él ni
+  --      quien lleva el equipo leen full_name; y las vistas siguen funcionando.
+  perform seguir_equipo(v_team);
+  execute 'set local role authenticated';
+  select count(nickname) into v_n from players;
+  if v_n = 0 then raise exception 'T18 falla: el seguidor no lee ningún apodo'; end if;
+  begin
+    execute 'select count(full_name) from players' into v_n;
+    raise exception 'T18b no falló';
+  exception when insufficient_privilege then null;
+  end;
+  perform set_config('request.jwt.claims', json_build_object('sub', v_coach, 'role', 'authenticated')::text, true);
+  begin
+    execute 'select count(name_consent_note) from players' into v_n;
+    raise exception 'T18c no falló';
+  exception when insufficient_privilege then null;
+  end;
+  select count(nickname) into v_n from players;
+  if v_n = 0 then raise exception 'T18d falla: quien lleva el equipo no lee apodos'; end if;
+  execute 'select count(*) from v_match_scores' into v_n;
+  execute 'select count(*) from v_player_match_minutes' into v_n;
+  execute 'select count(*) from v_player_match_stats' into v_n;
+  execute 'select count(*) from v_player_season_stats' into v_n;
+  execute 'select count(*) from v_team_season_stats' into v_n;
+  execute 'reset role';
+
+  raise exception 'ENSAYO_CORRECTO: 18 pruebas, nada aplicado';
 
 end
 $ensayo$;

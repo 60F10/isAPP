@@ -1,21 +1,26 @@
 -- =========================================================================
 -- DOC 05 §14.8 · Personas: invitaciones por correo y solicitudes de acceso
--- T-301a. Decisión de Raúl del 04/10/2026 (DOC 03, H5).
+-- T-301a. Decisión de Raúl del 04/10/2026 (DOC 03, I1).
 --
--- Dos puertas para entrar en un equipo, y las dos pasan por quien tiene
--- members.manage:
+-- Tres maneras de llegar a un equipo:
 --   · INVITACIÓN: quien lleva el equipo apunta un correo. Esa cuenta, al
 --     entrar con Google, ve la invitación y la acepta. No se envía ningún
 --     correo: la invitación se casa con el correo de la cuenta.
---   · SOLICITUD: quien no tiene equipo ve los equipos que admiten solicitudes,
---     pide seguirlo o pide permisos, y quien lleva el equipo acepta o rechaza.
+--   · SEGUIR: quien tiene cuenta ve los equipos que salen en la lista y sigue
+--     el que quiera, sin esperar a nadie. El seguidor solo lee.
+--   · SOLICITUD: quien quiere anotar pide permisos, y acepta o rechaza quien
+--     tiene members.manage.
 --
--- Nadie entra solo: seguir a un equipo de menores también se aprueba.
+-- Un equipo solo sale en la lista si quien lo lleva lo enciende. Para tener
+-- permisos sigue haciendo falta que alguien acepte.
 -- Todas las escrituras van por funciones SECURITY DEFINER; las tablas no
 -- ganan ninguna política de escritura para quien pide.
+--
+-- Como seguir es libre, el nombre real deja de salir por la API (punto 8).
 -- =========================================================================
 
--- 1. Cada equipo decide si sale en la lista. Por defecto, no.
+-- 1. Cada equipo decide si sale en la lista: se le puede seguir y pedir
+--    permisos. Por defecto, no.
 alter table public.teams
   add column accepts_requests boolean not null default false;
 
@@ -53,15 +58,13 @@ create unique index invitations_una_pendiente
 create index invitations_email_pendiente
   on public.invitations (email) where status = 'pending';
 
--- 3. Solicitudes de acceso.
-create type public.access_request_kind as enum ('follower', 'member');
+-- 3. Solicitudes de permisos. Seguir no pasa por aquí.
 create type public.access_request_status as enum ('pending', 'approved', 'rejected', 'cancelled');
 
 create table public.access_requests (
   id          uuid primary key default gen_random_uuid(),
   team_id     uuid not null references public.teams(id) on delete cascade,
   user_id     uuid not null references public.profiles(id) on delete cascade,
-  kind        public.access_request_kind not null default 'follower',
   message     text,
   status      public.access_request_status not null default 'pending',
   decided_by  uuid references public.profiles(id),
@@ -185,7 +188,8 @@ $$;
 revoke execute on function public.aceptar_invitacion(uuid) from public, anon;
 grant execute on function public.aceptar_invitacion(uuid) to authenticated;
 
--- 6. Solicitudes: los equipos que las admiten, pedir, cancelar, ver y resolver.
+-- 6. Los equipos de la lista, seguir uno, y las solicitudes de permisos:
+--    pedir, cancelar, ver y resolver.
 create or replace function public.equipos_que_admiten_solicitudes()
 returns table (team_id uuid, team_name text, category text, club_name text)
 language sql stable security definer set search_path = public
@@ -202,11 +206,40 @@ $$;
 revoke execute on function public.equipos_que_admiten_solicitudes() from public, anon;
 grant execute on function public.equipos_que_admiten_solicitudes() to authenticated;
 
-create or replace function public.solicitar_acceso(
-  p_team_id uuid,
-  p_kind public.access_request_kind,
-  p_message text default null
-)
+-- Seguir es directo: basta con que el equipo salga en la lista.
+create or replace function public.seguir_equipo(p_team_id uuid)
+returns void language plpgsql security definer set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception insufficient_privilege using message = 'Seguir a un equipo exige sesión';
+  end if;
+
+  if not exists (
+    select 1 from teams where id = p_team_id and kind = 'managed' and accepts_requests
+  ) then
+    raise exception no_data_found using message = 'Ese equipo no admite seguidores';
+  end if;
+
+  -- Quien ya es miembro no baja a seguidor: manda la de miembro (DOC 04 §15.3).
+  if exists (
+    select 1 from team_members where team_id = p_team_id and user_id = v_uid and is_active
+  ) then
+    raise exception check_violation using message = 'Ya perteneces a ese equipo';
+  end if;
+
+  insert into team_followers (team_id, user_id)
+  values (p_team_id, v_uid)
+  on conflict (team_id, user_id) do nothing;
+end;
+$$;
+
+revoke execute on function public.seguir_equipo(uuid) from public, anon;
+grant execute on function public.seguir_equipo(uuid) to authenticated;
+
+create or replace function public.solicitar_acceso(p_team_id uuid, p_message text default null)
 returns uuid language plpgsql security definer set search_path = public
 as $$
 declare
@@ -215,7 +248,7 @@ declare
   v_id      uuid;
 begin
   if v_uid is null then
-    raise exception insufficient_privilege using message = 'Pedir acceso exige sesión';
+    raise exception insufficient_privilege using message = 'Pedir permisos exige sesión';
   end if;
 
   if not exists (
@@ -228,12 +261,6 @@ begin
     select 1 from team_members where team_id = p_team_id and user_id = v_uid and is_active
   ) then
     raise exception check_violation using message = 'Ya perteneces a ese equipo';
-  end if;
-
-  if p_kind = 'follower' and exists (
-    select 1 from team_followers where team_id = p_team_id and user_id = v_uid
-  ) then
-    raise exception check_violation using message = 'Ya sigues a ese equipo';
   end if;
 
   if exists (
@@ -253,16 +280,16 @@ begin
       using message = 'Ese equipo rechazó tu solicitud hace poco. Podrás volver a pedirlo en unos días';
   end if;
 
-  insert into access_requests (team_id, user_id, kind, message)
-  values (p_team_id, v_uid, p_kind, v_message)
+  insert into access_requests (team_id, user_id, message)
+  values (p_team_id, v_uid, v_message)
   returning id into v_id;
 
   return v_id;
 end;
 $$;
 
-revoke execute on function public.solicitar_acceso(uuid, public.access_request_kind, text) from public, anon;
-grant execute on function public.solicitar_acceso(uuid, public.access_request_kind, text) to authenticated;
+revoke execute on function public.solicitar_acceso(uuid, text) from public, anon;
+grant execute on function public.solicitar_acceso(uuid, text) to authenticated;
 
 create or replace function public.cancelar_solicitud(p_request_id uuid)
 returns void language plpgsql security definer set search_path = public
@@ -285,12 +312,11 @@ grant execute on function public.cancelar_solicitud(uuid) to authenticated;
 -- la política de profiles, que solo enseña a los compañeros.
 create or replace function public.solicitudes_del_equipo(p_team_id uuid)
 returns table (
-  id uuid, user_id uuid, display_name text,
-  kind public.access_request_kind, message text, created_at timestamptz
+  id uuid, user_id uuid, display_name text, message text, created_at timestamptz
 )
 language sql stable security definer set search_path = public
 as $$
-  select r.id, r.user_id, p.display_name, r.kind, r.message, r.created_at
+  select r.id, r.user_id, p.display_name, r.message, r.created_at
     from access_requests r
     join profiles p on p.id = r.user_id
    where r.team_id = p_team_id
@@ -326,16 +352,7 @@ begin
     raise exception check_violation using message = 'La solicitud ya está resuelta';
   end if;
 
-  if p_aprobar and v_req.kind = 'follower' then
-    if not exists (
-      select 1 from team_members
-       where team_id = v_req.team_id and user_id = v_req.user_id and is_active
-    ) then
-      insert into team_followers (team_id, user_id, granted_by)
-      values (v_req.team_id, v_req.user_id, v_uid)
-      on conflict (team_id, user_id) do nothing;
-    end if;
-  elsif p_aprobar then
+  if p_aprobar then
     insert into team_members (team_id, user_id, role, is_active, invited_by)
     values (v_req.team_id, v_req.user_id, p_role, true, v_uid)
     on conflict (team_id, user_id) do update set role = excluded.role, is_active = true
@@ -383,3 +400,12 @@ $$;
 
 revoke execute on function public.dejar_de_seguir(uuid) from public, anon;
 grant execute on function public.dejar_de_seguir(uuid) to authenticated;
+
+-- 8. El nombre real no sale por la API. La fila de `players` la lee quien
+--    sigue al equipo (decisión H4), y seguir ya no lo aprueba nadie: de esa
+--    fila solo pueden salir el apodo y lo que no dice quién es. La aplicación
+--    nunca ha pedido las otras tres columnas (T-202). El día que se active el
+--    nombre real con su consentimiento, saldrá por una función que lo compruebe.
+revoke select on public.players from authenticated;
+grant select (id, club_id, nickname, is_active, created_by, created_at, updated_at)
+  on public.players to authenticated;
