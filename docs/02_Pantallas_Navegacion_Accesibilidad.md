@@ -164,7 +164,7 @@ Es la pantalla que decide si el proyecto funciona. Se registra de pie, con una m
 └─────────────────────────────────────────┘
 ```
 
-**Flujo encadenado (E8-04):** `Acción → Jugador → Detalle opcional → Guardado`. Cada paso ocupa la pantalla entera con objetivos grandes. El paso de detalle siempre se puede saltar: un gol sin asistencia registrada vale más que ningún gol registrado.
+**Flujo encadenado (E8-04):** `Acción → Jugador → Detalle opcional → Guardado`. Cada paso ocupa la pantalla entera con objetivos grandes. El paso de detalle siempre se puede saltar: un gol sin asistencia registrada vale más que ningún gol registrado. Cada paso enseña encima de la pregunta lo ya respondido —la parte y el minuto en diferido, de quién es, el jugador—, en pastillas que se leen y no se pulsan (T-218).
 
 **Registro diferido (E8-09):** todo evento admite corregir su minuto después de crearlo. La falta que precede al gol se apunta cuando haya calma.
 

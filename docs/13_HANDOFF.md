@@ -5,6 +5,16 @@
 
 ---
 
+## Sesión 04/10/2026, mañana — T-218: ✅ cerrada
+
+- **Hecho:** `resumenDelFlujo` (`model/flujo.ts`) repite el flujo desde cero y da lo ya respondido en el orden de los pasos; `FlujoDeRegistro` lo pinta entre la pregunta y el error, en una lista «Lo apuntado hasta ahora» de pastillas (`.migas` y `.miga`). `rangoDeParte` (`model/reloj.ts`) da los minutos de cada parte: la ayuda del minuto dice «De 41 a 80, como en el acta. En el descuento, 80+2.» y el error nombra la parte y su rango, en los dos sitios de `LiveMatchPage`. `Panel` recuerda en `ultimaParte` la parte del último evento guardado en diferido, y el siguiente flujo abre con ella. Rama `feat/match-resumen-del-flujo`, sin base de datos.
+- **Pruebas:** 480 en verde, 13 nuevas en `flujo.test.ts`, `reloj.test.ts` y `LiveMatchPage.test.tsx`. Cambian cuatro líneas de pruebas que ya había: el error del minuto en «en diferido no hay reloj…», y `minutosDeParte` en el contexto y en el paso del minuto de `flujo.test.ts`. Lint, Prettier y build limpios.
+- **Sin probar en un móvil ni al sol.** Las pastillas usan los tokens de los botones del flujo —texto, superficie y borde—, a 16 px; falta verlas en la pantalla de verdad, sobre todo con tres o cuatro en un móvil de 320 px.
+- **Mejora posible:** que las pastillas se pulsen para volver a ese paso. Hoy no son navegación: para volver está «Atrás».
+- **A tener en cuenta:** en la ficha de jugador en diferido, el resumen sale vacío en el paso del minuto, aunque el jugador ya esté elegido: el resumen para en el primer paso sin responder, y el minuto va primero. El selector sigue diciendo «2ª parte» y el resumen y el error «2.ª parte».
+
+---
+
 ## Sesión 04/10/2026, mañana — T-217: ✅ cerrada
 
 - **Fallo 1:** el móvil se quedaba con el reglamento y la convocatoria del día en que abrió el directo, porque `elegirEstado` devolvía el estado local entero a igualdad de avance: con el límite subido de 5 a 7 cambios y dos convocados más, seguía con 5 y sin ellos.

@@ -7,12 +7,18 @@
 // Mientras el evento se guarda (T-215), el paso lo dice y desactiva todos sus
 // botones: un segundo toque no puede guardar dos veces ni tirar a medias lo
 // que ya se está guardando.
+//
+// Encima de la pregunta va lo ya respondido (T-218): cada paso ocupa la
+// pantalla entera y borra el anterior, y en «¿Asistencia?» ya no se veía de
+// qué minuto era el gol ni quién lo marcó. Son pastillas que se leen, no
+// botones: para volver está «Atrás».
 
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@shared/ui/Button';
 import { Field } from '@shared/ui/Field';
 
+import { rangoDeParte } from '../model/reloj';
 import styles from './Registro.module.css';
 
 import type { Paso } from '../model/flujo';
@@ -28,6 +34,10 @@ interface FlujoProps {
   ocupado: boolean;
   /** Lo que se dice mientras guarda, o `null` si no hay nada que decir. */
   estado: string | null;
+  /** Lo ya respondido, en el orden de los pasos. Vacío, no se pinta. */
+  resumen: readonly string[];
+  /** En diferido, la parte con la que abre el paso del minuto: la del último evento guardado. */
+  periodoInicial: string;
   alResponder: (clave: string, valor: string | null) => void;
   alResponderMinuto: (periodo: string, minuto: string) => void;
   alAtras: (() => void) | null;
@@ -36,16 +46,22 @@ interface FlujoProps {
 
 function Minuto({
   periodos,
+  minutosDeParte,
+  periodoInicial,
   ocupado,
   alResponder,
 }: {
   periodos: number;
+  minutosDeParte: number;
+  periodoInicial: string;
   ocupado: boolean;
   alResponder: (periodo: string, minuto: string) => void;
 }) {
   const id = useId();
-  const [periodo, setPeriodo] = useState('1');
+  const [periodo, setPeriodo] = useState(periodoInicial);
   const [minuto, setMinuto] = useState('');
+  // La ayuda dice los minutos de la parte elegida: en la 2.ª de 40, de 41 a 80.
+  const { desde, hasta } = rangoDeParte(Number(periodo), minutosDeParte);
 
   return (
     <form
@@ -82,7 +98,7 @@ function Minuto({
       </div>
       <Field
         label="Minuto"
-        hint="Como se enseña en el marcador: 35, o 40+2 en el descuento."
+        hint={`De ${desde} a ${hasta}, como en el acta. En el descuento, ${hasta}+2.`}
         inputMode="text"
         autoComplete="off"
         value={minuto}
@@ -156,6 +172,8 @@ export function FlujoDeRegistro({
   error,
   ocupado,
   estado,
+  resumen,
+  periodoInicial,
   alResponder,
   alResponderMinuto,
   alAtras,
@@ -172,7 +190,13 @@ export function FlujoDeRegistro({
     switch (paso.clase) {
       case 'minuto':
         return (
-          <Minuto periodos={paso.periodos} ocupado={ocupado} alResponder={alResponderMinuto} />
+          <Minuto
+            periodos={paso.periodos}
+            minutosDeParte={paso.minutosDeParte}
+            periodoInicial={periodoInicial}
+            ocupado={ocupado}
+            alResponder={alResponderMinuto}
+          />
         );
 
       case 'texto':
@@ -243,6 +267,16 @@ export function FlujoDeRegistro({
       <h2 ref={pregunta} className={styles.pregunta} tabIndex={-1}>
         {titulo}: {titular}
       </h2>
+      {resumen.length === 0 ? null : (
+        <ol className={styles.migas} aria-label="Lo apuntado hasta ahora">
+          {resumen.map((miga, orden) => (
+            // Dos pasos pueden decir lo mismo: la clave lleva también el orden.
+            <li key={`${orden}-${miga}`} className={styles.miga}>
+              {miga}
+            </li>
+          ))}
+        </ol>
+      )}
       {/* Siempre pintada, vacía si no hay error: una región viva que aparece a
           la vez que su texto no la anuncia la mitad de los lectores. */}
       <p className={styles.error} aria-live="polite">

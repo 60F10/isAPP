@@ -629,7 +629,9 @@ describe('A12 · Directo, esqueleto', () => {
       await userEvent.type(screen.getByLabelText(/Minuto/), '50');
       await userEvent.click(screen.getByRole('button', { name: 'Seguir' }));
 
-      expect(screen.getByText(/Ese minuto no es de esa parte/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Ese minuto no es de la 1\.ª parte: va de 1 a 40/),
+      ).toBeInTheDocument();
 
       await userEvent.clear(screen.getByLabelText(/Minuto/));
       await userEvent.type(screen.getByLabelText(/Minuto/), '35');
@@ -642,6 +644,90 @@ describe('A12 · Directo, esqueleto', () => {
         period: 1,
         seconds: 2_040,
         occurred_at: null,
+      });
+    });
+
+    describe('resumen del flujo y minuto por parte (T-218)', () => {
+      function enDiferido(): DirectoCargado {
+        const diferido = { ...PAQUETE, partido: { ...PAQUETE.partido, isRetroactive: true } };
+
+        return { ...cargado(), paquete: diferido, estado: desdePaquete(diferido) };
+      }
+
+      async function responderMinuto(parte: string, minuto: string) {
+        await userEvent.selectOptions(screen.getByLabelText('Parte'), parte);
+        await userEvent.type(screen.getByLabelText(/Minuto/), minuto);
+        await userEvent.click(screen.getByRole('button', { name: 'Seguir' }));
+      }
+
+      it('en «¿Asistencia?» se lee encima la parte y el minuto, de quién es y quién marcó', async () => {
+        api.cargarDirecto.mockResolvedValue(enDiferido());
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Gol' }));
+
+        // Recién abierto no hay nada que resumir, y la lista no se pinta.
+        expect(screen.queryByRole('list', { name: 'Lo apuntado hasta ahora' })).toBeNull();
+
+        await responderMinuto('2', '55');
+        await userEvent.click(screen.getByRole('button', { name: 'Nuestro' }));
+        await userEvent.click(screen.getByRole('button', { name: '7 · Juanito' }));
+
+        expect(screen.getByRole('heading', { level: 2, name: 'Gol: ¿Asistencia?' })).toHaveFocus();
+
+        const resumen = screen.getByRole('list', { name: 'Lo apuntado hasta ahora' });
+        expect(
+          within(resumen)
+            .getAllByRole('listitem')
+            .map((miga) => miga.textContent),
+        ).toEqual(["2.ª parte · 55'", 'Nuestro', '7 · Juanito']);
+      });
+
+      it('la ayuda y el error del minuto dicen el rango de la parte elegida', async () => {
+        api.cargarDirecto.mockResolvedValue(enDiferido());
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+
+        expect(
+          screen.getByText('De 1 a 40, como en el acta. En el descuento, 40+2.'),
+        ).toBeInTheDocument();
+
+        await userEvent.selectOptions(screen.getByLabelText('Parte'), '2');
+
+        expect(
+          screen.getByText('De 41 a 80, como en el acta. En el descuento, 80+2.'),
+        ).toBeInTheDocument();
+
+        await userEvent.type(screen.getByLabelText(/Minuto/), '3');
+        await userEvent.click(screen.getByRole('button', { name: 'Seguir' }));
+
+        expect(
+          screen.getByText(
+            'Ese minuto no es de la 2.ª parte: va de 41 a 80, o 80+2 en el descuento.',
+          ),
+        ).toBeInTheDocument();
+      });
+
+      it('tras guardar un evento de la 2.ª parte, el siguiente flujo abre con ella elegida', async () => {
+        api.cargarDirecto.mockResolvedValue(enDiferido());
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+
+        expect(screen.getByLabelText('Parte')).toHaveValue('1');
+
+        await responderMinuto('2', '55');
+        await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+        expect(ultimaTransicion().trabajos.at(-1)?.payload.valores).toMatchObject({ period: 2 });
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+
+        expect(screen.getByLabelText('Parte')).toHaveValue('2');
+        expect(
+          screen.getByText('De 41 a 80, como en el acta. En el descuento, 80+2.'),
+        ).toBeInTheDocument();
       });
     });
   });
