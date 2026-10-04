@@ -1,13 +1,14 @@
-// Pantalla A13 — Cierre del partido (T-210a, DOC 04 §8.4).
+// Pantalla A13 — Cierre del partido (T-210a y T-210b, DOC 04 §8.4).
 //
 // Después del partido y con cobertura: el resultado calculado frente al del
 // acta, lo que impide cerrar, el origen de los goles y el paso a `closed`,
 // que mete el partido en las estadísticas de temporada. Cerrado, se puede
 // reabrir (C-05). La lógica vive en `model/cierre.ts`; aquí solo se pinta.
 //
-// LOS PENDIENTES SE ENSEÑAN Y SE CUENTAN, NO SE RESUELVEN. Aprobarlos,
-// descartarlos y corregir su minuto es el panel de discordancias (T-210b).
-// Mientras, C-01: con eventos pendientes no se cierra.
+// LOS EVENTOS SE REVISAN EN `PanelDeEventos` (T-210b): aprobar, descartar,
+// recuperar, corregir el minuto y ver los posibles repetidos. Solo con el
+// partido sin cerrar: cerrado, primero se reabre. C-01 sigue en pie: con
+// eventos pendientes no se cierra.
 //
 // Las confirmaciones van en dos pasos en el mismo sitio, sin ventana
 // emergente, como el borrado de la A10. Una sola región viva, la de
@@ -26,9 +27,9 @@ import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Field } from '@shared/ui/Field';
 import { Pantalla } from '@shared/ui/Pantalla';
-import { StatusChip } from '@shared/ui/StatusChip';
 
 import { CON_PENDIENTES, PARTIDO_CAMBIADO } from '../api/cierre';
+import { PanelDeEventos } from '../components/PanelDeEventos';
 import {
   useCerrarPartido,
   useCierre,
@@ -334,7 +335,7 @@ interface AbiertoProps {
   alCerrar: (aviso: string | null) => void;
 }
 
-/** El partido sin cerrar: acta, eventos, este móvil, goles y el botón de cerrar. */
+/** El partido sin cerrar: acta, eventos que revisar, este móvil, goles y el botón de cerrar. */
 function Abierto({ datos, describir, alCerrar }: AbiertoProps) {
   const anunciar = useAnnounce();
   const anota = useHasPermission('match.live.write') === true;
@@ -347,7 +348,7 @@ function Abierto({ datos, describir, alCerrar }: AbiertoProps) {
   const [fallo, setFallo] = useState<string | null>(null);
 
   const { partido, calculado } = datos;
-  const { pendientes, descartados } = contarEventos(datos.eventos);
+  const { pendientes } = contarEventos(datos.eventos);
   const faltan = partido.isRetroactive ? partesQueFaltan(datos.partes, partido.periodos) : [];
   const bloqueos = bloqueosDelCierre({
     pendientes: pendientes.length,
@@ -439,35 +440,7 @@ function Abierto({ datos, describir, alCerrar }: AbiertoProps) {
         </div>
       </Card>
 
-      <Card title="Eventos pendientes" headingLevel={2}>
-        <div className={styles.bloque}>
-          {pendientes.length === 0 ? (
-            <p className={styles.nota}>No queda ningún evento pendiente.</p>
-          ) : (
-            <>
-              <p className={styles.nota}>
-                Mientras queden pendientes, el partido no se cierra. Revisarlos desde aquí llega en
-                la próxima versión.
-              </p>
-              <ul className={styles.lista}>
-                {pendientes.map((evento) => (
-                  <li key={evento.clientEventId} className={styles.fila}>
-                    <StatusChip status="pending" />
-                    <span>{describir(evento)}</span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {descartados === 0 ? null : (
-            <p className={styles.nota}>
-              {descartados === 1
-                ? '1 evento descartado: no cuenta.'
-                : `${String(descartados)} eventos descartados: no cuentan.`}
-            </p>
-          )}
-        </div>
-      </Card>
+      <PanelDeEventos partido={partido} eventos={datos.eventos} describir={describir} />
 
       <Card title="Este móvil" headingLevel={2}>
         <EsteMovil partidoId={partido.id} />

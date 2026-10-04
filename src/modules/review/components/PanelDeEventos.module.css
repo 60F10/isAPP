@@ -1,0 +1,127 @@
+/* Tarjeta «Eventos» de la A13 (T-210b). Objetivos de 48 px (`--tap-min`, que
+   pone `Button`) separados por `--tap-gap`, como el resto del bloque A. Las
+   clases que repiten a las de `CierrePartidoPage.module.css` dicen lo mismo:
+   los módulos de CSS no se comparten entre componentes. */
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  color: var(--color-text-secondary);
+}
+
+.fallo {
+  max-inline-size: 60ch;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada evento, en columna: a 320 px no hay sitio para más, y así los botones
+   quedan siempre debajo de lo que cambian. */
+.fila {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-block: var(--space-4);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:last-child {
+  border-block-end: 0;
+}
+
+/* Posible repetido: la marca lo dice con palabras. La raya del borde solo
+   ayuda a ver de un vistazo cuáles van juntos; no lleva información sola. */
+.repetido {
+  padding-inline-start: var(--space-3);
+  border-inline-start: 4px solid var(--color-pending);
+}
+
+.marcas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.marca {
+  padding: var(--space-1) var(--space-3);
+
+  border: 1px solid currentcolor;
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+.descripcion {
+  max-inline-size: 60ch;
+  font-weight: var(--font-weight-semibold);
+}
+
+.autor {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-75);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+.nota:focus-visible,
+.descripcion:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+/* El minuto, en su sitio. El selector de la parte copia el aspecto de `Field`
+   (shared/ui), como el del origen del gol: etiqueta arriba, 48 px de alto y
+   16 px de texto, que por debajo Safari de iOS hace zoom. */
+.minuto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  inline-size: 100%;
+  max-inline-size: 24rem;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.etiqueta {
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.selector {
+  min-block-size: var(--tap-min);
+  inline-size: 100%;
+  padding: var(--space-2) var(--space-3);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-100);
+}

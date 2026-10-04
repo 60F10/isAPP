@@ -5,6 +5,33 @@
 
 ---
 
+## Sesión 04/10/2026, tarde — T-210b: el cierre revisa los eventos: ✅ cerrada
+
+Sesión programada, rama `feat/review-discordancias`. **Sin base de datos y sin migración.**
+
+- **Hecho:** la tarjeta «Eventos» de la A13 (`review/components/PanelDeEventos.tsx`) sustituye a
+  «Eventos pendientes» en el partido sin cerrar. Lista todos los eventos, también los descartados,
+  en orden de parte y segundo, con su estado y quién lo apuntó (`display_name`, o «Otra persona»).
+  Con `event.approve`: «Aprobar», «Descartar», «Recuperar», «Cambiar minuto» en su sitio y «Aprobar
+  los N pendientes». Al abrir llama una vez a `flag_duplicate_candidates` y marca los posibles
+  repetidos, juntos. `model/discordancias.ts` es lo puro y `api/discordancias.ts` lo que escribe:
+  `status`, `reviewed_by` y `reviewed_at`, o `period` y `seconds`, y nada más.
+- **Decisiones pequeñas:** aprobar en bloque aprueba los pendientes **que se ven**, por su `id`, y
+  no uno que llegue después; «Recuperar» lleva también el estado de partida en el filtro; un
+  descartado no hace grupo de repetidos, como en la función de la base; el evento sin segundos va
+  al final de su parte; los botones esperan desactivados mientras la lista se vuelve a pedir; y
+  con un solo pendiente el botón dice «Aprobar el pendiente».
+- **Pruebas:** 512 en verde, lint, formato y build limpios, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+  `review-*.js` pasa de 19,93 a 28,09 kB (de 6,71 a 9,03 comprimidos); el arranque no cambia.
+- **Deuda:** «los dos valen» no se guarda, así que un par marcado como posible repetido vuelve a
+  salir marcado cada vez que se abre el cierre. Y cambiar el minuto va en línea, no por la cola:
+  sin cobertura no funciona.
+- **Sin probar en un móvil ni contra la base de verdad.** Las políticas y la función se dan por
+  buenas según el traspaso. La primera prueba real es la del punto 65: reabrir el primer partido,
+  descartar el cambio repetido del 46 y volver a cerrar. Está en la PR, para Raúl.
+
+---
+
 ## Sesión 04/10/2026, tarde — T-220: flecos del flujo y enlace al directo desde la convocatoria: ✅ cerrada
 
 Sesión programada, rama `fix/match-flecos-del-flujo`. **Sin base de datos.**
@@ -316,6 +343,7 @@ Pendiente de hacer:
     móvil de verdad. Los colores salen de los tokens del directo del DOC 07.
 43. **Corregir el minuto de un evento** (E8-09) es hoy deshacerlo y volver a apuntarlo. La
     edición de verdad, con `update` por la cola, va con las discordancias (T-210b).
+    **Cerrado por la T-210b**: el minuto se cambia desde la A13, en línea y con `event.approve`.
 44. **Deshacer un evento que otro ya aprobó** falla si quien deshace no tiene `event.approve`: la
     RLS solo deja borrar al autor mientras está pendiente. El borrado queda como rechazado en la
     C04, y el evento sigue en el servidor. Raro con un solo anotador; con varios, T-209.
@@ -347,6 +375,7 @@ Pendiente de hacer:
 51. **Sin la T-210b, un partido con eventos pendientes no se puede cerrar** (C-01). Los pendientes
     solo nacen de quien anota sin `event.approve`. Hoy los dos que anotan lo tienen, así que todo
     nace aprobado. En cuanto entre alguien más por la T-301, la T-210b tiene que estar.
+    **Cerrado por la T-210b**: los pendientes se aprueban o se descartan desde la A13.
 52. **En diferido, cerrar crea las partes que falten, y eso pide `match.live.write`.** Quien solo
     tenga `match.close` ve el motivo y no puede cerrar. Con los permisos sembrados del Cadete A no
     pasa. Salida si molesta: la función del punto 50, que no dependería de la RLS de
@@ -416,6 +445,7 @@ Pendiente de hacer:
     volvió cancelado: la herramienta pide una confirmación en la aplicación de Claude y no llegó.
     La fila que sobra es la `abcea703-…`, la que no tiene motivo. Dos salidas: repetirlo con Raúl
     mirando la pantalla, o descartarlo desde la A13 cuando esté la T-210b, reabriendo el partido.
+    **Desde la T-210b ya se puede descartar desde la A13**, reabriendo el partido.
 
 66. **El primer partido no tiene cobertura declarada**, porque la declaración llega con la T-209a.
     Su fiabilidad saldrá «Sin cobertura declarada» hasta que se le ponga la del diferido, que el

@@ -13,5 +13,8 @@ export { LiveMatchPage } from './routes/LiveMatchPage';
 export { olvidarPartido } from './api/precarga';
 export { describirEvento } from './model/describir';
 export { desdeFilas } from './model/eventos';
+// Para el panel de eventos del cierre, que corrige el minuto con la misma
+// regla que el directo en diferido (T-210b).
+export { rangoDeParte, segundosDeMinuto } from './model/reloj';
 
 export type { EstadoDeEvento, EventoDelDirecto } from './model/eventos';
