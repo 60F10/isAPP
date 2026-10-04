@@ -39,14 +39,14 @@ function formulario(cambios: Partial<FormularioReglamento> = {}): FormularioRegl
 }
 
 describe('REGLAMENTO_CADETE', () => {
-  it('son los valores del DOC 04 §4.2 que confirmó Isaac: 2 × 40, cambios fijos, 5, sin reentrada', () => {
+  it('son los valores del DOC 04 §4.2 que confirmó Isaac: 2 × 40, cambios fijos, 7, sin reentrada', () => {
     expect(REGLAMENTO_CADETE).toEqual({
       periods_count: 2,
       period_minutes: 40,
       halftime_minutes: 15,
       clock_mode: 'running',
       substitution_type: 'fixed',
-      substitutions_max: 5,
+      substitutions_max: 7,
       squad_max: 18,
       players_on_pitch: 11,
       yellow_cards_for_ban: 5,
@@ -200,7 +200,7 @@ describe('categoría (DOC 05 §14.4)', () => {
 describe('resumenDelReglamento', () => {
   it('cuenta en una línea lo que importa del cadete', () => {
     expect(resumenDelReglamento(REGLAMENTO_CADETE)).toBe(
-      '2 × 40 min · 5 cambios fijos, sin reentrada · 18 convocados, 11 titulares',
+      '2 × 40 min · 7 cambios fijos, sin reentrada · 18 convocados, 11 titulares',
     );
   });
 

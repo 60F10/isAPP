@@ -93,9 +93,9 @@ Cinco decisiones nuevas que el DOC 03 no recogía. Hay que subirlas allí en la 
 
 ### 4.2 Valores del cadete de Isaac
 
-`periods_count = 2` · `period_minutes = 40` · `halftime_minutes = 15` · `clock_mode = running` · `substitution_type = fixed` · `substitutions_max = 5` · `squad_max = 18` · `players_on_pitch = 11` · `yellow_cards_for_ban = 5`
+`periods_count = 2` · `period_minutes = 40` · `halftime_minutes = 15` · `clock_mode = running` · `substitution_type = fixed` · `substitutions_max = 7` · `squad_max = 18` · `players_on_pitch = 11` · `yellow_cards_for_ban = 5`
 
-**Confirmados por Isaac, a través de Raúl, el 26/09/2026**, con dos precisiones: los cambios son fijos, cinco como mucho, y **quien sale no vuelve a entrar**. La competición del Cadete A es **«Cadete Primera Tenerife G2»**, temporada 2026-27. La federación ordena el cadete de Tenerife así, de más a menos: Autonómico Canarias, Provincial Tenerife, Preferente (G1 a G3) y Primera (G1 a G7). En la aplicación, categoría, nivel, ámbito y grupo van hoy en el nombre de la competición (DOC 05 §7.1).
+**Confirmados por Isaac, a través de Raúl, el 26/09/2026**, con dos precisiones: los cambios son fijos, siete como mucho, y **quien sale no vuelve a entrar**. Eran cinco hasta el 04/10/2026: Raúl lo corrigió tras el primer partido de liga. El reglamento reparte los siete en tres ventanas más el descanso, y **las ventanas de cambio no se modelan**: la aplicación cuenta los cambios (R-04) y las ventanas las vigila el árbitro. La competición del Cadete A es **«Cadete Primera Tenerife G2»**, temporada 2026-27. La federación ordena el cadete de Tenerife así, de más a menos: Autonómico Canarias, Provincial Tenerife, Preferente (G1 a G3) y Primera (G1 a G7). En la aplicación, categoría, nivel, ámbito y grupo van hoy en el nombre de la competición (DOC 05 §7.1).
 
 **La duración total de un partido nunca es una constante.** Sale de `periods_count × period_minutes`, y para el cadete son 80 minutos, no 90.
 

@@ -125,7 +125,7 @@ describe('A08 · Competiciones', () => {
     );
     expect(
       within(lista).getByText(
-        'Liga · 2 × 40 min · 5 cambios fijos, sin reentrada · 18 convocados, 11 titulares',
+        'Liga · 2 × 40 min · 7 cambios fijos, sin reentrada · 18 convocados, 11 titulares',
       ),
     ).toBeInTheDocument();
   });
