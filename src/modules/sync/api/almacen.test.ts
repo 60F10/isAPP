@@ -6,7 +6,7 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { encolarTrabajosJunto } from './almacen';
+import { descartarRechazado, encolarTrabajosJunto } from './almacen';
 
 import type { Trabajo } from '@shared/lib/db';
 
@@ -15,6 +15,7 @@ const estado = vi.hoisted(() => ({
   añadidos: [] as Trabajo[],
   enTransaccion: false,
   dentro: [] as string[],
+  guardados: new Map<string, Trabajo>(),
 }));
 
 vi.mock('@shared/lib/supabase', () => ({
@@ -32,6 +33,11 @@ vi.mock('@shared/lib/db', () => ({
   db: {
     tables: [],
     outbox: {
+      get: (id: string) => Promise.resolve(estado.guardados.get(id)),
+      delete: (id: string) => {
+        estado.guardados.delete(id);
+        return Promise.resolve();
+      },
       bulkAdd: (trabajos: Trabajo[]) => {
         estado.dentro.push(estado.enTransaccion ? 'cola' : 'cola-fuera');
         estado.añadidos.push(...trabajos);
@@ -157,5 +163,36 @@ describe('encolarTrabajosJunto con tablas', () => {
 
     expect(await db.outbox.count()).toBe(2);
     expect(await db.matchEvents.count()).toBe(1);
+  });
+});
+
+describe('descartarRechazado', () => {
+  function guardar(id: string, status: Trabajo['status'], userId: string) {
+    estado.guardados.set(id, { id, status, userId } as Trabajo);
+  }
+
+  beforeEach(() => {
+    estado.guardados.clear();
+  });
+
+  it('borra un rechazado propio', async () => {
+    guardar('a', 'failed', 'u1');
+
+    await expect(descartarRechazado('a', 'u1')).resolves.toBe(true);
+    expect(estado.guardados.has('a')).toBe(false);
+  });
+
+  it('no borra uno pendiente', async () => {
+    guardar('a', 'pending', 'u1');
+
+    await expect(descartarRechazado('a', 'u1')).resolves.toBe(false);
+    expect(estado.guardados.has('a')).toBe(true);
+  });
+
+  it('no borra un rechazado de otra cuenta', async () => {
+    guardar('a', 'failed', 'otra');
+
+    await expect(descartarRechazado('a', 'u1')).resolves.toBe(false);
+    expect(estado.guardados.has('a')).toBe(true);
   });
 });
