@@ -20,33 +20,6 @@ Punto 76 de abajo: **cerrado.** Punto 73: el filtro lleva ya el partido, y sigue
 ## Sesión 04/10/2026, noche — T-209c: las partes, compartidas entre aparatos: ✅ cerrada
 
 Sesión programada, rama `fix/match-partes-compartidas`. **Sin base de datos y sin migración.**
-Esperó a que la T-209b (#74) estuviera en `main`. La T-221 sigue sin hacer.
-
-- **Hecho:** si dos aparatos abren la misma parte, el segundo adopta el `id` y el arranque del
-  primero que llegó a la base, y los dos relojes marcan lo mismo (D06-39). Lo que otro abre,
-  cierra o finaliza se ve sin recargar. Terminar una parte ya no sale como rechazada en la banda.
-  Lo que este aparato tiene sin enviar no desaparece de su pantalla.
-- **Dónde vive:** todo en `match/model/directo.ts`: `conciliarPartes`, `elegirEstado` reescrita
-  sobre ella —ya no devuelve el estado del servidor entero cuando hay estado local— y la `clave`
-  de `terminar_parte`, que pasa de `id` a `match_id` y `period_number`. **La página no cambia.**
-- **Cuatro cosas que el traspaso no decía**, y que se han decidido aquí:
-  1. **Si las partes no cambian, la fase es la del aparato**, sin volver a derivarla. Para
-     cualquier estado que salga del reductor da lo mismo que derivarla, y es lo que deja que
-     «sin diferencias» devuelva el mismo objeto.
-  2. La pausa se conserva solo si la parte que sigue abierta es la que este aparato pausó. Si
-     el servidor ya la cerró y abrió la siguiente, pasa a en juego: una pausa sin `pausaDesde`
-     no se podría reanudar.
-  3. **Cerrada en los dos con duraciones distintas, este aparato enseña la suya.** El traspaso
-     solo toma del servidor el `id` y el arranque.
-  4. El caso de extremo a extremo de `api/directo.test.ts` ya pasaba antes del cambio: desde la
-     T-209b, `fusionar` conserva lo que está en la cola. Se queda como red de seguridad.
-- **Verificado:** lint, formato, **673 pruebas en 54 archivos** y build, sin
-  `INEFFECTIVE_DYNAMIC_IMPORT`. El paquete inicial no cambia: `match-*.js`, 20,51 kB.
-- **Sin probar con dos móviles en un campo**, ni contra la base de verdad.
-- **Deuda:** la pausa de un aparato no la ven los demás, y con reloj corrido apenas se usa; los
-  relojes de dos móviles pueden diferir unos segundos, y el ancla es la hora del que abrió la
-  parte; dos cierres casi a la vez dejan en la base la duración del último que llega; y un
-  cierre encolado con una versión anterior de la aplicación sigue yendo por `id`.
 Todo el cambio es de `match/model/directo.ts`: la pantalla no se ha tocado.
 
 - **Hecho:** `elegirEstado` parte siempre del estado del aparato y concilia sus partes por
@@ -72,7 +45,8 @@ Todo el cambio es de `match/model/directo.ts`: la pantalla no se ha tocado.
   relojes de dos móviles pueden diferir unos segundos, y el ancla es la hora del que abrió la
   parte; dos cierres casi a la vez dejan en la base la duración del último que llega; y el
   estado conciliado no se escribe en la instantánea hasta el siguiente guardado, como el fundido
-  de la T-209b.
+  de la T-209b; y un
+  cierre encolado con una versión anterior de la aplicación sigue yendo por `id`.
 
 ---
 
@@ -557,7 +531,6 @@ Pendiente de hacer:
     `(match_id, period_number)`, la cola lo trata como éxito y su reloj sigue anclado a su propio
     arranque. Al terminar la parte, su `update` por `id` no toca filas y queda como rechazado. **Es
     de la T-209**, igual que la pausa que otro aparato no ve en su reloj.
-    **Cerrado con la T-209c** (D06-39), salvo la pausa, que sigue siendo de cada aparato.
     **Cerrado con la T-209c (D06-39), salvo la pausa**, que sigue siendo de cada aparato.
 40. **El directo no suspende.** El DOC 04 §8.1 tiene el estado `suspended` con su minuto, y desde la
     T-210a la A13 cierra y reabre partidos suspendidos y dice dónde se suspendieron. Pero la A12
