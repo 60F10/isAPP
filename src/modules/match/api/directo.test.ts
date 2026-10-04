@@ -68,6 +68,25 @@ const PAQUETE: PaqueteDePartido = {
   eventos: [],
 };
 
+const ARRANQUE = Date.parse('2026-10-04T11:00:00Z');
+
+/** Una parte abierta en este aparato, con el `id` que generó al empezarla. */
+const PARTE_LOCAL = {
+  id: 'parte-B',
+  numero: 1,
+  inicio: ARRANQUE + 5_000,
+  pausadoMs: 0,
+  pausaDesde: null,
+  segundosReales: null,
+};
+
+/** El estado guardado en el aparato: la parte 1 abierta y en pausa, sin enviar todavía. */
+const EN_PAUSA: EstadoDirecto = {
+  ...desdePaquete(PAQUETE),
+  fase: 'pausado',
+  partes: [{ ...PARTE_LOCAL, pausaDesde: ARRANQUE + 60_000 }],
+};
+
 beforeEach(() => {
   precarga.precargarPartido.mockReset();
   precarga.leerInstantanea.mockReset();
@@ -107,7 +126,7 @@ describe('cargarDirecto', () => {
   });
 
   it('recupera el estado guardado en el aparato', async () => {
-    const local: EstadoDirecto = { ...desdePaquete(PAQUETE), fase: 'pausado' };
+    const local = EN_PAUSA;
     precarga.precargarPartido.mockResolvedValue({});
     precarga.leerInstantanea.mockResolvedValue({
       paquete: PAQUETE,
@@ -131,7 +150,7 @@ describe('cargarDirecto', () => {
   });
 
   it('suma los eventos del servidor que el estado del aparato no conocía', async () => {
-    const local: EstadoDirecto = { ...desdePaquete(PAQUETE), fase: 'pausado' };
+    const local = EN_PAUSA;
     const conGol = {
       ...PAQUETE,
       eventos: [
@@ -170,7 +189,7 @@ describe('cargarDirecto con la cola', () => {
 
   it('deshacer un evento enviado y volver a cargar con el borrado en la cola: no vuelve', async () => {
     // El servidor todavía lo tiene; este aparato lo deshizo y su estado ya no.
-    const local: EstadoDirecto = { ...desdePaquete(PAQUETE), fase: 'pausado' };
+    const local = EN_PAUSA;
     precarga.precargarPartido.mockResolvedValue({});
     precarga.leerInstantanea.mockResolvedValue({
       paquete: { ...PAQUETE, eventos: [GOL] },
@@ -253,7 +272,7 @@ describe('cargarDirecto con la cola', () => {
   });
 
   it('sin cobertura, lo deshecho aquí tampoco vuelve del paquete guardado', async () => {
-    const local: EstadoDirecto = { ...desdePaquete(PAQUETE), fase: 'pausado' };
+    const local = EN_PAUSA;
     precarga.precargarPartido.mockRejectedValue(new TypeError('Failed to fetch'));
     precarga.leerInstantanea.mockResolvedValue({
       paquete: { ...PAQUETE, eventos: [GOL] },
@@ -319,6 +338,85 @@ describe('cargarDirecto con la cola', () => {
       },
     ]);
     expect(estado.eventos.map((e) => e.clientEventId)).toEqual(['sin-enviar', 'gol-1']);
+  });
+});
+
+// T-209c: las partes se concilian con las del servidor al abrir (D06-39).
+describe('cargarDirecto con las partes de otro aparato', () => {
+  const [gol] = desdePaquete({
+    ...PAQUETE,
+    eventos: [
+      {
+        client_event_id: 'sin-enviar',
+        event_type: 'goal',
+        period: 1,
+        seconds: 5,
+        is_opponent: true,
+        player_id: null,
+        status: 'pending',
+      },
+    ],
+  }).eventos;
+  const local: EstadoDirecto = {
+    ...desdePaquete(PAQUETE),
+    fase: 'en_juego',
+    partes: [PARTE_LOCAL],
+    eventos: [{ ...gol, propio: true }],
+  };
+  const PARTE_A = {
+    id: 'parte-A',
+    periodNumber: 1,
+    plannedSeconds: 2_400,
+    actualSeconds: null,
+    startedAt: '2026-10-04T11:00:00Z',
+    endedAt: null,
+  };
+
+  beforeEach(() => {
+    precarga.precargarPartido.mockResolvedValue({});
+    sync.pendientesDelPartido.mockResolvedValue({
+      altas: new Set(['sin-enviar']),
+      bajas: new Set(),
+    });
+  });
+
+  it('con un evento sin enviar y el servidor más avanzado, lo conserva', async () => {
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: {
+        ...PAQUETE,
+        partido: { ...PAQUETE.partido, status: 'live' },
+        partes: [
+          { ...PARTE_A, actualSeconds: 2_430, endedAt: '2026-10-04T11:40:30Z' },
+          { ...PARTE_A, id: 'parte-A2', periodNumber: 2, startedAt: '2026-10-04T11:55:00Z' },
+        ],
+      },
+      descargadoEn: 5,
+      estado: local,
+    });
+
+    const { estado } = await cargarDirecto('par-1');
+
+    expect(estado.eventos.map((e) => e.clientEventId)).toEqual(['sin-enviar']);
+    expect(estado.fase).toBe('en_juego');
+    expect(estado.partes.map((parte) => parte.id)).toEqual(['parte-A', 'parte-A2']);
+    expect(estado.partes[0]?.segundosReales).toBe(2_430);
+  });
+
+  it('si otro aparato abrió antes la misma parte, adopta su `id` y su arranque', async () => {
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: {
+        ...PAQUETE,
+        partido: { ...PAQUETE.partido, status: 'live' },
+        partes: [PARTE_A],
+      },
+      descargadoEn: 5,
+      estado: local,
+    });
+
+    const { estado } = await cargarDirecto('par-1');
+
+    expect(estado.partes).toEqual([{ ...PARTE_LOCAL, id: 'parte-A', inicio: ARRANQUE }]);
+    expect(estado.eventos.map((e) => e.clientEventId)).toEqual(['sin-enviar']);
   });
 });
 

@@ -35,6 +35,32 @@ Esperó a que la T-209b (#74) estuviera en `main`. La T-221 sigue sin hacer.
   relojes de dos móviles pueden diferir unos segundos, y el ancla es la hora del que abrió la
   parte; dos cierres casi a la vez dejan en la base la duración del último que llega; y un
   cierre encolado con una versión anterior de la aplicación sigue yendo por `id`.
+Todo el cambio es de `match/model/directo.ts`: la pantalla no se ha tocado.
+
+- **Hecho:** `elegirEstado` parte siempre del estado del aparato y concilia sus partes por
+  número con las del servidor (`conciliarPartes`, D06-39), al abrir y en cada refresco. El `id`
+  y el arranque son del primero que llegó a la base; la pausa sigue local. Lo que otro cierra o
+  finaliza se ve sin recargar, y `terminar_parte` va por `{ match_id, period_number }`.
+- **Dos cosas que el traspaso no decía**, y que se han decidido aquí:
+  1. **Cerrada en los dos sitios, se quedan los segundos de este aparato.** Es lo que ya pasaba;
+     si otro cerró después con otra duración, la buena es la de la base y aquí no se ve.
+  2. **La pausa se conserva solo si sigue abierta la parte que se pausó.** Si el servidor ya va
+     por la siguiente, queda en juego: con «pausado» y una parte sin pausa, no se podía reanudar.
+- **El traspaso daba por roto algo que ya no lo estaba:** que lo sin enviar desapareciera con el
+  servidor más avanzado. `fusionar` (T-209b) ya lo conservaba; la prueba de extremo a extremo
+  de ese caso nació en verde. Ahora tampoco depende de `fusionar`: `elegirEstado` no devuelve
+  el estado del servidor si hay uno local.
+- **Pruebas:** las de `api/directo.test.ts` que guardaban un «pausado» sin ninguna parte, que
+  el reductor no puede dar, usan ahora una parte abierta y en pausa.
+- **Verificado:** lint, formato, **676 pruebas en 54 archivos** y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. `match-*.js`, 20,45 kB comprimidos (antes 20,29); el arranque no
+  importa nada nuevo.
+- **Sin probar con dos móviles en un campo**, ni contra la base de verdad.
+- **Deuda:** la pausa de un aparato no la ven los demás, y con reloj corrido apenas se usa; los
+  relojes de dos móviles pueden diferir unos segundos, y el ancla es la hora del que abrió la
+  parte; dos cierres casi a la vez dejan en la base la duración del último que llega; y el
+  estado conciliado no se escribe en la instantánea hasta el siguiente guardado, como el fundido
+  de la T-209b.
 
 ---
 
@@ -520,6 +546,7 @@ Pendiente de hacer:
     arranque. Al terminar la parte, su `update` por `id` no toca filas y queda como rechazado. **Es
     de la T-209**, igual que la pausa que otro aparato no ve en su reloj.
     **Cerrado con la T-209c** (D06-39), salvo la pausa, que sigue siendo de cada aparato.
+    **Cerrado con la T-209c (D06-39), salvo la pausa**, que sigue siendo de cada aparato.
 40. **El directo no suspende.** El DOC 04 §8.1 tiene el estado `suspended` con su minuto, y desde la
     T-210a la A13 cierra y reabre partidos suspendidos y dice dónde se suspendieron. Pero la A12
     solo lleva a `finished`: suspender es una acción de su reductor, con su transición en la cola

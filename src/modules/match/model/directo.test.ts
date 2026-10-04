@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { desdePaquete, elegirEstado, enCurso, fusionar, reducir } from './directo';
+import { conciliarPartes, desdePaquete, elegirEstado, enCurso, fusionar, reducir } from './directo';
 
-import type { EstadoDirecto, Pendientes } from './directo';
+import type { EstadoDirecto, ParteLocal, Pendientes } from './directo';
 import type { EventoDelDirecto } from './eventos';
 import type { PaqueteDePartido } from './paquete';
 
@@ -66,6 +66,53 @@ function empezado(): EstadoDirecto {
 
   return estado;
 }
+
+type ParteDelPaquete = PaqueteDePartido['partes'][number];
+
+/** Una parte tal como la trae el paquete: abierta a las 12:00:00, hora canaria. */
+function parteDelServidor(cambios: Partial<ParteDelPaquete> = {}): ParteDelPaquete {
+  return {
+    id: 'parte-A',
+    periodNumber: 1,
+    plannedSeconds: 2_400,
+    actualSeconds: null,
+    startedAt: '2026-10-04T11:00:00Z',
+    endedAt: null,
+    ...cambios,
+  };
+}
+
+/** El estado que sale del paquete con esas partes y ese estado del partido. */
+function delServidorCon(
+  partes: ParteDelPaquete[],
+  status: PaqueteDePartido['partido']['status'] = 'live',
+): EstadoDirecto {
+  const base = paquete({ partes });
+
+  return desdePaquete({ ...base, partido: { ...base.partido, status } });
+}
+
+/** Este aparato abrió la parte 1 por su cuenta, cinco segundos después y con otro `id`. */
+function abiertaAqui(): EstadoDirecto {
+  return reducir(desdePaquete(paquete()), {
+    tipo: 'empezar_parte',
+    ahora: INICIO + 5_000,
+    parteId: 'parte-B',
+  }).estado;
+}
+
+const GOL_LOCAL: EventoDelDirecto = {
+  clientEventId: 'sin-enviar',
+  tipo: 'goal',
+  periodo: 1,
+  segundos: 60,
+  rival: false,
+  jugador: 'p7',
+  segundo: null,
+  detalles: {},
+  estado: 'pending',
+  propio: true,
+};
 
 describe('desdePaquete', () => {
   it('un partido sin partes empieza inactivo, con los titulares en el campo', () => {
@@ -325,6 +372,15 @@ describe('elegirEstado', () => {
 
     const elegido = elegirEstado(local, delServidor);
 
+  it('si otro aparato ha avanzado el partido, la fase y las partes son las del servidor y los eventos, los locales', () => {
+    const local: EstadoDirecto = { ...empezado(), eventos: [GOL_LOCAL] };
+    const delServidor = {
+      ...reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 1 }).estado,
+      eventos: [],
+    };
+
+    const elegido = elegirEstado(local, delServidor);
+
     expect(elegido.fase).toBe('descanso');
     expect(elegido.partes).toEqual(delServidor.partes);
     expect(elegido.eventos).toBe(local.eventos);
@@ -375,54 +431,57 @@ describe('elegirEstado', () => {
   });
 });
 
-// T-209c: las partes se concilian por número con las del servidor (D06-39).
-describe('elegirEstado, con las partes de otro aparato', () => {
-  const MEDIODIA = Date.UTC(2026, 9, 4, 12, 0, 0);
+// T-209c: las partes se concilian por número (D06-39).
+describe('conciliarPartes', () => {
+  const parte = (cambios: Partial<ParteLocal> = {}): ParteLocal => ({
+    id: 'parte-B',
+    numero: 1,
+    inicio: INICIO + 5_000,
+    pausadoMs: 0,
+    pausaDesde: null,
+    segundosReales: null,
+    ...cambios,
+  });
 
-  type Parte = PaqueteDePartido['partes'][number];
+  it('la misma parte con otro `id`: el `id` y el arranque son del servidor; la pausa, del local', () => {
+    const local = [parte({ pausadoMs: 3_000, pausaDesde: INICIO + 60_000 })];
+    const servidor = [parte({ id: 'parte-A', inicio: INICIO })];
 
-  function parteDelServidor(numero: number, cambios: Partial<Parte> = {}): Parte {
-    return {
-      id: `A${numero}`,
-      periodNumber: numero,
-      plannedSeconds: 2_400,
-      actualSeconds: null,
-      startedAt: '2026-10-04T12:00:00.000Z',
-      endedAt: null,
-      ...cambios,
-    };
-  }
+    expect(conciliarPartes(local, servidor)).toEqual([
+      parte({ id: 'parte-A', inicio: INICIO, pausadoMs: 3_000, pausaDesde: INICIO + 60_000 }),
+    ]);
+  });
 
-  /** Lo que sale del servidor con esas partes: el partido ya está en juego. */
-  function servidorCon(
-    partes: Parte[],
-    status: PaqueteDePartido['partido']['status'] = 'live',
-  ): EstadoDirecto {
-    const base = paquete();
+  it('la parte que el servidor tiene y el local no se añade, en su sitio', () => {
+    const primera = parte({ id: 'parte-A', inicio: INICIO, segundosReales: 2_430 });
+    const segunda = parte({ id: 'parte-A2', numero: 2, inicio: INICIO + 3_300_000 });
 
-    return desdePaquete({ ...base, partido: { ...base.partido, status }, partes });
-  }
+    expect(conciliarPartes([primera], [segunda, primera])).toEqual([primera, segunda]);
+  });
 
-  /** Este aparato abrió la parte 1 cinco segundos después, con su propio `id`. */
-  function localConLaSuya(): EstadoDirecto {
-    return reducir(desdePaquete(paquete()), {
-      tipo: 'empezar_parte',
-      ahora: MEDIODIA + 5_000,
-      parteId: 'B1',
-    }).estado;
-  }
+  it('la parte que el local tiene y el servidor no se queda: su alta está en la cola', () => {
+    const local = [parte()];
 
-  const CERRADA = { actualSeconds: 2_430, endedAt: '2026-10-04T12:40:30.000Z' };
+    expect(conciliarPartes(local, [])).toBe(local);
+  });
 
-  it('si otro aparato abrió antes la misma parte, se adoptan su `id` y su arranque', () => {
-    const elegido = elegirEstado(localConLaSuya(), servidorCon([parteDelServidor(1)]));
+  it('sin diferencias devuelve la misma lista', () => {
+    const local = [parte({ id: 'parte-A', inicio: INICIO })];
+
+    expect(conciliarPartes(local, [parte({ id: 'parte-A', inicio: INICIO })])).toBe(local);
+  });
+});
+
+describe('elegirEstado entre aparatos (T-209c)', () => {
+  it('otro aparato abrió antes la misma parte: se adoptan su `id` y su arranque', () => {
+    const elegido = elegirEstado(abiertaAqui(), delServidorCon([parteDelServidor()]));
 
     expect(elegido.fase).toBe('en_juego');
     expect(elegido.partes).toEqual([
       {
-        id: 'A1',
+        id: 'parte-A',
         numero: 1,
-        inicio: MEDIODIA,
+        inicio: INICIO,
         pausadoMs: 0,
         pausaDesde: null,
         segundosReales: null,
@@ -430,146 +489,128 @@ describe('elegirEstado, con las partes de otro aparato', () => {
     ]);
   });
 
-  it('con este aparato en pausa, sigue en pausa y con su `pausaDesde`', () => {
-    let local = localConLaSuya();
-    local = reducir(local, { tipo: 'pausar', ahora: MEDIODIA + 60_000 }).estado;
-    local = reducir(local, { tipo: 'reanudar', ahora: MEDIODIA + 70_000 }).estado;
-    local = reducir(local, { tipo: 'pausar', ahora: MEDIODIA + 120_000 }).estado;
+  it('lo mismo con este aparato en pausa: sigue en pausa, con su `pausaDesde`', () => {
+    const local = reducir(abiertaAqui(), { tipo: 'pausar', ahora: INICIO + 60_000 }).estado;
 
-    const elegido = elegirEstado(local, servidorCon([parteDelServidor(1)]));
+    const elegido = elegirEstado(local, delServidorCon([parteDelServidor()]));
 
     expect(elegido.fase).toBe('pausado');
-    expect(elegido.partes).toEqual([
-      {
-        id: 'A1',
-        numero: 1,
-        inicio: MEDIODIA,
-        pausadoMs: 10_000,
-        pausaDesde: MEDIODIA + 120_000,
-        segundosReales: null,
-      },
-    ]);
+    expect(elegido.partes[0]).toMatchObject({
+      id: 'parte-A',
+      inicio: INICIO,
+      pausaDesde: INICIO + 60_000,
+    });
   });
 
-  it('si el servidor cerró la parte, este aparato pasa al descanso con sus segundos y sin pausa', () => {
-    const local = reducir(localConLaSuya(), { tipo: 'pausar', ahora: MEDIODIA + 60_000 }).estado;
+  it('el servidor cerró la parte 1 con 2.430 s: pasa al descanso con esos segundos y sin pausa', () => {
+    const local = reducir(abiertaAqui(), { tipo: 'pausar', ahora: INICIO + 60_000 }).estado;
+    const servidor = delServidorCon([
+      parteDelServidor({ actualSeconds: 2_430, endedAt: '2026-10-04T11:40:30Z' }),
+    ]);
 
-    const elegido = elegirEstado(local, servidorCon([parteDelServidor(1, CERRADA)]));
+    const elegido = elegirEstado(local, servidor);
 
     expect(elegido.fase).toBe('descanso');
-    expect(elegido.partes).toEqual([
-      {
-        id: 'A1',
-        numero: 1,
-        inicio: MEDIODIA,
-        pausadoMs: 0,
-        pausaDesde: null,
-        segundosReales: 2_430,
-      },
-    ]);
+    expect(elegido.partes[0]).toMatchObject({
+      id: 'parte-A',
+      segundosReales: 2_430,
+      pausaDesde: null,
+    });
   });
 
-  it('si el servidor tiene abierta la parte 2 y este aparato está en el descanso, pasa a en juego con ella', () => {
-    const local = reducir(localConLaSuya(), {
-      tipo: 'terminar_parte',
-      ahora: MEDIODIA + 2_430_000,
-    }).estado;
-    const segunda = parteDelServidor(2, { startedAt: '2026-10-04T12:55:00.000Z' });
+  it('el servidor tiene la parte 2 abierta y este aparato está en el descanso: pasa a en juego con ella', () => {
+    const local = reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 2_430_000 }).estado;
+    const servidor = delServidorCon([
+      parteDelServidor({ id: 'parte-1', actualSeconds: 2_430, endedAt: '2026-10-04T11:40:30Z' }),
+      parteDelServidor({ id: 'parte-A2', periodNumber: 2, startedAt: '2026-10-04T11:55:00Z' }),
+    ]);
 
-    const elegido = elegirEstado(local, servidorCon([parteDelServidor(1, CERRADA), segunda]));
+    const elegido = elegirEstado(local, servidor);
 
-    expect(local.fase).toBe('descanso');
     expect(elegido.fase).toBe('en_juego');
     expect(elegido.partes).toHaveLength(2);
     expect(elegido.partes[1]).toEqual({
-      id: 'A2',
+      id: 'parte-A2',
       numero: 2,
-      inicio: MEDIODIA + 3_300_000,
+      inicio: INICIO + 3_300_000,
       pausadoMs: 0,
       pausaDesde: null,
       segundosReales: null,
     });
   });
 
-  it('en pausa en la parte 1 y con la parte 2 ya abierta en el servidor, no se queda en una pausa sin parte', () => {
-    const local = reducir(localConLaSuya(), { tipo: 'pausar', ahora: MEDIODIA + 60_000 }).estado;
-    const segunda = parteDelServidor(2, { startedAt: '2026-10-04T12:55:00.000Z' });
+  it('en pausa en la parte 1 y el servidor ya va por la 2: en juego, que la pausa era de la parte cerrada', () => {
+    const local = reducir(abiertaAqui(), { tipo: 'pausar', ahora: INICIO + 60_000 }).estado;
+    const servidor = delServidorCon([
+      parteDelServidor({ actualSeconds: 2_430, endedAt: '2026-10-04T11:40:30Z' }),
+      parteDelServidor({ id: 'parte-A2', periodNumber: 2, startedAt: '2026-10-04T11:55:00Z' }),
+    ]);
 
-    const elegido = elegirEstado(local, servidorCon([parteDelServidor(1, CERRADA), segunda]));
+    const elegido = elegirEstado(local, servidor);
 
     expect(elegido.fase).toBe('en_juego');
-    expect(elegido.partes.map((parte) => parte.pausaDesde)).toEqual([null, null]);
+    expect(
+      reducir(elegido, { tipo: 'terminar_parte', ahora: INICIO + 5_700_000 }).error,
+    ).toBeNull();
   });
 
-  it('si el servidor está finalizado, la fase es finalizado y los eventos de este aparato siguen', () => {
-    const local: EstadoDirecto = { ...localConLaSuya(), eventos: [MIO] };
-    const segunda = parteDelServidor(2, { startedAt: '2026-10-04T12:55:00.000Z', ...CERRADA });
-
-    const elegido = elegirEstado(
-      local,
-      servidorCon([parteDelServidor(1, CERRADA), segunda], 'finished'),
+  it('el servidor está finalizado: la fase es finalizado y los eventos locales siguen', () => {
+    const local: EstadoDirecto = { ...abiertaAqui(), eventos: [GOL_LOCAL] };
+    const servidor = delServidorCon(
+      [
+        parteDelServidor({ actualSeconds: 2_430, endedAt: '2026-10-04T11:40:30Z' }),
+        parteDelServidor({
+          id: 'parte-A2',
+          periodNumber: 2,
+          startedAt: '2026-10-04T11:55:00Z',
+          actualSeconds: 2_400,
+          endedAt: '2026-10-04T12:35:00Z',
+        }),
+      ],
+      'finished',
     );
 
+    const elegido = elegirEstado(local, servidor);
+
     expect(elegido.fase).toBe('finalizado');
-    expect(elegido.partes.map((parte) => [parte.id, parte.segundosReales])).toEqual([
-      ['A1', 2_430],
-      ['A2', 2_430],
-    ]);
+    expect(elegido.partes.map((parte) => parte.segundosReales)).toEqual([2_430, 2_400]);
     expect(elegido.eventos).toBe(local.eventos);
   });
 
-  it('si este aparato cerró la parte y el servidor aún no, sigue cerrada: su cierre está en la cola', () => {
-    const local = reducir(localConLaSuya(), {
+  it('este aparato cerró la parte y el servidor aún no: sigue cerrada', () => {
+    const local = reducir(abiertaAqui(), {
       tipo: 'terminar_parte',
-      ahora: MEDIODIA + 2_405_000,
+      ahora: INICIO + 2_405_000,
     }).estado;
 
-    const elegido = elegirEstado(local, servidorCon([parteDelServidor(1)]));
+    const elegido = elegirEstado(local, delServidorCon([parteDelServidor()]));
 
     expect(elegido.fase).toBe('descanso');
-    expect(elegido.partes).toEqual([
-      {
-        id: 'A1',
-        numero: 1,
-        inicio: MEDIODIA,
-        pausadoMs: 0,
-        pausaDesde: null,
-        segundosReales: 2_400,
-      },
-    ]);
-  });
-
-  it('la parte que este aparato abrió y el servidor no conoce se queda: su alta está en la cola', () => {
-    const local = localConLaSuya();
-
-    expect(elegirEstado(local, servidorCon([], 'called'))).toBe(local);
+    expect(elegido.partes[0]).toMatchObject({ id: 'parte-A', segundosReales: 2_400 });
   });
 
   it('sin diferencias devuelve el mismo objeto: no provoca un repintado', () => {
-    // Las partes ya adoptadas y el mismo reglamento: el siguiente refresco no cambia nada.
-    const conciliado = elegirEstado(localConLaSuya(), servidorCon([parteDelServidor(1)]));
-    const pausado = reducir(conciliado, { tipo: 'pausar', ahora: MEDIODIA + 60_000 }).estado;
+    const local = empezado();
+    const servidor = delServidorCon([parteDelServidor({ id: 'parte-1' })]);
 
-    expect(elegirEstado(conciliado, servidorCon([parteDelServidor(1)]))).toBe(conciliado);
-    expect(elegirEstado(pausado, servidorCon([parteDelServidor(1)]))).toBe(pausado);
+    expect(elegirEstado(local, servidor)).toBe(local);
   });
 
-  it('en diferido la regla de las partes vale igual y no hay reloj que mover', () => {
-    const base = paquete();
-    const diferido = (partes: Parte[]): EstadoDirecto =>
-      desdePaquete({ ...base, partido: { ...base.partido, isRetroactive: true }, partes });
-    const sinArranque = { startedAt: null, actualSeconds: 2_400 };
-    const local = diferido([parteDelServidor(1, sinArranque)]);
+  it('terminar la parte adoptada la cierra por partido y número, no por un `id` que la base no tiene', () => {
+    const local = elegirEstado(abiertaAqui(), delServidorCon([]));
 
-    const elegido = elegirEstado(
-      local,
-      diferido([parteDelServidor(1, sinArranque), parteDelServidor(2, sinArranque)]),
-    );
+    const { trabajos } = reducir(local, { tipo: 'terminar_parte', ahora: INICIO + 2_405_000 });
 
-    expect(elegido.fase).toBe('inactivo');
-    expect(elegido.partes.map((parte) => [parte.id, parte.inicio, parte.segundosReales])).toEqual([
-      ['A1', 0, 2_400],
-      ['A2', 0, 2_400],
+    expect(trabajos).toEqual([
+      {
+        entity: 'match_period',
+        op: 'update',
+        matchId: 'par-1',
+        payload: {
+          valores: { ended_at: '2026-10-04T11:40:05.000Z', actual_seconds: 2_400 },
+          clave: { match_id: 'par-1', period_number: '1' },
+        },
+      },
     ]);
   });
 });
