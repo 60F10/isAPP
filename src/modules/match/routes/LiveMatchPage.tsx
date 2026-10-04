@@ -144,6 +144,20 @@ function Confirmar({ pregunta, si, alConfirmar, alCancelar }: ConfirmarProps) {
   );
 }
 
+/**
+ * Cómo acabó un intento de guardar (T-215). `ocupado` es que otro guardado
+ * sigue en marcha: no es un error y no hay nada que corregir.
+ */
+type Intento =
+  | { resultado: Resultado }
+  | { fallo: 'ocupado' }
+  | { fallo: 'regla' | 'dispositivo'; mensaje: string };
+
+const GUARDANDO = 'Guardando…';
+const GUARDANDO_LENTO = 'Sigue guardando en este dispositivo. No cierres la pantalla.';
+/** Lo que se espera antes de decir que el guardado va lento. */
+const ESPERA_DE_GUARDADO_MS = 4_000;
+
 function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string }) {
   const { paquete } = cargado;
   const rival = paquete.partido.opponentName;
@@ -159,6 +173,11 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const [flujo, setFlujo] = useState<Flujo | null>(null);
   const [fichaDe, setFichaDe] = useState<string | null>(null);
   const [errorDeFlujo, setErrorDeFlujo] = useState<string | null>(null);
+  // Mientras el evento de un flujo se guarda, el flujo lo dice y no deja
+  // repetir el toque (T-215).
+  const [guardandoFlujo, setGuardandoFlujo] = useState(false);
+  const [guardadoLento, setGuardadoLento] = useState(false);
+  const esperaDeGuardado = useRef<number | null>(null);
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
   const puedeAprobar = useHasPermission('event.approve') === true;
   // La A13 pide `match.close` (T-210a): el enlace solo sale a quien la abre.
@@ -219,27 +238,31 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     }
   }, [estado]);
 
+  // El aviso de lentitud no sobrevive a la pantalla.
+  useEffect(
+    () => () => {
+      if (esperaDeGuardado.current !== null) {
+        window.clearTimeout(esperaDeGuardado.current);
+      }
+    },
+    [],
+  );
+
   /**
-   * Aplica una acción: la pasa por el reductor, guarda el estado con sus
-   * filas y, solo si eso sale bien, cambia la pantalla. Devuelve si salió bien.
-   *
-   * @param anuncio lo que se anuncia al salir bien, o `null` para no anunciar
-   *   nada (la confirmación del registro ya lleva su región viva).
+   * Intenta una acción: la pasa por el reductor, guarda el estado con sus
+   * filas y, solo si eso sale bien, cambia la pantalla. Devuelve qué pasó y
+   * por qué, sin pintar ningún mensaje ni anunciarlo: eso lo decide quien
+   * llama, que sabe dónde está mirando quien anota.
    */
-  const hacer = async (
-    accion: Accion,
-    anuncio: string | null | ((resultado: Resultado) => string | null),
-  ): Promise<Resultado | null> => {
+  const intentar = async (accion: Accion): Promise<Intento> => {
     if (guardando.current) {
-      return null;
+      return { fallo: 'ocupado' };
     }
 
     const resultado = reducir(estado, accion);
 
     if (resultado.error !== null) {
-      setAviso(resultado.error);
-      anunciar(resultado.error);
-      return null;
+      return { fallo: 'regla', mensaje: resultado.error };
     }
 
     guardando.current = true;
@@ -248,22 +271,48 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     try {
       await aplicarTransicion(resultado.estado, resultado.trabajos);
       setEstado(resultado.estado);
-      const texto = typeof anuncio === 'function' ? anuncio(resultado) : anuncio;
 
-      if (texto !== null) {
-        anunciar(texto);
-      }
-
-      return resultado;
+      return { resultado };
     } catch {
-      const mensaje =
-        'No se ha podido guardar en este dispositivo. No ha cambiado nada: vuelve a intentarlo.';
-      setAviso(mensaje);
-      anunciar(mensaje);
-      return null;
+      return {
+        fallo: 'dispositivo',
+        mensaje:
+          'No se ha podido guardar en este dispositivo. No ha cambiado nada: vuelve a intentarlo.',
+      };
     } finally {
       guardando.current = false;
     }
+  };
+
+  /**
+   * Aplica una acción con `intentar` y dice el resultado arriba, en el aviso
+   * del partido. Devuelve si salió bien.
+   *
+   * @param anuncio lo que se anuncia al salir bien, o `null` para no anunciar
+   *   nada (la confirmación del registro ya lleva su región viva).
+   */
+  const hacer = async (
+    accion: Accion,
+    anuncio: string | null | ((resultado: Resultado) => string | null),
+  ): Promise<Resultado | null> => {
+    const intento = await intentar(accion);
+
+    if ('fallo' in intento) {
+      if (intento.fallo !== 'ocupado') {
+        setAviso(intento.mensaje);
+        anunciar(intento.mensaje);
+      }
+
+      return null;
+    }
+
+    const texto = typeof anuncio === 'function' ? anuncio(intento.resultado) : anuncio;
+
+    if (texto !== null) {
+      anunciar(texto);
+    }
+
+    return intento.resultado;
   };
 
   const porId = new Map(paquete.convocatoria.map((linea) => [linea.playerId, linea]));
@@ -313,14 +362,39 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
       return;
     }
 
-    const resultado = await hacer(accionDeRegistro(terminado, userId, puedeAprobar, minuto), null);
-
-    // Si no se ha guardado, el flujo se queda en su último paso con lo
-    // respondido: se reintenta sin volver a empezar.
-    if (resultado === null) {
-      setErrorDeFlujo('No se ha guardado. Corrige lo que falte o vuelve a intentarlo.');
+    // Otro guardado sigue en marcha: este toque sobra y no es ningún error.
+    if (guardando.current) {
       return;
     }
+
+    let intento: Intento;
+
+    setGuardandoFlujo(true);
+    esperaDeGuardado.current = window.setTimeout(() => {
+      setGuardadoLento(true);
+    }, ESPERA_DE_GUARDADO_MS);
+
+    try {
+      intento = await intentar(accionDeRegistro(terminado, userId, puedeAprobar, minuto));
+    } finally {
+      window.clearTimeout(esperaDeGuardado.current);
+      esperaDeGuardado.current = null;
+      setGuardadoLento(false);
+      setGuardandoFlujo(false);
+    }
+
+    // Si no se ha guardado, el flujo se queda en su último paso con lo
+    // respondido y dice el motivo de verdad: se reintenta sin volver a empezar.
+    if ('fallo' in intento) {
+      if (intento.fallo !== 'ocupado') {
+        setErrorDeFlujo(intento.mensaje);
+        anunciar(intento.mensaje);
+      }
+
+      return;
+    }
+
+    const resultado = intento.resultado;
 
     setFlujo(null);
 
@@ -639,6 +713,8 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
           nombre={nombreDe}
           dorsal={dorsalDe}
           error={errorDeFlujo}
+          ocupado={guardandoFlujo}
+          estado={guardandoFlujo ? (guardadoLento ? GUARDANDO_LENTO : GUARDANDO) : null}
           alResponder={responder}
           alResponderMinuto={(periodo, minuto) => {
             const probado: Flujo = {
