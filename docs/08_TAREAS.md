@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 3.7 — 04/10/2026 (T-218 cerrada: el flujo enseña lo ya respondido y el minuto dice el rango de su parte) · 3.6 — 04/10/2026 (T-217 cerrada: el directo con el reglamento al día y el diferido según el minuto) · 3.5 — 04/10/2026 (T-216 cerrada: la cola solo la vacía la pestaña visible) · 3.4 — 04/10/2026 (T-215 cerrada: el directo dice que está guardando) · 3.3 — 04/10/2026 (T-214 cerrada: siete cambios en el cadete) · 3.2 — 04/10/2026 (T-213 cerrada: Inicio con el próximo partido) · 3.1 — 04/10/2026 (T-212 cerrada: el calendario enlaza el directo) · 3.0 — 27/09/2026 (T-210a: la A13 en 🚧; la T-210 se adelanta a la T-209 por decisión de Raúl; hora del primer partido confirmada) · 2.9 — 26/09/2026 (T-203b cerrada; riesgo nuevo: la liga empieza el 3/10) · 2.8 — 26/09/2026 (migración del DOC 05 §14.4 a §14.6 aplicada: la T-203b queda libre) · 2.7 — 26/09/2026 (T-208 cerrada) · 2.6 — 26/09/2026 (T-207 cerrada) · 2.5 — 26/09/2026 (T-206 cerrada, antes del hito del 4 de octubre) · 2.4 — 26/09/2026 (T-205 cerrada) · 2.3 — 26/09/2026 (T-204 cerrada; nace la T-203b) · 2.2 — 26/09/2026 (T-203 cerrada) · 2.1 — 26/09/2026 (T-202 cerrada) · 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
+> **Versión:** 3.8 — 04/10/2026 (revisión de las T-212 a T-218; el lote siguiente, partido en T-219, T-220, T-210b, T-209a a c y T-301a a c; la prueba de campo, el 17/10) · 3.7 — 04/10/2026 (T-218 cerrada: el flujo enseña lo ya respondido y el minuto dice el rango de su parte) · 3.6 — 04/10/2026 (T-217 cerrada: el directo con el reglamento al día y el diferido según el minuto) · 3.5 — 04/10/2026 (T-216 cerrada: la cola solo la vacía la pestaña visible) · 3.4 — 04/10/2026 (T-215 cerrada: el directo dice que está guardando) · 3.3 — 04/10/2026 (T-214 cerrada: siete cambios en el cadete) · 3.2 — 04/10/2026 (T-213 cerrada: Inicio con el próximo partido) · 3.1 — 04/10/2026 (T-212 cerrada: el calendario enlaza el directo) · 3.0 — 27/09/2026 (T-210a: la A13 en 🚧; la T-210 se adelanta a la T-209 por decisión de Raúl; hora del primer partido confirmada) · 2.9 — 26/09/2026 (T-203b cerrada; riesgo nuevo: la liga empieza el 3/10) · 2.8 — 26/09/2026 (migración del DOC 05 §14.4 a §14.6 aplicada: la T-203b queda libre) · 2.7 — 26/09/2026 (T-208 cerrada) · 2.6 — 26/09/2026 (T-207 cerrada) · 2.5 — 26/09/2026 (T-206 cerrada, antes del hito del 4 de octubre) · 2.4 — 26/09/2026 (T-205 cerrada) · 2.3 — 26/09/2026 (T-204 cerrada; nace la T-203b) · 2.2 — 26/09/2026 (T-203 cerrada) · 2.1 — 26/09/2026 (T-202 cerrada) · 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -33,6 +33,8 @@ Del 12 de septiembre al 25 de octubre hay **seis semanas justas**.
 >
 > **Corrección (v1.1).** La v1.0 daba 17 sesiones para la ruta mínima. Diecisiete son las **tareas**, no las sesiones, y además aquella ruta se dejaba fuera los permisos y la prueba de campo, que la decisión C1 vuelve obligatorios. Las cifras de arriba son la suma real de la columna «Sesiones».
 
+> **Actualización (v3.8), a 4 de octubre.** Quedan tres semanas y, de la ruta mínima, la T-210b, la T-209, la T-301 y la T-302: unas seis sesiones y media, más media de la T-219 y la T-220. La T-209 y la T-301 van partidas en tres entregas cada una para que quepan en sesiones guiadas y baratas (DOC 13, punto 67). La palanca de emergencia sigue siendo la misma, y ahora tiene nombre: dejar fuera la T-209b y la T-209c.
+
 **No hay ruta cómoda.** Recortar el alcance ya se hizo en el §7 y solo ahorra 1,5 sesiones, porque lo gordo —el directo, la capa offline y el cierre— es precisamente el MVP. Con los cuatro anotadores dentro, el plan exige **3,9 sesiones semanales sin fallar ninguna**, y eso no deja colchón: una semana en blanco hay que recuperarla con dos dobles.
 
 **Palanca de emergencia**, si a mitad de camino el ritmo no se sostiene: quitar el tiempo real entre anotadores de la T-209 y dejar que cada uno anote por su cuenta, resolviendo las discordancias al cerrar el partido. Ahorra vez y media y conserva los cuatro anotadores. Se decide en el hito del 4 de octubre, no antes.
@@ -48,13 +50,15 @@ Lo que tiene que estar en pie para que Isaac registre el primer partido de liga:
 ```
 T-100 → T-100b → T-101 → T-102 → T-103 → T-104 → T-105 → T-105b → T-106
       → T-201 → T-202 → T-203 → T-204 → T-205
-      → T-206 → T-207 → T-208 → T-210 → T-209
-      → T-301 → T-302
+      → T-206 → T-207 → T-208 → T-210a → T-210b
+      → T-301a → T-301b → T-301c → T-209a → T-209b → T-209c → T-302
 ```
 
 **La T-210 va antes que la T-209 desde el 26/09, por decisión de Raúl**: sin cierre, el primer partido de liga, el 3 de octubre, no entra en las estadísticas, y con un solo anotador el directo ya funciona. Se parte en dos entregas: la T-210a (cierre) y la T-210b (panel de discordancias).
 
 Veintiuna tareas. **T-301 y T-302 no son opcionales**: con cuatro anotadores en el campo (decisión C1, confirmada el 12/09), la pantalla de personas y permisos es por donde entran los otros tres, y la prueba de campo es lo único que valida de verdad que la pantalla de directo aguanta el uso real. Todo lo demás espera.
+
+**El orden cambia el 04/10: la T-301 va antes que la T-209.** Sin personas no hay segundo anotador con el que probar el tiempo real, y la prueba de campo del 17 de octubre necesita antes a los cuatro dentro que viéndose entre sí. Si no llega todo, se anota sin tiempo real y las discordancias se resuelven al cerrar.
 
 **Hito de control: el 4 de octubre.** Si en esa fecha la T-206 no está cerrada, la capa offline se recorta a lo imprescindible —cola de salida sin precarga— y se documenta como deuda. Llegar sin directo no es una opción; llegar con un directo que solo funciona con cobertura, sí lo es, aunque duela.
 
@@ -112,8 +116,11 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 | **T-206**  | Capa offline: Dexie, precarga del partido y cola de salida con reintento e idempotencia              | C04       | T-205      | 2        | `feat/sync-cola-offline`             | ✅     |
 | **T-207**  | Directo, esqueleto: reloj, partes, marcador, tramos y bloqueo de pantalla                            | A12       | T-206      | 2        | `feat/match-directo-reloj`           | ✅     |
 | **T-208**  | Directo, registro: botonera de eventos, ficha de jugador, háptica y confirmación de 2 s              | A12       | T-207      | 2        | `feat/match-directo-botonera`        | ✅     |
-| **T-209**  | Directo, varios anotadores: cobertura declarada, tiempo real y marca de duplicado                    | A12       | T-210      | 1,5      | `feat/match-directo-cobertura`       | ⬜     |
-| **T-210**  | Cierre de partido y panel de discordancias: aprobar, descartar, recálculo de tramos                  | A13       | T-208      | 2        | `feat/review-cierre-partido`         | 🚧     |
+| **T-209a** | Cobertura declarada: qué sigue cada anotador, desde cuándo y hasta cuándo, y su lista en el cierre   | A12, A13  | T-301b     | 0,5      | `feat/match-cobertura-declarada`     | ⬜     |
+| **T-209b** | Ver lo que apuntan los demás: tiempo real con sondeo de respaldo y aviso de posible repetido         | A12       | T-209a     | 1        | `feat/match-tiempo-real`             | ⬜     |
+| **T-209c** | Partes compartidas: un solo arranque de parte entre aparatos                                         | A12       | T-209b     | 0,5      | `fix/match-partes-compartidas`       | ⬜     |
+| **T-210a** | Cierre de partido: resultado, acta, origen de los goles y recálculo de tramos                        | A13       | T-208      | 1        | `feat/review-cierre-partido`         | ✅     |
+| **T-210b** | Panel de discordancias: aprobar y descartar pendientes, repetidos y corregir el minuto               | A13       | T-210a     | 1        | `feat/review-discordancias`          | ⬜     |
 | **T-211**  | Mis aportaciones                                                                                     | A14       | T-210      | 0,5      | `feat/review-mis-aportaciones`       | ⬜     |
 | **T-212**  | Puerta al directo desde el calendario                                                                | A09       | T-208      | 0,25     | `feat/agenda-acceso-directo`         | ✅     |
 | **T-213**  | Inicio con el próximo partido                                                                        | A02       | T-212      | 0,5      | `feat/agenda-inicio-proximo-partido` | ✅     |
@@ -122,6 +129,8 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 | **T-216**  | Cola: solo vacía la pestaña visible                                                                  | C04       | —          | 0,5      | `fix/sync-vaciado-pestana-visible`   | ✅     |
 | **T-217**  | Directo: reglamento al día y diferido según el minuto                                                | A12       | T-215      | 0,5      | `fix/match-estado-al-dia`            | ✅     |
 | **T-218**  | Directo: resumen del flujo y minuto por parte                                                        | A12       | T-217      | 0,5      | `feat/match-resumen-del-flujo`       | ✅     |
+| **T-219**  | Banda de sincronización: listar lo rechazado y descartarlo                                           | C04       | T-216      | 0,25     | `feat/sync-descartar-rechazados`     | ⬜     |
+| **T-220**  | Flecos del flujo de registro y enlace al directo desde la convocatoria                               | A11, A12  | T-218      | 0,25     | `fix/match-flecos-del-flujo`         | ⬜     |
 
 **La T-201, cerrada el 26/09, con dos piezas fuera.** A03 enseña y edita el club del equipo activo; A04 lista los equipos del club separando los propios de los rivales, y los da de alta y los edita. **Fuera**: el alta de un club nuevo, porque con la RLS actual el club nacería invisible hasta para quien lo crea (ciclo del DOC 13, punto 21), y el escudo, porque el cubo `crests` no existe. El logo del C.D. Unión Tejina espera en `docs/recursos/` para subirlo cuando exista. Sin borrado: ni `clubs` ni `teams` tienen política para ello.
 
@@ -157,17 +166,21 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 
 **La T-218, cerrada el 04/10.** Al apuntar un evento, cada paso borraba el anterior: en «¿Asistencia?» ya no se veía de qué minuto era el gol ni quién lo marcó. Ahora cada paso enseña encima lo ya respondido, y en diferido la ayuda y el error del minuto dicen el rango de la parte elegida, que además se recuerda de un evento al siguiente. Solo pantalla, sin base de datos y **sin probar en un móvil ni al sol**. Detalle en el DOC 13.
 
+**Revisión del 04/10.** Las siete tareas del día, de la T-212 a la T-218, nacieron del primer partido de liga, metido en diferido la noche del 3, y se ejecutaron en sesiones aparte con un traspaso guiado cada una. Revisadas juntas: 480 pruebas en verde, y ninguna probada en un móvil. Lo que dejaron pendiente está en los puntos 59 a 67 del DOC 13; lo pequeño se recoge en la T-219 y la T-220.
+
 ---
 
 ## 6. Fase 3 · Concurrencia y prueba de campo
 
-| ID        | Tarea                                                                                   | Pantallas | Depende de | Sesiones | Rama                          | Estado |
-| :-------- | :-------------------------------------------------------------------------------------- | :-------- | :--------- | :------- | :---------------------------- | :----- |
-| **T-301** | Personas y permisos: invitación por correo, alta en el equipo, permisos por filas       | A07       | T-210      | 1,5      | `feat/auth-personas-permisos` | ⬜     |
-| **T-302** | Prueba de campo en un amistoso, con los cuatro anotadores y los dos sistemas operativos | —         | T-301      | 1        | —                             | ⬜     |
-| **T-303** | Registro de errores para administración                                                 | C02       | T-106      | 0,5      | `feat/logging-panel-admin`    | ⬜     |
+| ID         | Tarea                                                                                  | Pantallas | Depende de | Sesiones | Rama                             | Estado |
+| :--------- | :------------------------------------------------------------------------------------- | :-------- | :--------- | :------- | :------------------------------- | :----- |
+| **T-301a** | Migración de personas: invitaciones a un correo y solicitudes de acceso (DOC 05 §14.8) | —         | —          | 0,5      | `feat/db-personas-y-solicitudes` | ⬜     |
+| **T-301b** | Personas y permisos: miembros, permisos, invitaciones, solicitudes y seguidores        | A07       | T-301a     | 1        | `feat/auth-personas-permisos`    | ⬜     |
+| **T-301c** | Entrar sin equipo: aceptar una invitación o pedir acceso, y el seguidor como lectura   | A01b      | T-301b     | 1        | `feat/auth-entrada-sin-equipo`   | ⬜     |
+| **T-302**  | Prueba de campo en un partido, con los cuatro anotadores y los dos sistemas operativos | —         | T-301c     | 1        | —                                | ⬜     |
+| **T-303**  | Registro de errores para administración                                                | C02       | T-106      | 0,5      | `feat/logging-panel-admin`       | ⬜     |
 
-La T-302 no es código. Es la única tarea que valida de verdad lo construido, y sale del campo con una lista de arreglos que se convierte en tareas nuevas. **Resérvale un amistoso antes del 18 de octubre**: si aparece después, no queda semana para arreglar lo que destape.
+La T-302 no es código. Es la única tarea que valida de verdad lo construido, y sale del campo con una lista de arreglos que se convierte en tareas nuevas. **Tiene fecha: el sábado 17 de octubre, en casa, que es el siguiente partido del calendario**. Se pedía antes del 18 de octubre: si aparece después, no queda semana para arreglar lo que destape.
 
 ---
 
@@ -188,12 +201,13 @@ Las cuatro están marcadas MVP en el DOC 02. El recorte es consciente y queda co
 
 ## 8. Riesgos
 
-| Riesgo                                                                     | Señal temprana                                                       | Respuesta                                                                                                                                                                                                       |
-| :------------------------------------------------------------------------- | :------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| El plan no tiene colchón: 3,9 sesiones semanales sin fallar ninguna        | Una sola semana por debajo de tres sesiones                          | Palanca del §2: quitar el tiempo real de la T-209 y resolver discordancias al cierre                                                                                                                            |
-| La capa offline se come dos semanas                                        | T-206 abierta el 4 de octubre                                        | Recorte a cola sin precarga, documentado como deuda                                                                                                                                                             |
-| El directo no aguanta el uso real de pie y al sol                          | Lo dirá la T-302, no antes                                           | Por eso la prueba de campo va antes del 18 de octubre                                                                                                                                                           |
-| Cuatro anotadores generan más discordancias de las previstas               | Cola de pendientes sin vaciar tras el primer amistoso                | Subir el umbral de duplicado, que ya es configurable (C3)                                                                                                                                                       |
-| Las sesiones caen por debajo de tres semanales                             | Dos semanas seguidas con una sola sesión                             | Recortar T-211, T-303 y la mitad del panel de discordancias                                                                                                                                                     |
-| La liga se adelanta o Isaac necesita registrar un amistoso antes de tiempo | Aviso de Isaac                                                       | El partido a posteriori (D5) permite meterlo después, sin prisa                                                                                                                                                 |
-| **La liga empieza el sábado 3/10/2026, antes del 25/10 del MVP**           | Ya ha pasado: lo dio Raúl el 26/09. A las 12:00, confirmado el 26/09 | **Sin replanificar: lo decide Raúl.** Lo que hay el 26/09: entrada de datos y directo con un anotador (hasta la T-208), sin cierre ni varios anotadores. D5 deja meter en diferido lo que no se siga en directo |
+| Riesgo                                                                     | Señal temprana                                        | Respuesta                                                                                                                       |
+| :------------------------------------------------------------------------- | :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| El plan no tiene colchón: 3,9 sesiones semanales sin fallar ninguna        | Una sola semana por debajo de tres sesiones           | Palanca del §2: quitar el tiempo real de la T-209 y resolver discordancias al cierre                                            |
+| La capa offline se come dos semanas                                        | T-206 abierta el 4 de octubre                         | Recorte a cola sin precarga, documentado como deuda                                                                             |
+| El directo no aguanta el uso real de pie y al sol                          | Lo dirá la T-302, no antes                            | Por eso la prueba de campo va antes del 18 de octubre                                                                           |
+| Cuatro anotadores generan más discordancias de las previstas               | Cola de pendientes sin vaciar tras el primer amistoso | Subir el umbral de duplicado, que ya es configurable (C3)                                                                       |
+| Las sesiones caen por debajo de tres semanales                             | Dos semanas seguidas con una sola sesión              | Recortar T-211, T-303 y la mitad del panel de discordancias                                                                     |
+| La liga se adelanta o Isaac necesita registrar un amistoso antes de tiempo | Aviso de Isaac                                        | El partido a posteriori (D5) permite meterlo después, sin prisa                                                                 |
+| **La liga empezó el sábado 3/10/2026, antes del 25/10 del MVP**            | Ya ha pasado                                          | El primer partido se metió en diferido esa noche y se cerró el 04/10, con un solo anotador. De ahí salieron la T-212 a la T-218 |
+| Corregir datos en la base mientras un móvil tiene cola sin enviar          | Ya ha pasado: un cambio repetido en el primer partido | Antes de escribir en la base, ese móvil abre la aplicación con cobertura y su banda no dice nada (DOC 13, punto 64)             |

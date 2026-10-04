@@ -131,9 +131,19 @@ Cinco cuestiones que aparecieron al bajar las decisiones anteriores a reglas y a
 
 ---
 
+## I · Decisiones tras el primer partido (04/10/2026)
+
+| #     | Decisión                                  | Resolución                                                                                                                                                                                                                                                                                                                     | Consecuencia técnica                                                                                                                                                                                                                                                    |
+| :---- | :---------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I1 🟡 | **Cómo entra alguien nuevo en un equipo** | **Dos puertas** (Raúl, 04/10): la invitación a un correo, y la solicitud de quien entra sin equipo, elige uno y pide seguirlo o pide permisos. En las dos acepta quien tiene `members.manage`. **Por confirmar por Raúl**: que seguir también se apruebe, y que un equipo solo salga en la lista si quien lo lleva lo enciende | Migración del DOC 05 §14.8 (T-301a). No se envía ningún correo: la invitación se casa con el correo de la cuenta de Google y aparece al entrar. Las solicitudes van en una tabla nueva, `access_requests`, y todo se escribe por funciones. El seguidor de H4 no cambia |
+
+**Por qué seguir también se aprueba.** Los jugadores son menores, y sus apodos son en la práctica sus nombres de pila. Un seguidor ve la plantilla, el calendario con el campo y la hora de cada partido, y los eventos aprobados. Con un «seguir» de un toque, eso lo vería cualquiera con una cuenta de Google. Aprobarlo cuesta un toque a quien lleva el equipo.
+
+---
+
 ## Resumen: estado de las decisiones
 
-**Las treinta decisiones están cerradas**, contando los bloques H y F.
+**Las treinta decisiones de los bloques A a H están cerradas.** El bloque I, del 04/10, tiene una a falta de un visto bueno.
 
 **Aplazado a propósito:** el nombre público de la aplicación. GavetaStats vale para el MVP; los criterios y el momento límite están en §F1.1 y §F1.2. No bloquea ningún documento.
 

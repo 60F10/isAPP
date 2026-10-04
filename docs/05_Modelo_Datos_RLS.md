@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.10 — 26/09/2026 (§14: los puntos del DOC 13 citados son de su día; §14.4 conectada en la T-203b) · 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.11 — 04/10/2026 (§14.8: personas, invitaciones y solicitudes, escrita y sin aplicar) · 1.10 — 26/09/2026 (§14: los puntos del DOC 13 citados son de su día; §14.4 conectada en la T-203b) · 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — ocho archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
@@ -894,6 +894,39 @@ Con esto queda comprobado lo que el §14.5 dejaba en el aire: **un `upsert` disp
 **Dos matices de `marcar_convocado` que salieron en la revisión.** Con un partido que no existe no devuelve `false`, como dice el comentario de la migración, sino que lanza 42501: `team_of_match` da nulo y no hay equipo en el que tener permiso. El cliente trata los dos casos igual, así que no cambia nada; el archivo se deja tal como se aplicó y el JSDoc de `marcarComoConvocado` dice lo que pasa de verdad. Y, a diferencia de `enforce_match_changes` o `set_event_status`, **sin sesión no deja pasar**: también lanza 42501. Es más estricto que el patrón del resto y no molesta, porque solo la llama el cliente.
 
 **La 5c se queda fuera.** Es opcional, la A11 ya lo impide, y una restricción de exclusión diferible cambia cuándo falla la escritura: con la A11 guardando en dos peticiones, cada una en su transacción, habría que probarla contra la pantalla de verdad, con un navegador, antes de meterla en producción. Si algún día se escribe en `match_squad` desde otro sitio, se retoma.
+
+---
+
+### 14.8 Personas: invitaciones a un correo y solicitudes de acceso — SIN APLICAR
+
+Decisión I1 del DOC 03, del 04/10/2026. La aplica la T-301a. **El SQL está escrito y sin probar contra la base**: el ensayo, que lo aplica, lo prueba y lo deshace en una sola sentencia, no se pudo lanzar desde la sesión que lo escribió.
+
+| Archivo                                          | Qué es                                                                                                       |
+| :----------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
+| `supabase/pendientes/personas_y_solicitudes.sql` | La migración. Al aplicarla se mueve a `supabase/migrations/` con su marca de tiempo                          |
+| `supabase/pruebas/personas_ensayo.sql`           | La misma migración más 17 comprobaciones, dentro de un bloque que termina en error a propósito: no deja nada |
+
+**Dos puertas, y las dos pasan por quien tiene `members.manage`.**
+
+| Puerta         | Quién empieza          | Cómo                                                                                                                                                                                                                |
+| :------------- | :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Invitación** | Quien lleva el equipo  | Una fila en `invitations` con el correo, el rol y los permisos. La cuenta de Google con ese correo la ve al entrar (`mis_invitaciones`) y la acepta (`aceptar_invitacion`). No se envía ningún correo               |
+| **Solicitud**  | Quien entra sin equipo | Ve los equipos con `teams.accepts_requests` (`equipos_que_admiten_solicitudes`), pide seguir o pide permisos (`solicitar_acceso`), y quien lleva el equipo resuelve (`resolver_solicitud`) eligiendo rol y permisos |
+
+**Lo que añade.**
+
+| Pieza                                              | Detalle                                                                                                                                                              |
+| :------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `teams.accepts_requests`                           | `boolean`, `false` por defecto: un equipo de menores no sale en ninguna lista hasta que quien lo lleva lo enciende                                                   |
+| `invitations`                                      | El `token` se genera solo; un disparador normaliza el correo y pone `created_by`; índice único de una pendiente por equipo y correo                                  |
+| `access_requests`                                  | Equipo, usuario, `kind` (`follower` o `member`), mensaje de hasta 280 caracteres, `status` (`pending`, `approved`, `rejected`, `cancelled`), quién y cuándo resolvió |
+| RLS de `access_requests`                           | Solo lectura por política: la propia, o las del equipo con `members.manage`. **Ninguna política de escritura**: se escribe por las funciones                         |
+| `solicitudes_del_equipo` y `seguidores_del_equipo` | Con el nombre de la persona: `profiles_select` solo enseña a los compañeros, y quien pide todavía no lo es                                                           |
+| `cancelar_solicitud` y `dejar_de_seguir`           | Lo único que quien pide puede deshacer por su cuenta                                                                                                                 |
+
+**Reglas que imponen las funciones.** Nadie entra solo, tampoco como seguidor. Una invitación solo la acepta la cuenta cuyo correo coincide. Quien ya es miembro no baja a seguidor, y quien pasa a miembro deja de ser seguidor (DOC 04 §15.3). Una solicitud pendiente por equipo y persona, y tras un rechazo, una semana sin volver a pedir. Todas las funciones son `SECURITY DEFINER` con `search_path` fijo, sin permiso para `anon`.
+
+**Lo que no hace.** No envía correos: el plan gratuito no da un servidor de correo que sirva para eso. No impide que el último que tiene `members.manage` se lo quite. Y no toca las políticas de `team_members`, `team_followers` ni `team_member_permissions`: quien tiene `members.manage` sigue escribiendo en ellas directamente desde la A07.
 
 ---
 
