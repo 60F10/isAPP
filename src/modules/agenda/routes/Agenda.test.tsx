@@ -221,6 +221,41 @@ describe('A09 · Calendario', () => {
     const jugadosSinPermiso = await tarjeta('Jugados');
     expect(within(jugadosSinPermiso).queryByRole('link', { name: /Cierre/ })).toBeNull();
   });
+
+  it('el directo se enlaza convocado o en juego, y solo con el permiso de anotar', async () => {
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'called' })]);
+    montar('/calendario', ['match.live.write']);
+
+    const convocado = await tarjeta('Por jugar');
+    expect(
+      within(convocado).getByRole('link', { name: 'Directo de Cadete A – UD Orotava' }),
+    ).toHaveAttribute('href', '/partidos/par-1/directo');
+
+    cleanup();
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'called', isRetroactive: true })]);
+    montar('/calendario', ['match.live.write']);
+
+    const enDiferido = await tarjeta('Por jugar');
+    expect(
+      within(enDiferido).getByRole('link', { name: 'Apuntar Cadete A – UD Orotava' }),
+    ).toHaveAttribute('href', '/partidos/par-1/directo');
+
+    cleanup();
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'scheduled' })]);
+    montar('/calendario', ['match.live.write']);
+
+    const programado = await tarjeta('Por jugar');
+    expect(within(programado).getByText('Cadete A – UD Orotava')).toBeInTheDocument();
+    expect(within(programado).queryByRole('link', { name: /Directo|Apuntar/ })).toBeNull();
+
+    cleanup();
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'called' })]);
+    montar('/calendario', ['lineup.manage']);
+
+    const sinPermiso = await tarjeta('Por jugar');
+    expect(within(sinPermiso).getByText('Cadete A – UD Orotava')).toBeInTheDocument();
+    expect(within(sinPermiso).queryByRole('link', { name: /Directo|Apuntar/ })).toBeNull();
+  });
 });
 
 describe('A10 · Nuevo partido', () => {

@@ -12,6 +12,7 @@ import {
   separarCalendario,
   sePuedeEditar,
   tieneCierre,
+  tieneDirecto,
   ultimoCampoDeCasa,
   validarPartido,
 } from './partido';
@@ -188,6 +189,14 @@ describe('estados', () => {
     expect(sePuedeEditar('called')).toBe(true);
     for (const estado of ['live', 'suspended', 'finished', 'closed'] as const) {
       expect(sePuedeEditar(estado)).toBe(false);
+    }
+  });
+
+  it('el directo se enlaza convocado o en juego, ni antes ni después', () => {
+    expect(tieneDirecto('called')).toBe(true);
+    expect(tieneDirecto('live')).toBe(true);
+    for (const estado of ['scheduled', 'suspended', 'finished', 'closed'] as const) {
+      expect(tieneDirecto(estado)).toBe(false);
     }
   });
 
