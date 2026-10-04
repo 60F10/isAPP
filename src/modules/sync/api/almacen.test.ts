@@ -6,7 +6,7 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { descartarRechazado, encolarTrabajosJunto } from './almacen';
+import { descartarRechazado, encolarTrabajosJunto, pendientesDelPartido } from './almacen';
 
 import type { Trabajo } from '@shared/lib/db';
 
@@ -34,6 +34,14 @@ vi.mock('@shared/lib/db', () => ({
     tables: [],
     outbox: {
       get: (id: string) => Promise.resolve(estado.guardados.get(id)),
+      where: (indice: 'matchId') => ({
+        equals: (valor: string) => ({
+          toArray: () =>
+            Promise.resolve(
+              [...estado.guardados.values()].filter((trabajo) => trabajo[indice] === valor),
+            ),
+        }),
+      }),
       delete: (id: string) => {
         estado.guardados.delete(id);
         return Promise.resolve();
@@ -194,5 +202,98 @@ describe('descartarRechazado', () => {
 
     await expect(descartarRechazado('a', 'u1')).resolves.toBe(false);
     expect(estado.guardados.has('a')).toBe(true);
+  });
+});
+
+// T-209b: lo que el refresco del directo necesita saber de la cola para no
+// comerse lo que este aparato tiene de camino.
+describe('pendientesDelPartido', () => {
+  function trabajo(id: string, cambios: Partial<Trabajo>): void {
+    estado.guardados.set(id, {
+      id,
+      userId: 'u1',
+      entity: 'match_event',
+      op: 'insert',
+      payload: { valores: { client_event_id: id } },
+      clientEventId: id,
+      matchId: 'm1',
+      createdAt: 1,
+      attempts: 0,
+      nextAttemptAt: 0,
+      status: 'pending',
+      lastError: null,
+      sentAt: null,
+      ...cambios,
+    });
+  }
+
+  function borrado(id: string, de: string, cambios: Partial<Trabajo> = {}): void {
+    trabajo(id, {
+      op: 'delete',
+      clientEventId: null,
+      payload: { valores: {}, clave: { client_event_id: de } },
+      ...cambios,
+    });
+  }
+
+  beforeEach(() => {
+    estado.guardados.clear();
+  });
+
+  it('`altas` trae lo pendiente, lo fallido y lo enviado después de `desde`', async () => {
+    trabajo('pendiente', {});
+    trabajo('enviandose', { status: 'sending' });
+    trabajo('rechazado', { status: 'failed' });
+    trabajo('recien-enviado', { status: 'sent', sentAt: 1_000 });
+    trabajo('justo', { status: 'sent', sentAt: 500 });
+
+    const { altas, bajas } = await pendientesDelPartido('m1', 500);
+
+    expect([...altas].sort()).toEqual([
+      'enviandose',
+      'justo',
+      'pendiente',
+      'rechazado',
+      'recien-enviado',
+    ]);
+    expect(bajas.size).toBe(0);
+  });
+
+  it('`altas` no trae lo enviado antes de `desde` ni lo de otro partido', async () => {
+    trabajo('viejo', { status: 'sent', sentAt: 499 });
+    trabajo('de-otro', { matchId: 'm2' });
+    trabajo('otra-cuenta', { userId: 'u2' });
+
+    const { altas } = await pendientesDelPartido('m1', 500);
+
+    // El partido es el mismo lo anote quien lo anote en este aparato.
+    expect([...altas]).toEqual(['otra-cuenta']);
+  });
+
+  it('`bajas` saca el identificador de `payload.clave`, con la misma regla de `desde`', async () => {
+    borrado('b1', 'gol-deshecho');
+    borrado('b2', 'recien-borrado', { status: 'sent', sentAt: 900 });
+    borrado('b3', 'borrado-hace-rato', { status: 'sent', sentAt: 100 });
+    borrado('b4', 'de-otro', { matchId: 'm2' });
+
+    const { altas, bajas } = await pendientesDelPartido('m1', 500);
+
+    expect([...bajas].sort()).toEqual(['gol-deshecho', 'recien-borrado']);
+    expect(altas.size).toBe(0);
+  });
+
+  it('solo mira los eventos: una parte o una cobertura no son ni alta ni baja', async () => {
+    trabajo('parte', { entity: 'match_period', clientEventId: null });
+    trabajo('cobertura', { entity: 'coverage' });
+    trabajo('cierre', {
+      entity: 'coverage',
+      op: 'delete',
+      payload: { valores: {}, clave: { client_event_id: 'x' } },
+    });
+
+    const { altas, bajas } = await pendientesDelPartido('m1', 0);
+
+    expect(altas.size).toBe(0);
+    expect(bajas.size).toBe(0);
   });
 });

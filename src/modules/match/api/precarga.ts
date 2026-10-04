@@ -2,7 +2,8 @@
 //
 // Se descarga entero —partido, reglamento, convocatoria, partes y eventos— y
 // se guarda en `matchSnapshots` y `matchEvents`. A partir de ahí el directo
-// (T-207) lee de local, no de la red.
+// (T-207) lee de local, no de la red. Desde la T-209b trae también las
+// ventanas de posible repetido, y el directo lo vuelve a descargar cada poco.
 //
 // Se descartó persistir la caché de TanStack Query: guarda lo que le apetece
 // según cuándo se visitó cada pantalla, y no garantiza que el partido de las
@@ -17,6 +18,7 @@
 import { db } from '@shared/lib/db';
 import { supabase } from '@shared/lib/supabase';
 
+import { leerVentanas } from '../model/eventos';
 import { contarConvocados } from '../model/paquete';
 
 import type {
@@ -58,9 +60,18 @@ interface FilaConvocatoria {
   players: { nickname: string } | null;
 }
 
-/** Lo descarga todo en paralelo. Lanza si falta el partido o su reglamento. */
+/** La fila de `app_settings` con las ventanas de posible repetido (DOC 04 §9.2). */
+const CLAVE_DE_VENTANAS = 'duplicate_window_seconds';
+
+/**
+ * Lo descarga todo en paralelo. Lanza si falta el partido o su reglamento.
+ *
+ * Las ventanas de posible repetido van aparte: si no se pueden leer, el
+ * paquete sale sin ellas y el directo usa 30 s. No son motivo para quedarse
+ * sin partido.
+ */
 export async function descargarPaquete(partidoId: string): Promise<PaqueteDePartido> {
-  const [partido, convocatoria, partes, eventos] = await Promise.all([
+  const [partido, convocatoria, partes, eventos, ajuste] = await Promise.all([
     supabase.from('matches').select(COLUMNAS_PARTIDO).eq('id', partidoId).maybeSingle(),
     supabase
       .from('match_squad')
@@ -71,6 +82,7 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
       .select('id, period_number, planned_seconds, actual_seconds, started_at, ended_at')
       .eq('match_id', partidoId),
     supabase.from('match_events').select(COLUMNAS_EVENTO).eq('match_id', partidoId),
+    supabase.from('app_settings').select('value').eq('key', CLAVE_DE_VENTANAS).maybeSingle(),
   ]);
 
   for (const respuesta of [partido, convocatoria, partes, eventos]) {
@@ -86,6 +98,8 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
   }
 
   const lineas: FilaConvocatoria[] = convocatoria.data ?? [];
+  const ventanas =
+    ajuste.error || ajuste.data === null ? undefined : leerVentanas(ajuste.data.value);
 
   return {
     partido: {
@@ -116,6 +130,8 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
       endedAt: parte.ended_at,
     })),
     eventos: eventos.data ?? [],
+    // Las claves que no hay no se escriben: `undefined` no es lo mismo que nada.
+    ...(ventanas === undefined ? {} : { ventanas }),
   };
 }
 
@@ -131,8 +147,15 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
  * Y conserva la cobertura declarada aquí (T-209a): si un refresco la borrara,
  * al volver a abrir el directo se declararía otra encima de la que sigue
  * abierta en el servidor.
+ *
+ * @param pedidoEn cuándo se pidió la descarga (T-209b). Se apunta para saber
+ *   desde cuándo mirar la cola al fundir este paquete con lo del aparato.
  */
-export async function guardarPaquete(paquete: PaqueteDePartido, ahora: number): Promise<void> {
+export async function guardarPaquete(
+  paquete: PaqueteDePartido,
+  ahora: number,
+  pedidoEn?: number,
+): Promise<void> {
   await db.transaction('rw', db.matchSnapshots, db.matchEvents, async () => {
     const anterior = await db.matchSnapshots.get(paquete.partido.id);
     const previa = anterior === undefined ? undefined : (anterior.datos as Instantanea);
@@ -140,6 +163,7 @@ export async function guardarPaquete(paquete: PaqueteDePartido, ahora: number): 
     const instantanea: Instantanea = {
       paquete,
       descargadoEn: ahora,
+      ...(pedidoEn === undefined ? {} : { pedidoEn }),
       ...(previa?.estado === undefined ? {} : { estado: previa.estado }),
       ...(previa?.cobertura === undefined ? {} : { cobertura: previa.cobertura }),
     };
@@ -179,9 +203,10 @@ export async function pedirAlmacenPersistente(): Promise<boolean | null> {
 
 /** Descarga, guarda y pide persistencia. Lanza si no se ha podido guardar. */
 export async function precargarPartido(partidoId: string): Promise<ResultadoDePrecarga> {
+  const pedidoEn = Date.now();
   const paquete = await descargarPaquete(partidoId);
   const ahora = Date.now();
-  await guardarPaquete(paquete, ahora);
+  await guardarPaquete(paquete, ahora, pedidoEn);
 
   let persistente: boolean | null = null;
 

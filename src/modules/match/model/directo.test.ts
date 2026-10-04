@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { desdePaquete, elegirEstado, enCurso, reducir } from './directo';
+import { desdePaquete, elegirEstado, enCurso, fusionar, reducir } from './directo';
 
-import type { EstadoDirecto } from './directo';
+import type { EstadoDirecto, Pendientes } from './directo';
+import type { EventoDelDirecto } from './eventos';
 import type { PaqueteDePartido } from './paquete';
 
 const INICIO = Date.UTC(2026, 9, 4, 11, 0, 0);
@@ -335,5 +336,158 @@ describe('elegirEstado', () => {
     expect(elegido.titulares).toEqual(['p1', 'p8']);
     expect(elegido.enCampo).toEqual(['p1', 'p8']);
     expect(elegido.partes).toBe(local.partes);
+  });
+});
+
+// T-209b: lo que se queda y lo que se quita cuando llega lo del servidor.
+describe('fusionar', () => {
+  const NADA: Pendientes = { altas: new Set(), bajas: new Set() };
+
+  function fila(id: string, cambios: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      client_event_id: id,
+      event_type: 'goal',
+      period: 1,
+      seconds: 60,
+      is_opponent: false,
+      player_id: 'p7',
+      secondary_player_id: null,
+      details: {},
+      status: 'pending',
+      ...cambios,
+    };
+  }
+
+  function evento(id: string, cambios: Partial<EventoDelDirecto> = {}): EventoDelDirecto {
+    return {
+      clientEventId: id,
+      tipo: 'goal',
+      periodo: 1,
+      segundos: 60,
+      rival: false,
+      jugador: 'p7',
+      segundo: null,
+      detalles: {},
+      estado: 'pending',
+      propio: true,
+      ...cambios,
+    };
+  }
+
+  function conEventos(eventos: EventoDelDirecto[]): EstadoDirecto {
+    return { ...empezado(), eventos };
+  }
+
+  function servidorCon(filas: Record<string, unknown>[]): EstadoDirecto {
+    return { ...empezado(), eventos: desdePaquete(paquete({ eventos: filas })).eventos };
+  }
+
+  const ids = (estado: EstadoDirecto) => estado.eventos.map((e) => e.clientEventId);
+
+  it('lo que está en el servidor y este aparato ha deshecho, con el borrado de camino, no sale', () => {
+    const fusionado = fusionar(conEventos([]), servidorCon([fila('deshecho')]), {
+      altas: new Set(),
+      bajas: new Set(['deshecho']),
+    });
+
+    expect(ids(fusionado)).toEqual([]);
+  });
+
+  it('lo que está en el servidor sale con la copia del servidor, y sigue siendo propio si lo era', () => {
+    const local = conEventos([evento('mio'), evento('visto', { propio: false })]);
+    const servidor = servidorCon([
+      fila('mio', { status: 'approved' }),
+      fila('visto'),
+      fila('nuevo', { is_opponent: true, player_id: null }),
+    ]);
+
+    const fusionado = fusionar(local, servidor, NADA);
+
+    expect(fusionado.eventos).toEqual([
+      evento('mio', { estado: 'approved', propio: true }),
+      evento('visto', { propio: false }),
+      evento('nuevo', { rival: true, jugador: null, propio: false }),
+    ]);
+  });
+
+  it('lo que solo está en local y sigue en la cola se queda: no ha llegado, o lo rechazó el servidor', () => {
+    const local = conEventos([evento('sin-enviar')]);
+
+    const fusionado = fusionar(local, servidorCon([]), {
+      altas: new Set(['sin-enviar']),
+      bajas: new Set(),
+    });
+
+    expect(fusionado.eventos).toEqual([evento('sin-enviar')]);
+  });
+
+  it('lo que solo está en local y ya no está en la cola se quita: alguien lo borró en el servidor', () => {
+    const local = conEventos([evento('borrado-fuera'), evento('sin-enviar')]);
+
+    const fusionado = fusionar(local, servidorCon([]), {
+      altas: new Set(['sin-enviar']),
+      bajas: new Set(),
+    });
+
+    expect(ids(fusionado)).toEqual(['sin-enviar']);
+  });
+
+  it('un cambio apuntado en otro aparato mueve quién está en el campo', () => {
+    const local = empezado();
+    const servidor = servidorCon([
+      fila('cambio', { event_type: 'substitution', player_id: 'p7', secondary_player_id: 'p8' }),
+    ]);
+
+    expect(local.enCampo).toEqual(['p1', 'p7']);
+    expect(fusionar(local, servidor, NADA).enCampo).toEqual(['p1', 'p8']);
+  });
+
+  it('un evento propio corregido en el servidor sale con el minuto y el jugador nuevos', () => {
+    const local = conEventos([evento('mio', { segundos: 60, jugador: 'p7' })]);
+    const servidor = servidorCon([fila('mio', { seconds: 300, player_id: 'p1' })]);
+
+    expect(fusionar(local, servidor, NADA).eventos).toEqual([
+      evento('mio', { segundos: 300, jugador: 'p1', propio: true }),
+    ]);
+  });
+
+  it('lo demás sale de `elegirEstado`: la pausa es del local y el reglamento del servidor', () => {
+    const local = reducir(empezado(), { tipo: 'pausar', ahora: INICIO + 1 }).estado;
+    const servidor: EstadoDirecto = { ...empezado(), cambiosMax: 7, eventos: [] };
+
+    const fusionado = fusionar(local, servidor, NADA);
+
+    expect(fusionado.fase).toBe('pausado');
+    expect(fusionado.partes).toEqual(local.partes);
+    expect(fusionado.cambiosMax).toBe(7);
+  });
+
+  it('si otro aparato ha avanzado el partido, lo que este tiene sin enviar no se pierde', () => {
+    const local = conEventos([evento('sin-enviar')]);
+    const avanzado = reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 1 }).estado;
+
+    const fusionado = fusionar(
+      local,
+      { ...avanzado, eventos: servidorCon([fila('ajeno')]).eventos },
+      { altas: new Set(['sin-enviar']), bajas: new Set() },
+    );
+
+    expect(fusionado.fase).toBe('descanso');
+    expect(ids(fusionado)).toEqual(['sin-enviar', 'ajeno']);
+  });
+
+  it('sin estado local sale lo del servidor, menos lo que este aparato está borrando', () => {
+    const servidor = servidorCon([fila('a'), fila('b')]);
+
+    expect(fusionar(undefined, servidor, NADA)).toBe(servidor);
+    expect(ids(fusionar(undefined, servidor, { altas: new Set(), bajas: new Set(['a']) }))).toEqual(
+      ['b'],
+    );
+  });
+
+  it('si no cambia nada devuelve el mismo estado, para no repintar la pantalla cada refresco', () => {
+    const local = conEventos([evento('mio')]);
+
+    expect(fusionar(local, servidorCon([fila('mio')]), NADA)).toBe(local);
   });
 });

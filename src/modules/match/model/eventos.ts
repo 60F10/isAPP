@@ -72,27 +72,6 @@ export function desdeFilas(filas: readonly Record<string, unknown>[]): EventoDel
   }));
 }
 
-/**
- * Junta los eventos del aparato con los del servidor, sin repetir. De uno que
- * está en los dos, manda la copia del servidor —su estado de aprobación es el
- * bueno—, pero sigue siendo propio si lo era: se puede deshacer.
- */
-export function unirEventos(
-  locales: readonly EventoDelDirecto[],
-  servidor: readonly EventoDelDirecto[],
-): EventoDelDirecto[] {
-  const delServidor = new Map(servidor.map((evento) => [evento.clientEventId, evento]));
-  const vistos = new Set<string>();
-  const unidos = locales.map((local) => {
-    vistos.add(local.clientEventId);
-    const copia = delServidor.get(local.clientEventId);
-
-    return copia === undefined ? local : { ...copia, propio: local.propio };
-  });
-
-  return [...unidos, ...servidor.filter((evento) => !vistos.has(evento.clientEventId))];
-}
-
 /** Lo que cuenta, en orden de partido: parte y segundo, sin segundos al final. */
 function vigentes(eventos: readonly EventoDelDirecto[]): EventoDelDirecto[] {
   return eventos
@@ -267,4 +246,94 @@ export function marcador(eventos: readonly EventoDelDirecto[]): Marcador {
   }
 
   return resultado;
+}
+
+/**
+ * Las ventanas de posible repetido, en segundos (DOC 04 §9.2): el valor de la
+ * fila `duplicate_window_seconds` de `app_settings`. Viajan en el paquete.
+ */
+export interface Ventanas {
+  default: number;
+  by_type: Partial<Record<string, number>>;
+}
+
+/** La ventana si el paquete no trae ninguna: la del DOC 04 §9.2. */
+export const VENTANA_POR_DEFECTO = 30;
+
+function segundosValidos(valor: unknown): valor is number {
+  return typeof valor === 'number' && Number.isFinite(valor) && valor >= 0;
+}
+
+/**
+ * Lee el valor de `duplicate_window_seconds` tal como llega de la base. Sin
+ * fila, o con otra forma, no hay ventanas y valen los 30 s; de `by_type` solo
+ * se queda con lo que es un número.
+ */
+export function leerVentanas(valor: unknown): Ventanas | undefined {
+  if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) {
+    return undefined;
+  }
+
+  const { default: porDefecto, by_type: porTipo } = valor as Record<string, unknown>;
+
+  if (!segundosValidos(porDefecto)) {
+    return undefined;
+  }
+
+  const tipos =
+    typeof porTipo === 'object' && porTipo !== null && !Array.isArray(porTipo)
+      ? Object.entries(porTipo).filter((par): par is [string, number] => segundosValidos(par[1]))
+      : [];
+
+  return { default: porDefecto, by_type: Object.fromEntries(tipos) };
+}
+
+/**
+ * Las parejas de eventos que parecen el mismo apuntado dos veces (T-209b,
+ * DOC 04 §9.2): ninguno rechazado, el mismo tipo, el mismo bando y la misma
+ * parte, con los segundos dentro de la ventana de su tipo, y que no sean los
+ * dos de este aparato, que sabe lo que apunta. Sin segundos no se comparan.
+ *
+ * El borde de la ventana cuenta, igual que en `flag_duplicate_candidates`,
+ * que es la que marca los repetidos en el cierre: así el directo y la A13 no
+ * dicen cosas distintas de dos goles a 30 s justos.
+ *
+ * Solo avisa. Cuál de los dos vale se decide en el cierre.
+ *
+ * @returns cada pareja una vez, con el que va antes en la lista delante.
+ */
+export function parejasRepetidas(
+  eventos: readonly EventoDelDirecto[],
+  ventanas: Ventanas | undefined,
+): [string, string][] {
+  const comparables = eventos.filter(
+    (evento) => evento.estado !== 'rejected' && evento.segundos !== null,
+  );
+  const parejas: [string, string][] = [];
+
+  comparables.forEach((uno, indice) => {
+    const ventana = ventanas?.by_type[uno.tipo] ?? ventanas?.default ?? VENTANA_POR_DEFECTO;
+
+    for (const otro of comparables.slice(indice + 1)) {
+      if (
+        uno.tipo === otro.tipo &&
+        uno.rival === otro.rival &&
+        uno.periodo === otro.periodo &&
+        !(uno.propio && otro.propio) &&
+        Math.abs((uno.segundos ?? 0) - (otro.segundos ?? 0)) <= ventana
+      ) {
+        parejas.push([uno.clientEventId, otro.clientEventId]);
+      }
+    }
+  });
+
+  return parejas;
+}
+
+/** Los `clientEventId` de los eventos que están en alguna pareja de posibles repetidos. */
+export function posiblesRepetidos(
+  eventos: readonly EventoDelDirecto[],
+  ventanas: Ventanas | undefined,
+): Set<string> {
+  return new Set(parejasRepetidas(eventos, ventanas).flat());
 }

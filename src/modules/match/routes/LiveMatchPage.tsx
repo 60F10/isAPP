@@ -24,14 +24,22 @@
 // puede cambiar bajo el marcador y se cierra al salir con el botón y al
 // finalizar. Va aparte del reductor, por `api/cobertura`: que falle no impide
 // anotar ni salir, y la que se quede abierta la termina el cierre (C-03).
+//
+// DESDE LA T-209b, LO QUE APUNTAN LOS DEMÁS (D06-38). La pantalla vuelve a
+// descargar el partido cada poco (`useRefresco`) y lo funde con lo suyo: lo
+// que este aparato tiene de camino se queda, lo de otros aparatos se marca, y
+// lo que parece apuntado dos veces lo dice. UN REFRESCO NUNCA SE COME UN
+// TOQUE: no coge el cerrojo de guardar, lee la cola después del último
+// guardado y cambia el estado en ese mismo turno. Si no encuentra el hueco,
+// lo deja para el siguiente.
 
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { useAuth, useHasPermission } from '@modules/auth';
 import { NOMBRES_DE_EVENTO } from '@modules/rules';
-import { contarPendientes } from '@modules/sync';
+import { contarPendientes, pendientesDelPartido } from '@modules/sync';
 import { useAnnounce } from '@shared/hooks/announceContext';
 import { marcarPartidoEnCurso, quitarPartidoEnCurso } from '@shared/lib/partidoEnCurso';
 import { Button } from '@shared/ui/Button';
@@ -44,17 +52,18 @@ import {
   declararCobertura,
   leerCobertura,
 } from '../api/cobertura';
-import { aplicarTransicion, cargarDirecto, SIN_PRECARGA } from '../api/directo';
+import { aplicarTransicion, cargarDirecto, refrescarDirecto, SIN_PRECARGA } from '../api/directo';
 import { useAhora } from '../hooks/useAhora';
 import { Botonera } from '../components/Botonera';
 import { Cobertura } from '../components/Cobertura';
 import { FlujoDeRegistro } from '../components/FlujoDeRegistro';
 import { UltimosEventos } from '../components/UltimosEventos';
 import { useBloqueoDePantalla } from '../hooks/useBloqueoDePantalla';
+import { useRefresco } from '../hooks/useRefresco';
 import { alcancesOfrecidos, describirCobertura, instanteActual } from '../model/cobertura';
 import { describirEvento } from '../model/describir';
-import { enCurso, reducir } from '../model/directo';
-import { cambiosHechos, marcador } from '../model/eventos';
+import { enCurso, fusionar, reducir } from '../model/directo';
+import { cambiosHechos, marcador, parejasRepetidas } from '../model/eventos';
 import {
   aBorrador,
   botonesActivos,
@@ -173,9 +182,25 @@ const GUARDANDO = 'Guardando…';
 const GUARDANDO_LENTO = 'Sigue guardando en este dispositivo. No cierres la pantalla.';
 /** Lo que se espera antes de decir que el guardado va lento. */
 const ESPERA_DE_GUARDADO_MS = 4_000;
+/**
+ * Un refresco que llega con un guardado en marcha espera medio segundo y
+ * vuelve a leer la cola, hasta cinco veces (T-209b). Si no encuentra el
+ * hueco, se deja para el siguiente refresco.
+ */
+const ESPERA_DE_REFRESCO_MS = 500;
+const VUELTAS_DE_REFRESCO = 5;
+
+function esperar(milisegundos: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, milisegundos);
+  });
+}
 
 function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string }) {
-  const { paquete } = cargado;
+  // El paquete y el estado cambian juntos con cada refresco (T-209b): la
+  // convocatoria que pinta los nombres es la misma que manda en el estado.
+  const [paquete, setPaquete] = useState(cargado.paquete);
+  const partidoId = paquete.partido.id;
   const rival = paquete.partido.opponentName;
   const local = paquete.partido.isHome;
   const titulo = local ? `${nuestro} – ${rival}` : `${rival} – ${nuestro}`;
@@ -183,6 +208,9 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const anunciar = useAnnounce();
   const navigate = useNavigate();
   const [estado, setEstado] = useState(cargado.estado);
+  // Si el partido sigue saliendo de lo guardado: hasta el primer refresco que
+  // llegue al servidor.
+  const [sinRefrescar, setSinRefrescar] = useState(!cargado.refrescado);
   const [aviso, setAviso] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<'terminar' | 'finalizar' | null>(null);
   const [pendientesAlSalir, setPendientesAlSalir] = useState<number | null>(null);
@@ -264,6 +292,9 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     }
   }, [fichaDe]);
   const guardando = useRef(false);
+  // Cuántas veces se ha intentado guardar. El refresco lo mira para saber si
+  // lo que leyó de la cola sigue valiendo (T-209b).
+  const guardados = useRef(0);
   // Las confirmaciones sustituyen al botón que las abre. Al aparecer, el foco
   // va a la pregunta; al cerrarse, vuelve a los controles (2.4.3), para que no
   // se quede en `body` cuando se desmonta lo que lo tenía.
@@ -326,6 +357,9 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
       return { fallo: 'ocupado' };
     }
 
+    // Antes de reducir: un refresco que haya leído la cola antes de este
+    // toque tiene que volver a leerla (T-209b).
+    guardados.current += 1;
     const resultado = reducir(estado, accion);
 
     if (resultado.error !== null) {
@@ -382,6 +416,57 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     return intento.resultado;
   };
 
+  /**
+   * Un refresco (T-209b, D06-38): descarga el partido y lo funde con lo de
+   * este aparato. Lanza si no hay red; `useRefresco` lo calla.
+   *
+   * NO COGE EL CERROJO DE GUARDAR. Si lo cogiera, el toque que llegase mientras
+   * descarga se perdería en silencio, que es justo lo que no puede pasar. Lo
+   * que hace es no fundir hasta tener una lectura de la cola que valga:
+   *
+   * - La descarga apunta cuándo se pidió (`desde`): lo que la cola confirme a
+   *   partir de ahí puede no venir en el paquete.
+   * - La cola se lee sin ningún guardado en marcha, y se da por buena solo si
+   *   al acabar de leerla sigue sin haber ninguno y el contador no se ha
+   *   movido. Así, todo evento que esté en pantalla y no en el servidor está
+   *   en `altas`, y todo borrado de camino, en `bajas`.
+   * - El estado se cambia en ese mismo turno, sin ningún `await` entre medias.
+   *
+   * El estado fundido no se escribe en la instantánea: el paquete ya está
+   * guardado, el siguiente guardado escribe el estado, y al recargar
+   * `cargarDirecto` funde igual.
+   */
+  const refrescar = async (vigente: () => boolean) => {
+    const refresco = await refrescarDirecto(partidoId);
+
+    for (let vuelta = 0; vigente(); vuelta += 1) {
+      if (!guardando.current) {
+        const visto = guardados.current;
+        const pendientes = await pendientesDelPartido(partidoId, refresco.desde);
+
+        if (!vigente()) {
+          return;
+        }
+
+        if (!guardando.current && guardados.current === visto) {
+          setPaquete(refresco.paquete);
+          setEstado((actual) => fusionar(actual, refresco.servidor, pendientes));
+          setSinRefrescar(false);
+
+          return;
+        }
+      }
+
+      if (vuelta === VUELTAS_DE_REFRESCO) {
+        return;
+      }
+
+      await esperar(ESPERA_DE_REFRESCO_MS);
+    }
+  };
+
+  useRefresco(partidoId, refrescar);
+
   const porId = new Map(paquete.convocatoria.map((linea) => [linea.playerId, linea]));
   const nombreDe = (id: string) => {
     const linea = porId.get(id);
@@ -395,6 +480,46 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   };
   const describir = (evento: EventoDelDirecto) =>
     describirEvento(evento, nombreDe, estado.minutosDeParte, NOMBRES_DE_EVENTO);
+
+  // Lo que parece apuntado dos veces (T-209b, DOC 04 §9.2). Solo avisa: no
+  // bloquea ni pregunta antes de guardar, y cuál vale se decide en el cierre.
+  const { ventanas } = paquete;
+  const parejas = useMemo(
+    () => parejasRepetidas(estado.eventos, ventanas),
+    [estado.eventos, ventanas],
+  );
+  const repetidos = useMemo(() => new Set(parejas.flat()), [parejas]);
+  const parejasDichas = useRef<Set<string> | null>(null);
+  const anunciarRepetido = useRef<(clientEventId: string) => void>(() => undefined);
+
+  useEffect(() => {
+    anunciarRepetido.current = (clientEventId) => {
+      const evento = estado.eventos.find((otro) => otro.clientEventId === clientEventId);
+
+      if (evento !== undefined) {
+        anunciar(`Posible repetido: ${describir(evento)}`);
+      }
+    };
+  });
+
+  // Cada pareja se anuncia una vez, por la región viva, sin abrir nada ni
+  // mover el foco. Las que ya estaban al abrir no se anuncian: se leen en la
+  // lista.
+  useEffect(() => {
+    const claves = new Map(parejas.map((pareja) => [[...pareja].sort().join('|'), pareja[1]]));
+
+    if (parejasDichas.current === null) {
+      parejasDichas.current = new Set(claves.keys());
+      return;
+    }
+
+    for (const [clave, ultimo] of claves) {
+      if (!parejasDichas.current.has(clave)) {
+        parejasDichas.current.add(clave);
+        anunciarRepetido.current(ultimo);
+      }
+    }
+  }, [parejas]);
 
   // En diferido, los candidatos son los del minuto del flujo abierto, no los
   // del final del partido (D06-36). Sin flujo o sin minuto, los de siempre.
@@ -955,6 +1080,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
 
       <UltimosEventos
         eventos={estado.eventos}
+        repetidos={repetidos}
         describir={describir}
         alDeshacer={
           puedeApuntar
@@ -976,7 +1102,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
           Este navegador no puede mantener la pantalla encendida: se apagará sola como siempre.
         </p>
       ) : null}
-      {cargado.refrescado ? null : (
+      {!sinRefrescar ? null : (
         <p className={styles.nota}>
           Sin conexión: el partido sale de lo guardado en este dispositivo. Lo que hagas se envía al
           volver la cobertura.

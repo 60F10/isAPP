@@ -5,7 +5,7 @@
 // `@modules/sync`.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,7 +17,7 @@ import { leerPartidoEnCurso } from '@shared/lib/partidoEnCurso';
 import { desdePaquete } from '../model/directo';
 import { LiveMatchPage } from './LiveMatchPage';
 
-import type { DirectoCargado } from '../api/directo';
+import type { DirectoCargado, Refresco } from '../api/directo';
 import type { CoberturaLocal, Declaracion } from '../model/cobertura';
 import type { EstadoDirecto } from '../model/directo';
 import type { PaqueteDePartido } from '../model/paquete';
@@ -27,9 +27,10 @@ import type { Session } from '@supabase/supabase-js';
 const api = vi.hoisted(() => ({
   cargarDirecto: vi.fn(),
   aplicarTransicion: vi.fn(),
+  refrescarDirecto: vi.fn(),
   SIN_PRECARGA: 'SIN_PRECARGA',
 }));
-const sync = vi.hoisted(() => ({ contarPendientes: vi.fn() }));
+const sync = vi.hoisted(() => ({ contarPendientes: vi.fn(), pendientesDelPartido: vi.fn() }));
 // La cobertura declarada (T-209a) va aparte del reductor, por su propia API.
 const cobertura = vi.hoisted(() => ({
   leerCobertura: vi.fn(),
@@ -41,6 +42,9 @@ const cobertura = vi.hoisted(() => ({
 vi.mock('../api/directo', () => api);
 vi.mock('../api/cobertura', () => cobertura);
 vi.mock('@modules/sync', () => sync);
+// El canal de Realtime no se abre en las pruebas: el refresco se provoca
+// volviendo a tener red, que es otro de sus motivos (T-209b).
+vi.mock('../api/tiempoReal', () => ({ escucharPartido: () => () => undefined }));
 vi.mock('@shared/lib/supabase', () => ({ supabase: {} }));
 
 const PAQUETE: PaqueteDePartido = {
@@ -177,8 +181,12 @@ beforeEach(() => {
   api.cargarDirecto.mockReset();
   api.aplicarTransicion.mockReset();
   api.aplicarTransicion.mockResolvedValue(undefined);
+  api.refrescarDirecto.mockReset();
+  api.refrescarDirecto.mockRejectedValue(new TypeError('Failed to fetch'));
   sync.contarPendientes.mockReset();
   sync.contarPendientes.mockResolvedValue(0);
+  sync.pendientesDelPartido.mockReset();
+  sync.pendientesDelPartido.mockResolvedValue({ altas: new Set(), bajas: new Set() });
   cobertura.leerCobertura.mockReset();
   cobertura.leerCobertura.mockResolvedValue(null);
   cobertura.declararCobertura.mockReset();
@@ -1076,6 +1084,378 @@ describe('A12 · Directo, esqueleto', () => {
         expect(
           screen.getByText('De 41 a 80, como en el acta. En el descuento, 80+2.'),
         ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('lo que apuntan los demás (T-209b)', () => {
+    const INICIO = Date.now() - 60_000;
+    const PARTE = {
+      id: 'parte-1',
+      numero: 1,
+      inicio: INICIO,
+      pausadoMs: 0,
+      pausaDesde: null,
+      segundosReales: null,
+    };
+    const enJuego = (estado: Partial<EstadoDirecto> = {}, refrescado = true) =>
+      cargado({ fase: 'en_juego', partes: [PARTE], eventos: [], ...estado }, refrescado);
+
+    function fila(id: string, cambios: Record<string, unknown> = {}): Record<string, unknown> {
+      return {
+        client_event_id: id,
+        event_type: 'goal',
+        period: 1,
+        seconds: 65,
+        is_opponent: false,
+        player_id: 'p7',
+        secondary_player_id: null,
+        details: {},
+        status: 'pending',
+        ...cambios,
+      };
+    }
+
+    /** Lo que devuelve `refrescarDirecto`: el partido en juego con esos eventos en el servidor. */
+    function refresco(filas: Record<string, unknown>[]): Refresco {
+      const paquete: PaqueteDePartido = {
+        ...PAQUETE,
+        partido: { ...PAQUETE.partido, status: 'live' },
+        partes: [
+          {
+            id: 'parte-1',
+            periodNumber: 1,
+            plannedSeconds: 2400,
+            actualSeconds: null,
+            startedAt: new Date(INICIO).toISOString(),
+            endedAt: null,
+          },
+        ],
+        eventos: filas,
+      };
+
+      return { paquete, servidor: desdePaquete(paquete), desde: 1 };
+    }
+
+    /**
+     * La cola de verdad, en pequeño: lo que la pantalla guarda entra, y
+     * `pendientesDelPartido` lo devuelve. Así la prueba falla si el refresco
+     * funde con una lectura de antes del toque.
+     */
+    function simularCola() {
+      const altas = new Set<string>();
+      const bajas = new Set<string>();
+
+      api.aplicarTransicion.mockImplementation(
+        (
+          _estado: EstadoDirecto,
+          trabajos: {
+            entity: string;
+            op: string;
+            payload: { valores: Record<string, unknown>; clave?: Record<string, string> };
+          }[],
+        ) => {
+          for (const trabajo of trabajos) {
+            if (trabajo.entity === 'match_event' && trabajo.op === 'insert') {
+              altas.add(String(trabajo.payload.valores.client_event_id));
+            }
+
+            if (trabajo.entity === 'match_event' && trabajo.op === 'delete') {
+              bajas.add(String(trabajo.payload.clave?.client_event_id));
+            }
+          }
+
+          return Promise.resolve();
+        },
+      );
+      sync.pendientesDelPartido.mockImplementation(() =>
+        Promise.resolve({ altas: new Set(altas), bajas: new Set(bajas) }),
+      );
+    }
+
+    /** Vuelve la red: uno de los motivos por los que el directo se refresca. */
+    async function llegaUnRefresco() {
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+        await Promise.resolve();
+      });
+    }
+
+    const ultimos = () => screen.getByRole('region', { name: 'Últimos eventos' });
+
+    it('llega un refresco con un gol de otro aparato: el marcador sube y la línea dice «De otro aparato»', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      api.refrescarDirecto.mockResolvedValue(refresco([fila('ajeno')]));
+      montar();
+
+      expect(await screen.findByText('0 – 0')).toBeInTheDocument();
+
+      await llegaUnRefresco();
+
+      expect(await screen.findByText('0 – 1')).toBeInTheDocument();
+      expect(ultimos()).toHaveTextContent("Gol · 7 · Juanito · 2' · Pendiente · De otro aparato");
+      // Lo de otro aparato no se deshace aquí.
+      expect(screen.queryByRole('button', { name: /^Deshacer/ })).toBeNull();
+      expect(api.refrescarDirecto).toHaveBeenCalledWith('par-1');
+      // La cola se mira desde que se pidió la descarga.
+      expect(sync.pendientesDelPartido).toHaveBeenCalledWith('par-1', 1);
+    });
+
+    it('se apunta un evento mientras el refresco descarga: sigue en pantalla después', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      let llegar = (_refresco: Refresco) => undefined as void;
+      api.refrescarDirecto.mockReturnValue(
+        new Promise<Refresco>((resolve) => {
+          llegar = resolve;
+        }),
+      );
+      simularCola();
+      montar();
+
+      await screen.findByRole('button', { name: 'Córner' });
+      await llegaUnRefresco();
+      expect(api.refrescarDirecto).toHaveBeenCalledTimes(1);
+
+      // El refresco está descargando y el toque entra igual: no hay cerrojo.
+      await userEvent.click(screen.getByRole('button', { name: 'Córner' }));
+      await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+      expect(await screen.findAllByText("Córner a favor · 2'")).toHaveLength(2);
+      expect(api.aplicarTransicion).toHaveBeenCalledTimes(1);
+
+      // Llega la descarga, que se pidió antes del córner y no lo trae.
+      await act(async () => {
+        llegar(refresco([fila('ajeno')]));
+        await Promise.resolve();
+      });
+
+      expect(await screen.findByText('0 – 1')).toBeInTheDocument();
+      expect(ultimos()).toHaveTextContent("Córner a favor · 2' · Pendiente");
+      expect(ultimos()).toHaveTextContent("Gol · 7 · Juanito · 2' · Pendiente · De otro aparato");
+      expect(
+        screen.getByRole('button', { name: "Deshacer: Córner a favor · 2'" }),
+      ).toBeInTheDocument();
+    });
+
+    it('se apunta un evento mientras el refresco lee la cola: esa lectura no vale y se repite', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      api.refrescarDirecto.mockResolvedValue(refresco([fila('ajeno')]));
+      simularCola();
+      // La primera lectura de la cola se queda a medias y, cuando acaba, trae
+      // lo de antes del toque: sin el córner.
+      let acabarLectura = () => undefined as void;
+      sync.pendientesDelPartido.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            acabarLectura = () => {
+              resolve({ altas: new Set(), bajas: new Set() });
+            };
+          }),
+      );
+      montar();
+
+      await screen.findByRole('button', { name: 'Córner' });
+      await llegaUnRefresco();
+      expect(sync.pendientesDelPartido).toHaveBeenCalledTimes(1);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Córner' }));
+      await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+      expect(await screen.findAllByText("Córner a favor · 2'")).toHaveLength(2);
+
+      await act(async () => {
+        acabarLectura();
+        await Promise.resolve();
+      });
+
+      // Con la lectura vieja no se funde: el gol ajeno todavía no ha entrado.
+      expect(screen.getByText('0 – 0')).toBeInTheDocument();
+
+      // Medio segundo después se vuelve a leer la cola, ya con el córner.
+      expect(await screen.findByText('0 – 1', undefined, { timeout: 3_000 })).toBeInTheDocument();
+      expect(sync.pendientesDelPartido).toHaveBeenCalledTimes(2);
+      expect(ultimos()).toHaveTextContent("Córner a favor · 2' · Pendiente");
+      expect(
+        screen.getByRole('button', { name: "Deshacer: Córner a favor · 2'" }),
+      ).toBeInTheDocument();
+    });
+
+    it('con un guardado en marcha, el refresco espera a que acabe sin leer la cola ni estorbarlo', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      api.refrescarDirecto.mockResolvedValue(refresco([fila('ajeno')]));
+      simularCola();
+      const encolar = api.aplicarTransicion.getMockImplementation() as (
+        ...argumentos: unknown[]
+      ) => Promise<void>;
+      let acabarGuardado = () => undefined as void;
+      api.aplicarTransicion.mockImplementation(
+        (...argumentos: unknown[]) =>
+          new Promise<void>((resolve) => {
+            acabarGuardado = () => {
+              void encolar(...argumentos).then(resolve);
+            };
+          }),
+      );
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+      await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+      expect(await screen.findByText('Guardando…')).toBeInTheDocument();
+
+      await llegaUnRefresco();
+
+      expect(api.refrescarDirecto).toHaveBeenCalledTimes(1);
+      expect(sync.pendientesDelPartido).not.toHaveBeenCalled();
+      expect(screen.getByText('0 – 0')).toBeInTheDocument();
+
+      await act(async () => {
+        acabarGuardado();
+        await Promise.resolve();
+      });
+
+      expect(await screen.findByText('0 – 1', undefined, { timeout: 3_000 })).toBeInTheDocument();
+      expect(ultimos()).toHaveTextContent("Córner a favor · 2' · Pendiente");
+      expect(ultimos()).toHaveTextContent('De otro aparato');
+      expect(api.aplicarTransicion).toHaveBeenCalledTimes(1);
+    });
+
+    it('lo deshecho aquí no vuelve con el refresco aunque el servidor todavía lo tenga', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      simularCola();
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+      await userEvent.click(screen.getByRole('button', { name: 'En contra' }));
+      await userEvent.click(
+        await screen.findByRole('button', { name: "Deshacer: Córner en contra · 2'" }),
+      );
+      expect(await screen.findByText('Todavía no hay nada apuntado.')).toBeInTheDocument();
+
+      // El córner llegó al servidor y su borrado sigue en la cola.
+      const [estado, trabajos] = api.aplicarTransicion.mock.calls[0] as [
+        EstadoDirecto,
+        { payload: { valores: Record<string, unknown> } }[],
+      ];
+      expect(estado.eventos).toHaveLength(1);
+      api.refrescarDirecto.mockResolvedValue(
+        refresco([
+          fila(String(trabajos[0]?.payload.valores.client_event_id), {
+            event_type: 'corner',
+            is_opponent: true,
+            player_id: null,
+          }),
+          fila('ajeno'),
+        ]),
+      );
+
+      await llegaUnRefresco();
+
+      // El gol de otro aparato entra, y es la señal de que el refresco se ha fundido.
+      expect(await screen.findByText('0 – 1')).toBeInTheDocument();
+      expect(ultimos()).toHaveTextContent('De otro aparato');
+      expect(ultimos()).not.toHaveTextContent('Córner en contra');
+    });
+
+    it('un evento de otro aparato borrado en el servidor desaparece de la pantalla', async () => {
+      const [ajeno] = desdePaquete({ ...PAQUETE, eventos: [fila('ajeno')] }).eventos;
+      api.cargarDirecto.mockResolvedValue(enJuego({ eventos: ajeno === undefined ? [] : [ajeno] }));
+      api.refrescarDirecto.mockResolvedValue(refresco([]));
+      montar();
+
+      expect(await screen.findByText('0 – 1')).toBeInTheDocument();
+
+      await llegaUnRefresco();
+
+      expect(await screen.findByText('0 – 0')).toBeInTheDocument();
+      expect(screen.getByText('Todavía no hay nada apuntado.')).toBeInTheDocument();
+    });
+
+    it('un gol propio y otro de otro aparato a pocos segundos: «Posible repetido», y se anuncia una vez', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      simularCola();
+      const { anunciar } = montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Gol' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Nuestro' }));
+      await userEvent.click(screen.getByRole('button', { name: '7 · Juanito' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sin asistencia' }));
+      expect(await screen.findByText('0 – 1')).toBeInTheDocument();
+      expect(ultimos()).not.toHaveTextContent('Posible repetido');
+
+      // Otro aparato apuntó el mismo gol cinco segundos después, a otro jugador.
+      api.refrescarDirecto.mockResolvedValue(refresco([fila('ajeno', { player_id: 'p1' })]));
+      await llegaUnRefresco();
+
+      expect(await screen.findByText('0 – 2')).toBeInTheDocument();
+      const lineas = within(ultimos())
+        .getAllByRole('listitem')
+        .map((linea) => linea.textContent);
+      expect(lineas[0]).toContain(
+        "Gol · 1 · Pepe · 2' · Pendiente · De otro aparato · Posible repetido",
+      );
+      expect(lineas[1]).toContain("Gol · 7 · Juanito · 2' · Pendiente · Posible repetido");
+      // El propio se puede deshacer en el sitio.
+      expect(
+        screen.getByRole('button', { name: "Deshacer: Gol · 7 · Juanito · 2'" }),
+      ).toBeInTheDocument();
+      expect(anunciar).toHaveBeenCalledWith("Posible repetido: Gol · 1 · Pepe · 2'");
+
+      await llegaUnRefresco();
+      await waitFor(() => {
+        expect(api.refrescarDirecto).toHaveBeenCalledTimes(2);
+      });
+
+      const repetidos = anunciar.mock.calls.filter(([mensaje]) =>
+        String(mensaje).startsWith('Posible repetido'),
+      );
+      expect(repetidos).toHaveLength(1);
+      // No roba el foco ni abre nada.
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('los repetidos que ya estaban al abrir se leen en la lista y no se anuncian', async () => {
+      const eventos = desdePaquete({
+        ...PAQUETE,
+        eventos: [fila('uno'), fila('otro', { seconds: 80 }), fila('lejos', { seconds: 400 })],
+      }).eventos;
+      api.cargarDirecto.mockResolvedValue(enJuego({ eventos }));
+      const { anunciar } = montar();
+
+      expect(await screen.findByText('0 – 3')).toBeInTheDocument();
+      const lineas = within(ultimos())
+        .getAllByRole('listitem')
+        .map((linea) => linea.textContent);
+      expect(lineas[0]).not.toContain('Posible repetido');
+      expect(lineas[1]).toContain('Posible repetido');
+      expect(lineas[2]).toContain('Posible repetido');
+      expect(anunciar).not.toHaveBeenCalledWith(expect.stringContaining('Posible repetido'));
+    });
+
+    it('un refresco que falla se calla: la pantalla sigue igual y sin avisos', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      const { anunciar } = montar();
+
+      await screen.findByRole('button', { name: 'Córner' });
+      await llegaUnRefresco();
+      await waitFor(() => {
+        expect(api.refrescarDirecto).toHaveBeenCalledTimes(1);
+      });
+
+      expect(screen.getByText('0 – 0')).toBeInTheDocument();
+      expect(screen.queryByText(/No se ha podido/)).toBeNull();
+      expect(anunciar).not.toHaveBeenCalled();
+      expect(sync.pendientesDelPartido).not.toHaveBeenCalled();
+    });
+
+    it('el aviso de «Sin conexión» se quita con el primer refresco que llega al servidor', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego({}, false));
+      api.refrescarDirecto.mockResolvedValue(refresco([]));
+      montar();
+
+      expect(await screen.findByText(/Sin conexión: el partido sale de lo guardado/)).toBeVisible();
+
+      await llegaUnRefresco();
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Sin conexión: el partido sale de lo guardado/)).toBeNull();
       });
     });
   });
