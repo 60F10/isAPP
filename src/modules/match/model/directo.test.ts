@@ -249,6 +249,21 @@ describe('reducir', () => {
     ]);
   });
 
+  it('terminar la parte la busca por partido y número, no por su `id`, que puede ser de otro aparato (T-209c)', () => {
+    const descanso = reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 1_000 });
+    const segunda = reducir(descanso.estado, {
+      tipo: 'empezar_parte',
+      ahora: INICIO + 2_000,
+      parteId: 'parte-2',
+    });
+    const { trabajos } = reducir(segunda.estado, { tipo: 'terminar_parte', ahora: INICIO + 3_000 });
+
+    expect(trabajos).toHaveLength(1);
+    expect(trabajos[0]).toMatchObject({ entity: 'match_period', op: 'update', matchId: 'par-1' });
+    // `clave` es `Record<string, string>`: el número va como texto.
+    expect(trabajos[0]?.payload.clave).toEqual({ match_id: 'par-1', period_number: '2' });
+  });
+
   it('la segunda parte no vuelve a poner el partido en juego', () => {
     const descanso = reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 2_400_000 });
     const { trabajos } = reducir(descanso.estado, {
@@ -320,6 +335,20 @@ describe('enCurso', () => {
   });
 });
 
+/** Un gol apuntado en este aparato que todavía no ha llegado al servidor. */
+const MIO: EventoDelDirecto = {
+  clientEventId: 'sin-enviar',
+  tipo: 'goal',
+  periodo: 1,
+  segundos: 60,
+  rival: false,
+  jugador: 'p7',
+  segundo: null,
+  detalles: {},
+  estado: 'pending',
+  propio: true,
+};
+
 describe('elegirEstado', () => {
   const servidor = desdePaquete(paquete());
 
@@ -333,6 +362,15 @@ describe('elegirEstado', () => {
 
     expect(elegirEstado(local, delServidor)).toBe(local);
   });
+
+  it('si otro aparato ha avanzado el partido, la fase y las partes son las del servidor y los eventos los de este', () => {
+    const local: EstadoDirecto = { ...empezado(), eventos: [MIO] };
+    const delServidor: EstadoDirecto = {
+      ...reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 1 }).estado,
+      eventos: [],
+    };
+
+    const elegido = elegirEstado(local, delServidor);
 
   it('si otro aparato ha avanzado el partido, la fase y las partes son las del servidor y los eventos, los locales', () => {
     const local: EstadoDirecto = { ...empezado(), eventos: [GOL_LOCAL] };
