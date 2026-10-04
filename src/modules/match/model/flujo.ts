@@ -54,6 +54,8 @@ export interface ContextoDeFlujo {
   tiposActivos: TipoDeEvento[];
   diferido: boolean;
   periodos: number;
+  /** Para decir, en diferido, qué minutos caben en cada parte. */
+  minutosDeParte: number;
 }
 
 interface Opcion {
@@ -62,7 +64,7 @@ interface Opcion {
 }
 
 export type Paso =
-  | { clase: 'minuto'; periodos: number }
+  | { clase: 'minuto'; periodos: number; minutosDeParte: number }
   | { clase: 'opciones'; clave: Clave; pregunta: string; opciones: Opcion[]; saltar?: string }
   | {
       clase: 'jugador';
@@ -180,7 +182,11 @@ export function siguientePaso(flujo: Flujo, contexto: ContextoDeFlujo): Paso | n
   const r = flujo.respuestas;
 
   if (contexto.diferido && (falta(r, 'periodo') || falta(r, 'minuto'))) {
-    return { clase: 'minuto', periodos: contexto.periodos };
+    return {
+      clase: 'minuto',
+      periodos: contexto.periodos,
+      minutosDeParte: contexto.minutosDeParte,
+    };
   }
 
   const jugador = (pregunta: string, candidatos: string[], saltar?: string): Paso =>
@@ -430,6 +436,7 @@ export function contextoDe(
     | 'tiposActivos'
     | 'diferido'
     | 'periodos'
+    | 'minutosDeParte'
   >,
   instante?: Instante,
 ): ContextoDeFlujo {
@@ -452,5 +459,87 @@ export function contextoDe(
     tiposActivos: estado.tiposActivos,
     diferido: estado.diferido,
     periodos: estado.periodos,
+    minutosDeParte: estado.minutosDeParte,
   };
+}
+
+/** Tope de pasos de un flujo: el más largo tiene cuatro. Es un seguro. */
+const PASOS_MAXIMOS = 12;
+
+/**
+ * Lo ya respondido, en palabras y en el orden de los pasos (T-218). La
+ * pantalla lo pinta encima de cada pregunta: en «¿Asistencia?» se sigue
+ * viendo de qué minuto es el gol y quién lo marcó.
+ *
+ * Repite el flujo desde cero: pide el paso que toca con lo acumulado, toma
+ * la etiqueta de lo respondido en ese paso, lo acumula y sigue. Para en el
+ * primer paso sin responder. Por eso el orden es el de los pasos y no el de
+ * las respuestas, que en la ficha de jugador llegan con el jugador por
+ * delante.
+ *
+ * El minuto sale como «2.ª parte · 55'»; una opción, con su etiqueta; un
+ * jugador, con `nombre`; lo saltado, con el texto de su botón. El texto libre
+ * de la nota no se repite.
+ */
+export function resumenDelFlujo(
+  flujo: Flujo,
+  contexto: ContextoDeFlujo,
+  nombre: (id: string) => string,
+): string[] {
+  const r = flujo.respuestas;
+  const acumuladas: Respuestas = {};
+  const resumen: string[] = [];
+
+  for (let vuelta = 0; vuelta < PASOS_MAXIMOS; vuelta += 1) {
+    const paso = siguientePaso({ boton: flujo.boton, respuestas: acumuladas }, contexto);
+
+    if (paso === null) {
+      break;
+    }
+
+    if (paso.clase === 'minuto') {
+      if (falta(r, 'periodo') || falta(r, 'minuto')) {
+        break;
+      }
+
+      acumuladas.periodo = r.periodo;
+      acumuladas.minuto = r.minuto;
+      resumen.push(
+        `${valor(r, 'periodo') ?? ''}.ª parte · ${(valor(r, 'minuto') ?? '').replace(/\s+/g, '')}'`,
+      );
+      continue;
+    }
+
+    if (falta(r, paso.clave)) {
+      break;
+    }
+
+    const respuesta = valor(r, paso.clave);
+    acumuladas[paso.clave] = respuesta;
+
+    if (paso.clase === 'texto') {
+      continue;
+    }
+
+    if (respuesta === null) {
+      if (paso.saltar !== undefined) {
+        resumen.push(paso.saltar);
+      }
+
+      continue;
+    }
+
+    if (paso.clase === 'jugador') {
+      resumen.push(nombre(respuesta));
+      continue;
+    }
+
+    const elegida = paso.opciones.find((opcion) => opcion.valor === respuesta);
+
+    if (elegida !== undefined) {
+      resumen.push(elegida.etiqueta);
+    }
+  }
+
+  return resumen;
 }

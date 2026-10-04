@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { aBorrador, botonesActivos, contextoDe, minutoDelFlujo, siguientePaso } from './flujo';
+import {
+  aBorrador,
+  botonesActivos,
+  contextoDe,
+  minutoDelFlujo,
+  resumenDelFlujo,
+  siguientePaso,
+} from './flujo';
 
 import type { EventoDelDirecto } from './eventos';
 import type { ContextoDeFlujo, Flujo } from './flujo';
@@ -24,6 +31,7 @@ const CONTEXTO: ContextoDeFlujo = {
   ],
   diferido: false,
   periodos: 2,
+  minutosDeParte: 40,
 };
 
 function flujo(boton: Flujo['boton'], respuestas: Flujo['respuestas'] = {}): Flujo {
@@ -112,6 +120,7 @@ describe('siguientePaso', () => {
     expect(siguientePaso(flujo('corner'), { ...CONTEXTO, diferido: true })).toEqual({
       clase: 'minuto',
       periodos: 2,
+      minutosDeParte: 40,
     });
   });
 
@@ -202,9 +211,11 @@ describe('contextoDe', () => {
       tiposActivos: ['goal'],
       diferido: false,
       periodos: 2,
+      minutosDeParte: 40,
     });
 
     expect(contexto.paraEntrar).toEqual(['p9']);
+    expect(contexto.minutosDeParte).toBe(40);
     expect(contexto.tarjetables).toEqual(['p1', 'p7', 'p8', 'p9']);
   });
 });
@@ -242,6 +253,7 @@ describe('contextoDe en diferido, con el instante del flujo', () => {
     tiposActivos: CONTEXTO.tiposActivos,
     diferido: true,
     periodos: 2,
+    minutosDeParte: 40,
   };
 
   it('antes del cambio está quien salió; después, quien entró', () => {
@@ -287,5 +299,71 @@ describe('contextoDe en diferido, con el instante del flujo', () => {
     const conReloj = { ...diferido, diferido: false };
 
     expect(contextoDe(conReloj, { periodo: 1, segundos: 1_200 })).toEqual(contextoDe(conReloj));
+  });
+});
+
+// Lo ya respondido, para pintarlo encima de cada pregunta (T-218).
+describe('resumenDelFlujo', () => {
+  const nombre = (id: string) => `Jugador ${id}`;
+  const DIFERIDO: ContextoDeFlujo = { ...CONTEXTO, diferido: true };
+
+  it('recién abierto no hay nada que resumir', () => {
+    expect(resumenDelFlujo(flujo('gol'), CONTEXTO, nombre)).toEqual([]);
+    expect(resumenDelFlujo(flujo('gol'), DIFERIDO, nombre)).toEqual([]);
+  });
+
+  it('gol en diferido: la parte y el minuto, de quién y quién', () => {
+    expect(
+      resumenDelFlujo(
+        flujo('gol', { periodo: '2', minuto: '55', lado: 'nuestro', jugador: 'p7' }),
+        DIFERIDO,
+        nombre,
+      ),
+    ).toEqual(["2.ª parte · 55'", 'Nuestro', 'Jugador p7']);
+  });
+
+  it('el descuento se enseña como se escribió', () => {
+    expect(
+      resumenDelFlujo(flujo('corner', { periodo: '1', minuto: '40 + 2' }), DIFERIDO, nombre),
+    ).toEqual(["1.ª parte · 40+2'"]);
+  });
+
+  it('lo saltado sale con el texto de su botón', () => {
+    expect(
+      resumenDelFlujo(
+        flujo('gol', { lado: 'nuestro', jugador: 'p7', segundo: null }),
+        CONTEXTO,
+        nombre,
+      ),
+    ).toEqual(['Nuestro', 'Jugador p7', 'Sin asistencia']);
+  });
+
+  it('en la ficha de jugador sale en el orden de los pasos, no en el de las respuestas', () => {
+    // La ficha responde de antemano el jugador y el lado, antes que el minuto.
+    expect(
+      resumenDelFlujo(
+        flujo('gol', { jugador: 'p7', lado: 'nuestro', periodo: '1', minuto: '20' }),
+        DIFERIDO,
+        nombre,
+      ),
+    ).toEqual(["1.ª parte · 20'", 'Nuestro', 'Jugador p7']);
+  });
+
+  it('se para en el primer paso sin responder, aunque haya respuestas de más adelante', () => {
+    expect(
+      resumenDelFlujo(flujo('gol', { jugador: 'p7', lado: 'nuestro' }), DIFERIDO, nombre),
+    ).toEqual([]);
+  });
+
+  it('el texto libre de la nota no se repite', () => {
+    expect(
+      resumenDelFlujo(flujo('nota', { jugador: null, texto: 'Campo embarrado' }), CONTEXTO, nombre),
+    ).toEqual(['Del partido']);
+  });
+
+  it('las opciones salen con su etiqueta, no con su valor', () => {
+    expect(
+      resumenDelFlujo(flujo('tarjeta', { color: 'amarilla', lado: 'rival' }), CONTEXTO, nombre),
+    ).toEqual(['Amarilla', 'Del rival']);
   });
 });

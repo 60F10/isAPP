@@ -83,6 +83,29 @@
   outline-offset: var(--focus-offset);
 }
 
+/* Lo ya respondido, encima de la pregunta (T-218). Se lee, no se pulsa: por
+   eso no lleva el alto de un objetivo táctil ni estados de pulsado. */
+.migas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.miga {
+  padding: var(--space-1) var(--space-3);
+
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+}
+
 .opciones {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatoReloj, minutoDePresentacion, segundosDeMinuto, segundosDeParte } from './reloj';
+import {
+  formatoReloj,
+  minutoDePresentacion,
+  rangoDeParte,
+  segundosDeMinuto,
+  segundosDeParte,
+} from './reloj';
 
 import type { ParteLocal } from './directo';
 
@@ -91,5 +97,23 @@ describe('segundosDeMinuto', () => {
     ] as const) {
       expect(segundosDeMinuto(texto, parte, 40)).toBeNull();
     }
+  });
+});
+
+describe('rangoDeParte', () => {
+  it('da los minutos del acta que caben en cada parte', () => {
+    expect(rangoDeParte(1, 40)).toEqual({ desde: 1, hasta: 40 });
+    expect(rangoDeParte(2, 40)).toEqual({ desde: 41, hasta: 80 });
+    expect(rangoDeParte(3, 15)).toEqual({ desde: 31, hasta: 45 });
+  });
+
+  it('cuadra con lo que acepta `segundosDeMinuto`', () => {
+    const { desde, hasta } = rangoDeParte(2, 40);
+
+    expect(segundosDeMinuto(String(desde - 1), 2, 40)).toBeNull();
+    expect(segundosDeMinuto(String(desde), 2, 40)).toBe(0);
+    expect(segundosDeMinuto(String(hasta), 2, 40)).toBe(39 * 60);
+    expect(segundosDeMinuto(String(hasta + 1), 2, 40)).toBeNull();
+    expect(segundosDeMinuto(`${hasta}+2`, 2, 40)).toBe(41 * 60);
   });
 });

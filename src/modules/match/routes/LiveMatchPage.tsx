@@ -47,9 +47,10 @@ import {
   botonesDeFicha,
   contextoDe,
   minutoDelFlujo,
+  resumenDelFlujo,
   siguientePaso,
 } from '../model/flujo';
-import { formatoReloj, minutoDePresentacion, segundosDeParte } from '../model/reloj';
+import { formatoReloj, minutoDePresentacion, rangoDeParte, segundosDeParte } from '../model/reloj';
 
 import styles from './LiveMatchPage.module.css';
 
@@ -173,6 +174,9 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const [flujo, setFlujo] = useState<Flujo | null>(null);
   const [fichaDe, setFichaDe] = useState<string | null>(null);
   const [errorDeFlujo, setErrorDeFlujo] = useState<string | null>(null);
+  // En diferido, la parte del último evento guardado: el siguiente flujo abre
+  // con ella elegida, que al meter un partido entero se va parte a parte (T-218).
+  const [ultimaParte, setUltimaParte] = useState('1');
   // Mientras el evento de un flujo se guarda, el flujo lo dice y no deja
   // repetir el toque (T-215).
   const [guardandoFlujo, setGuardandoFlujo] = useState(false);
@@ -342,6 +346,15 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     ? { cambio: `Cambios agotados: ${estado.cambiosMax} de ${estado.cambiosMax}.` }
     : {};
   const paso = flujo === null ? null : siguientePaso(flujo, contexto);
+  const resumen = flujo === null ? [] : resumenDelFlujo(flujo, contexto, nombreDe);
+  /** El error del minuto, con el rango de la parte elegida (T-218). */
+  const errorDeMinuto = (periodo: string | null | undefined) => {
+    const numero = Number(periodo);
+    const parte = Number.isInteger(numero) && numero >= 1 ? numero : 1;
+    const { desde, hasta } = rangoDeParte(parte, estado.minutosDeParte);
+
+    return `Ese minuto no es de la ${parte}.ª parte: va de ${desde} a ${hasta}, o ${hasta}+2 en el descuento.`;
+  };
   const puedeApuntar =
     estado.fase !== 'finalizado' && (estado.diferido || estado.fase !== 'inactivo');
 
@@ -363,7 +376,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     const minuto = estado.diferido ? minutoDelFlujo(terminado, estado.minutosDeParte) : null;
 
     if (estado.diferido && minuto === null) {
-      setErrorDeFlujo('Ese minuto no es de esa parte. Escribe, por ejemplo, 35 o 40+2.');
+      setErrorDeFlujo(errorDeMinuto(terminado.respuestas.periodo));
       setFlujo({ boton: terminado.boton, respuestas: {} });
       return;
     }
@@ -403,6 +416,10 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     const resultado = intento.resultado;
 
     setFlujo(null);
+
+    if (minuto !== null) {
+      setUltimaParte(String(minuto.periodo));
+    }
 
     const nuevo = resultado.estado.eventos[resultado.estado.eventos.length - 1];
 
@@ -721,6 +738,8 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
           error={errorDeFlujo}
           ocupado={guardandoFlujo}
           estado={guardandoFlujo ? (guardadoLento ? GUARDANDO_LENTO : GUARDANDO) : null}
+          resumen={resumen}
+          periodoInicial={ultimaParte}
           alResponder={responder}
           alResponderMinuto={(periodo, minuto) => {
             const probado: Flujo = {
@@ -729,7 +748,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
             };
 
             if (minutoDelFlujo(probado, estado.minutosDeParte) === null) {
-              setErrorDeFlujo('Ese minuto no es de esa parte. Escribe, por ejemplo, 35 o 40+2.');
+              setErrorDeFlujo(errorDeMinuto(periodo));
               return;
             }
 

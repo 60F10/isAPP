@@ -85,3 +85,17 @@ export function segundosDeMinuto(
     ? (minutosDeParte + añadido - 1) * 60
     : null;
 }
+
+/**
+ * Los minutos del acta que caben en una parte (T-218): la 2.ª de 40 va del 41
+ * al 80. Es lo que acepta `segundosDeMinuto` sin descuento, dicho en números
+ * para la ayuda y el error del minuto en diferido.
+ */
+export function rangoDeParte(
+  numeroDeParte: number,
+  minutosDeParte: number,
+): { desde: number; hasta: number } {
+  const previo = (numeroDeParte - 1) * minutosDeParte;
+
+  return { desde: previo + 1, hasta: previo + minutosDeParte };
+}
