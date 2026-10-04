@@ -1,6 +1,6 @@
 # DOC 08 — TAREAS
 
-> **Versión:** 3.1 — 04/10/2026 (T-212 cerrada: el calendario enlaza el directo) · 3.0 — 27/09/2026 (T-210a: la A13 en 🚧; la T-210 se adelanta a la T-209 por decisión de Raúl; hora del primer partido confirmada) · 2.9 — 26/09/2026 (T-203b cerrada; riesgo nuevo: la liga empieza el 3/10) · 2.8 — 26/09/2026 (migración del DOC 05 §14.4 a §14.6 aplicada: la T-203b queda libre) · 2.7 — 26/09/2026 (T-208 cerrada) · 2.6 — 26/09/2026 (T-207 cerrada) · 2.5 — 26/09/2026 (T-206 cerrada, antes del hito del 4 de octubre) · 2.4 — 26/09/2026 (T-205 cerrada) · 2.3 — 26/09/2026 (T-204 cerrada; nace la T-203b) · 2.2 — 26/09/2026 (T-203 cerrada) · 2.1 — 26/09/2026 (T-202 cerrada) · 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
+> **Versión:** 3.2 — 04/10/2026 (T-213 cerrada: Inicio con el próximo partido) · 3.1 — 04/10/2026 (T-212 cerrada: el calendario enlaza el directo) · 3.0 — 27/09/2026 (T-210a: la A13 en 🚧; la T-210 se adelanta a la T-209 por decisión de Raúl; hora del primer partido confirmada) · 2.9 — 26/09/2026 (T-203b cerrada; riesgo nuevo: la liga empieza el 3/10) · 2.8 — 26/09/2026 (migración del DOC 05 §14.4 a §14.6 aplicada: la T-203b queda libre) · 2.7 — 26/09/2026 (T-208 cerrada) · 2.6 — 26/09/2026 (T-207 cerrada) · 2.5 — 26/09/2026 (T-206 cerrada, antes del hito del 4 de octubre) · 2.4 — 26/09/2026 (T-205 cerrada) · 2.3 — 26/09/2026 (T-204 cerrada; nace la T-203b) · 2.2 — 26/09/2026 (T-203 cerrada) · 2.1 — 26/09/2026 (T-202 cerrada) · 2.0 — 26/09/2026 (T-201 cerrada, con el alta de club y el escudo fuera) · 1.9 — 25/09/2026 (T-107 cerrada: fase 1 completa) · 1.8 — 25/09/2026 (T-106 cerrada) · 1.7 — 18/09/2026 (T-102 cerrada) · 1.6 — 14/09/2026 (T-104) · 1.5 — 13/09/2026 (T-103) · 1.4 — 12/09/2026 (T-101) · 1.3, 1.2 y 1.1 el mismo día
 > **Para qué sirve:** lista atómica de tareas hasta el MVP. Una tarea, una conversación, una rama.
 > **Se apoya en:** DOC 00 §5 y §7 (método y fases), DOC 02 (pantallas), DOC 06 (módulos), DOC 07 (sistema de diseño)
 > **Archivo:** `docs/08_TAREAS.md`
@@ -101,21 +101,22 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 
 ## 5. Fase 2 · Meter datos
 
-| ID         | Tarea                                                                                                | Pantallas | Depende de | Sesiones | Rama                           | Estado |
-| :--------- | :--------------------------------------------------------------------------------------------------- | :-------- | :--------- | :------- | :----------------------------- | :----- |
-| **T-201**  | Club y equipos: alta, edición, escudo, equipo gestionado frente a equipo de referencia               | A03, A04  | T-105      | 1        | `feat/core-club-y-equipos`     | ✅     |
-| **T-202**  | Plantilla y ficha de jugador: apodo, dorsal, posición, estado. Sin nombre real ni foto               | A05, A06  | T-201      | 1        | `feat/core-plantilla`          | ✅     |
-| **T-203**  | Competiciones y reglamento: duración de partes, jugadores en campo, `enabled_event_types`            | A08       | T-201      | 1        | `feat/rules-competiciones`     | ✅     |
-| **T-203b** | Categoría de la competición en columnas y campo de casa del club, tras la migración del DOC 05 §14.4 | A08, A10  | T-204      | 0,5      | `feat/rules-categoria-y-campo` | ✅     |
-| **T-204**  | Calendario y alta de partido, incluido el partido a posteriori                                       | A09, A10  | T-203      | 1        | `feat/agenda-calendario`       | ✅     |
-| **T-205**  | Convocatoria y alineación inicial                                                                    | A11       | T-204      | 1        | `feat/lineup-convocatoria`     | ✅     |
-| **T-206**  | Capa offline: Dexie, precarga del partido y cola de salida con reintento e idempotencia              | C04       | T-205      | 2        | `feat/sync-cola-offline`       | ✅     |
-| **T-207**  | Directo, esqueleto: reloj, partes, marcador, tramos y bloqueo de pantalla                            | A12       | T-206      | 2        | `feat/match-directo-reloj`     | ✅     |
-| **T-208**  | Directo, registro: botonera de eventos, ficha de jugador, háptica y confirmación de 2 s              | A12       | T-207      | 2        | `feat/match-directo-botonera`  | ✅     |
-| **T-209**  | Directo, varios anotadores: cobertura declarada, tiempo real y marca de duplicado                    | A12       | T-210      | 1,5      | `feat/match-directo-cobertura` | ⬜     |
-| **T-210**  | Cierre de partido y panel de discordancias: aprobar, descartar, recálculo de tramos                  | A13       | T-208      | 2        | `feat/review-cierre-partido`   | 🚧     |
-| **T-211**  | Mis aportaciones                                                                                     | A14       | T-210      | 0,5      | `feat/review-mis-aportaciones` | ⬜     |
-| **T-212**  | Puerta al directo desde el calendario                                                                | A09       | T-208      | 0,25     | `feat/agenda-acceso-directo`   | ✅     |
+| ID         | Tarea                                                                                                | Pantallas | Depende de | Sesiones | Rama                                 | Estado |
+| :--------- | :--------------------------------------------------------------------------------------------------- | :-------- | :--------- | :------- | :----------------------------------- | :----- |
+| **T-201**  | Club y equipos: alta, edición, escudo, equipo gestionado frente a equipo de referencia               | A03, A04  | T-105      | 1        | `feat/core-club-y-equipos`           | ✅     |
+| **T-202**  | Plantilla y ficha de jugador: apodo, dorsal, posición, estado. Sin nombre real ni foto               | A05, A06  | T-201      | 1        | `feat/core-plantilla`                | ✅     |
+| **T-203**  | Competiciones y reglamento: duración de partes, jugadores en campo, `enabled_event_types`            | A08       | T-201      | 1        | `feat/rules-competiciones`           | ✅     |
+| **T-203b** | Categoría de la competición en columnas y campo de casa del club, tras la migración del DOC 05 §14.4 | A08, A10  | T-204      | 0,5      | `feat/rules-categoria-y-campo`       | ✅     |
+| **T-204**  | Calendario y alta de partido, incluido el partido a posteriori                                       | A09, A10  | T-203      | 1        | `feat/agenda-calendario`             | ✅     |
+| **T-205**  | Convocatoria y alineación inicial                                                                    | A11       | T-204      | 1        | `feat/lineup-convocatoria`           | ✅     |
+| **T-206**  | Capa offline: Dexie, precarga del partido y cola de salida con reintento e idempotencia              | C04       | T-205      | 2        | `feat/sync-cola-offline`             | ✅     |
+| **T-207**  | Directo, esqueleto: reloj, partes, marcador, tramos y bloqueo de pantalla                            | A12       | T-206      | 2        | `feat/match-directo-reloj`           | ✅     |
+| **T-208**  | Directo, registro: botonera de eventos, ficha de jugador, háptica y confirmación de 2 s              | A12       | T-207      | 2        | `feat/match-directo-botonera`        | ✅     |
+| **T-209**  | Directo, varios anotadores: cobertura declarada, tiempo real y marca de duplicado                    | A12       | T-210      | 1,5      | `feat/match-directo-cobertura`       | ⬜     |
+| **T-210**  | Cierre de partido y panel de discordancias: aprobar, descartar, recálculo de tramos                  | A13       | T-208      | 2        | `feat/review-cierre-partido`         | 🚧     |
+| **T-211**  | Mis aportaciones                                                                                     | A14       | T-210      | 0,5      | `feat/review-mis-aportaciones`       | ⬜     |
+| **T-212**  | Puerta al directo desde el calendario                                                                | A09       | T-208      | 0,25     | `feat/agenda-acceso-directo`         | ✅     |
+| **T-213**  | Inicio con el próximo partido                                                                        | A02       | T-212      | 0,5      | `feat/agenda-inicio-proximo-partido` | ✅     |
 
 **La T-201, cerrada el 26/09, con dos piezas fuera.** A03 enseña y edita el club del equipo activo; A04 lista los equipos del club separando los propios de los rivales, y los da de alta y los edita. **Fuera**: el alta de un club nuevo, porque con la RLS actual el club nacería invisible hasta para quien lo crea (ciclo del DOC 13, punto 21), y el escudo, porque el cubo `crests` no existe. El logo del C.D. Unión Tejina espera en `docs/recursos/` para subirlo cuando exista. Sin borrado: ni `clubs` ni `teams` tienen política para ello.
 
@@ -140,6 +141,8 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 **La T-206 va antes que el directo a propósito.** Enchufar la cola a una pantalla ya escrita obliga a reescribir cada manejador de evento; escribir la pantalla contra una cola que ya existe no cuesta nada. Es la dependencia que más caro sale saltarse.
 
 **La T-212, cerrada el 04/10.** Ninguna pantalla enlazaba la A12: solo se entraba escribiendo la dirección. El calendario enseña ahora «Directo» —«Apuntar» si el partido es en diferido— en cada partido convocado o en juego, a quien tiene `match.live.write`. Sin base de datos. Detalle en el DOC 13.
+
+**La T-213, cerrada el 04/10.** Inicio enseñaba un texto fijo en «Próximo evento», hubiera o no partidos. Ahora enseña el próximo partido del equipo activo —el que está en juego o, si no, el más cercano— con las mismas acciones que su fila del calendario, así que el directo queda a un toque (DOC 02 §3.3). La A02 sigue en `core` y la sirve `agenda` (D06-34). Sin base de datos. Detalle en el DOC 13.
 
 ---
 

@@ -5,11 +5,21 @@
 
 ---
 
+## Sesión 04/10/2026, madrugada — T-213: ✅ cerrada
+
+- **Hecho:** la tarjeta «Próximo evento» de Inicio (A02) enseña el próximo partido del equipo activo con las mismas acciones que su fila del calendario: directo, convocatoria, edición y cierre, cada una con su permiso. Lo que pintaba cada fila de la A09 sale a `agenda/components/ResumenDePartido`, que comparten las dos pantallas. Rama `feat/agenda-inicio-proximo-partido`, sin base de datos.
+- **Decisión D06-34:** la A02 sigue en `core`, que no importa de `agenda`. `HomePage` expone la prop `proximoEvento` y `agenda` la envuelve con `InicioPage`, que es la que carga la ruta índice (DOC 06 §4.2).
+- **Pruebas:** 426 en verde, 7 nuevas (tres de `proximoPartido` y cuatro de «A02 · Inicio»). Las del calendario, sin tocar, pasan tras la extracción. Lint, Prettier y build limpios, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+- **Tamaño:** `agenda-*.js` mide 18,28 kB, 5,98 kB comprimido. Entrar en Inicio descarga ahora ese trozo además del de `core`.
+- **Deuda:** `.nota` y `.error` están repetidas en `ProximoPartido.module.css` y `CalendarioPage.module.css`. Un partido programado sin convocar sale en Inicio sin enlace al directo, igual que en el calendario. **Sin probar en un móvil.**
+
+---
+
 ## Sesión 04/10/2026 — T-212: ✅ cerrada
 
 - **Hecho:** el calendario (A09) enlaza el directo (A12) en cada partido convocado o en juego, a quien tiene `match.live.write`: «Directo», o «Apuntar» si el partido es en diferido. `tieneDirecto` en `agenda/model/partido.ts`. Rama `feat/agenda-acceso-directo`, sin base de datos.
 - **Pruebas:** 419 en verde, 2 nuevas (una de modelo y una de pantalla). Lint, Prettier y build limpios, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
-- **Deuda:** la A11 no enlaza al directo, se llega por el calendario tras guardar la convocatoria. Inicio sigue sin el próximo partido, que es la T-213.
+- **Deuda:** la A11 no enlaza al directo, se llega por el calendario tras guardar la convocatoria. Inicio seguía sin el próximo partido: lo cierra la T-213, arriba.
 - **Sin probar en un móvil.**
 
 ---

@@ -198,6 +198,20 @@ export function separarCalendario<T extends Pick<Partido, 'status' | 'kickoffAt'
 }
 
 /**
+ * El partido que Inicio enseña en «Próximo evento» (T-213): de los que están
+ * por jugar, el que está en juego; si no hay ninguno, el primero por fecha.
+ * `null` si no queda nada por jugar. Con dos en juego a la vez, el que empezó
+ * antes.
+ */
+export function proximoPartido<T extends Pick<Partido, 'status' | 'kickoffAt'>>(
+  partidos: readonly T[],
+): T | null {
+  const { proximos } = separarCalendario(partidos);
+
+  return proximos.find((partido) => partido.status === 'live') ?? proximos[0] ?? null;
+}
+
+/**
  * El campo del partido en casa más reciente que lo tenga. Desde la T-203b es
  * solo el recambio de `campoDeCasaPropuesto`, para un club que no tenga
  * rellenado su campo de casa.

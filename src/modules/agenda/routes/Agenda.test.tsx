@@ -1,4 +1,5 @@
-// Pantallas A09 y A10 (T-204): calendario, alta, edición y borrado.
+// Pantallas A09 y A10 (T-204): calendario, alta, edición y borrado. Y la A02
+// (T-213), que `agenda` sirve con el próximo partido dentro.
 //
 // La red se sustituye en la frontera de `api/` (DOC 06 §11): la de `agenda` y
 // también la de `core` y `rules`, de donde salen rivales y competiciones.
@@ -13,6 +14,7 @@ import { AuthContext } from '@modules/auth';
 import { AnnounceContext } from '@shared/hooks/announceContext';
 
 import { CalendarioPage } from './CalendarioPage';
+import { InicioPage } from './InicioPage';
 import { EditarPartidoPage, NuevoPartidoPage } from './PartidoPage';
 
 import type { Partido } from '../model/partido';
@@ -112,6 +114,7 @@ function montar(ruta: string, permisos: AppPermission[] = ['schedule.manage', 'l
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
+      { path: '/', element: <InicioPage /> },
       { path: '/calendario', element: <CalendarioPage /> },
       { path: '/partidos/nuevo', element: <NuevoPartidoPage /> },
       { path: '/partidos/:id/editar', element: <EditarPartidoPage /> },
@@ -255,6 +258,74 @@ describe('A09 · Calendario', () => {
     const sinPermiso = await tarjeta('Por jugar');
     expect(within(sinPermiso).getByText('Cadete A – UD Orotava')).toBeInTheDocument();
     expect(within(sinPermiso).queryByRole('link', { name: /Directo|Apuntar/ })).toBeNull();
+  });
+});
+
+describe('A02 · Inicio', () => {
+  it('enseña el partido convocado con el directo y la convocatoria a un toque', async () => {
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'called' })]);
+    montar('/', ['match.live.write', 'lineup.manage']);
+
+    const proximo = await tarjeta('Próximo evento');
+
+    expect(await within(proximo).findByText('Cadete A – UD Orotava')).toBeInTheDocument();
+    expect(api.fetchCalendario).toHaveBeenCalledWith('eq-1', 'temp-1');
+    expect(within(proximo).getByText('Convocado')).toBeInTheDocument();
+    expect(
+      within(proximo).getByRole('link', { name: 'Directo de Cadete A – UD Orotava' }),
+    ).toHaveAttribute('href', '/partidos/par-1/directo');
+    expect(
+      within(proximo).getByRole('link', { name: 'Convocatoria de Cadete A – UD Orotava' }),
+    ).toHaveAttribute('href', '/partidos/par-1/convocatoria');
+  });
+
+  it('el partido en juego gana al que va antes por fecha', async () => {
+    api.fetchCalendario.mockResolvedValue([
+      partido({ kickoffAt: new Date(2099, 9, 18, 11, 30).toISOString() }),
+      partido({
+        id: 'par-2',
+        opponentName: 'CD Tacoronte',
+        status: 'live',
+        kickoffAt: new Date(2099, 9, 25, 11, 30).toISOString(),
+      }),
+    ]);
+    montar('/', ['match.live.write', 'lineup.manage']);
+
+    const proximo = await tarjeta('Próximo evento');
+
+    expect(await within(proximo).findByText('Cadete A – CD Tacoronte')).toBeInTheDocument();
+    expect(within(proximo).getByText('En juego')).toBeInTheDocument();
+    expect(within(proximo).queryByText('Cadete A – UD Orotava')).toBeNull();
+  });
+
+  it('sin nada por jugar, lo dice y no enlaza nada', async () => {
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'closed' })]);
+    montar('/', ['match.live.write', 'lineup.manage', 'match.close']);
+
+    const proximo = await tarjeta('Próximo evento');
+
+    expect(
+      await within(proximo).findByText(/^Todavía no hay partidos por jugar\./),
+    ).toBeInTheDocument();
+    expect(within(proximo).queryByRole('link')).toBeNull();
+  });
+
+  it('si la carga falla, deja reintentar y enseña el partido', async () => {
+    api.fetchCalendario.mockRejectedValueOnce(new Error('sin red'));
+    api.fetchCalendario.mockResolvedValue([partido({ status: 'called' })]);
+    montar('/', ['match.live.write']);
+
+    const proximo = await tarjeta('Próximo evento');
+
+    expect(
+      await within(proximo).findByText(
+        'No se ha podido cargar el próximo partido. Suele ser falta de cobertura.',
+      ),
+    ).toBeInTheDocument();
+
+    await userEvent.click(within(proximo).getByRole('button', { name: 'Reintentar' }));
+
+    expect(await within(proximo).findByText('Cadete A – UD Orotava')).toBeInTheDocument();
   });
 });
 

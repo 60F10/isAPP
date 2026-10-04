@@ -9,6 +9,7 @@ import {
   LARGO_CAMPO,
   NOMBRES_DE_ESTADO,
   partesDeInstante,
+  proximoPartido,
   separarCalendario,
   sePuedeEditar,
   tieneCierre,
@@ -127,6 +128,49 @@ describe('separarCalendario', () => {
 
     expect(proximos.map((p) => p.status)).toEqual(['live', 'called', 'scheduled']);
     expect(jugados.map((p) => p.status)).toEqual(['finished', 'closed', 'suspended']);
+  });
+});
+
+describe('proximoPartido', () => {
+  const partido = (
+    id: string,
+    status: 'scheduled' | 'called' | 'live' | 'suspended' | 'finished' | 'closed',
+    dia: number,
+  ) => ({
+    id,
+    status,
+    kickoffAt: new Date(2026, 9, dia, 11, 0).toISOString(),
+  });
+
+  it('gana el que está en juego, aunque haya otro antes por fecha', () => {
+    const proximo = proximoPartido([
+      partido('programado', 'scheduled', 10),
+      partido('en-juego', 'live', 17),
+      partido('convocado', 'called', 12),
+    ]);
+
+    expect(proximo?.id).toBe('en-juego');
+  });
+
+  it('sin ninguno en juego, el más cercano de los que quedan por jugar', () => {
+    const proximo = proximoPartido([
+      partido('lejano', 'scheduled', 25),
+      partido('cerrado', 'closed', 3),
+      partido('cercano', 'called', 18),
+    ]);
+
+    expect(proximo?.id).toBe('cercano');
+  });
+
+  it('sin partidos por jugar, null', () => {
+    expect(
+      proximoPartido([
+        partido('cerrado', 'closed', 3),
+        partido('terminado', 'finished', 10),
+        partido('suspendido', 'suspended', 17),
+      ]),
+    ).toBeNull();
+    expect(proximoPartido([])).toBeNull();
   });
 });
 
