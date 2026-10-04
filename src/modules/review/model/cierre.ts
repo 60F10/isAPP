@@ -7,6 +7,7 @@
 // Los tipos del directo entran solo como tipos: un `model/` no importa
 // barriles en tiempo de ejecución (D06-33).
 
+import type { EventoRevisable } from './discordancias';
 import type { EventoDelDirecto } from '@modules/match';
 
 export type EstadoDelPartido =
@@ -56,7 +57,8 @@ export interface DatosDelCierre {
   partido: PartidoDelCierre;
   /** Del jugador solo apodo y dorsal: la convocatoria del partido. */
   convocatoria: LineaDelCierre[];
-  eventos: EventoDelDirecto[];
+  /** Todos, también los descartados, con lo que pide revisarlos (T-210b). */
+  eventos: EventoRevisable[];
   /** Números de las partes que ya existen en `match_periods`. */
   partes: number[];
   /** El marcador de `v_match_scores`: solo eventos aprobados (DOC 05 §11). */
@@ -141,12 +143,15 @@ export function partesQueFaltan(existentes: readonly number[], periodos: number)
   return faltan;
 }
 
-export interface CuentaDeEventos {
-  pendientes: EventoDelDirecto[];
+export interface CuentaDeEventos<Evento extends EventoDelDirecto = EventoDelDirecto> {
+  pendientes: Evento[];
   descartados: number;
 }
 
-export function contarEventos(eventos: readonly EventoDelDirecto[]): CuentaDeEventos {
+/** Genérica para que el panel de eventos reciba sus revisables con su `id` (T-210b). */
+export function contarEventos<Evento extends EventoDelDirecto>(
+  eventos: readonly Evento[],
+): CuentaDeEventos<Evento> {
   return {
     pendientes: eventos.filter((evento) => evento.estado === 'pending'),
     descartados: eventos.filter((evento) => evento.estado === 'rejected').length,

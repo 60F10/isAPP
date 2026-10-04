@@ -4,4 +4,5 @@ export const reviewKeys = {
   all: ['review'] as const,
   cierre: (partidoId: string) => [...reviewKeys.all, 'cierre', partidoId] as const,
   cola: (partidoId: string) => [...reviewKeys.all, 'cola', partidoId] as const,
+  autores: (ids: readonly string[]) => [...reviewKeys.all, 'autores', ids] as const,
 };

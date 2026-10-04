@@ -38,8 +38,10 @@ export const PARTIDO_CAMBIADO = 'PARTIDO_CAMBIADO';
 const COLUMNAS_PARTIDO =
   'id, team_id, is_home, kickoff_at, status, is_retroactive, suspended_period, suspended_seconds, confirmed_goals_for, confirmed_goals_against, closed_at, rival:teams!matches_opponent_team_id_fkey(name), competicion:competitions(name, periods_count, period_minutes)';
 
+// `id`, `created_by` y `duplicate_group_id` son del panel de eventos (T-210b):
+// la fila que se actualiza, quién la apuntó y la marca de posible repetido.
 const COLUMNAS_EVENTO =
-  'client_event_id, event_type, period, seconds, is_opponent, player_id, secondary_player_id, details, status';
+  'id, client_event_id, event_type, period, seconds, is_opponent, player_id, secondary_player_id, details, status, created_by, duplicate_group_id';
 
 /** Estados desde los que se cierra. En diferido se comprueba además `is_retroactive`. */
 const DESDE_DIFERIDO: EstadoDelPartido[] = ['finished', 'suspended', 'called', 'live'];
@@ -75,6 +77,8 @@ export async function fetchCierre(partidoId: string): Promise<DatosDelCierre | n
     return null;
   }
 
+  const filasDeEventos = eventos.data ?? [];
+
   return {
     partido: {
       id: fila.id,
@@ -98,7 +102,17 @@ export async function fetchCierre(partidoId: string): Promise<DatosDelCierre | n
       nickname: linea.players === null ? '—' : linea.players.nickname,
       shirtNumber: linea.shirt_number,
     })),
-    eventos: desdeFilas(eventos.data ?? []),
+    // `desdeFilas` devuelve un evento por fila, en el mismo orden.
+    eventos: desdeFilas(filasDeEventos).map((evento, indice) => {
+      const origen = filasDeEventos[indice];
+
+      return {
+        ...evento,
+        id: origen.id,
+        autorId: origen.created_by,
+        grupo: origen.duplicate_group_id,
+      };
+    }),
     partes: (partes.data ?? []).map((parte) => parte.period_number),
     calculado: {
       aFavor: marcador.data?.goals_for ?? 0,
