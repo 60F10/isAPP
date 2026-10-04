@@ -32,11 +32,42 @@ export function useEnLinea(): boolean {
   return enLinea;
 }
 
-/** La cola de esa persona, al día con cada cambio de IndexedDB. */
+/**
+ * La cola de esa persona, al día con cada cambio de IndexedDB.
+ *
+ * Solo mientras la página se ve (D06-35, T-216): al ocultarse cancela la
+ * consulta viva y al volver la abre de nuevo, que trae el estado del momento.
+ * Una página oculta no toca IndexedDB.
+ */
 export function useEstadoDeCola(userId: string): EstadoDeCola {
   const [estado, setEstado] = useState<EstadoDeCola>(VACIA);
 
-  useEffect(() => observarEstado(userId, setEstado), [userId]);
+  useEffect(() => {
+    let cancelar: (() => void) | null = null;
+
+    const ajustar = () => {
+      if (document.visibilityState === 'visible') {
+        cancelar ??= observarEstado(userId, setEstado);
+        return;
+      }
+
+      if (cancelar !== null) {
+        cancelar();
+        cancelar = null;
+      }
+    };
+
+    ajustar();
+    document.addEventListener('visibilitychange', ajustar);
+
+    return () => {
+      document.removeEventListener('visibilitychange', ajustar);
+
+      if (cancelar !== null) {
+        cancelar();
+      }
+    };
+  }, [userId]);
 
   return estado;
 }

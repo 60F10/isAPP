@@ -5,6 +5,16 @@
 
 ---
 
+## Sesión 04/10/2026, mañana — T-216: ✅ cerrada
+
+- **Diagnóstico:** el 04/10, con la aplicación en varias pestañas del móvil, cada evento tardó un minuto en salir. Los registros de la API de Supabase, de 00:21 a 00:41 UTC, dan trece peticiones de la cola, una por minuto exacto y en el segundo 40: una pestaña oculta se despertaba, cogía el cerrojo `sasi-outbox`, mandaba un trabajo y se dormía con él cogido, y la que se veía lo encontraba ocupado con `ifAvailable` y no vaciaba.
+- **Hecho (D06-35):** solo vacía la página visible. `model/turno.ts` decide entre vaciar, esperar y robar; `vaciar` mira `seguir` antes de cada trabajo; `arranque.ts` roba el cerrojo con `steal` al segundo intento seguido con el cerrojo ocupado, y trata el `AbortError` de quien pierde el cerrojo como aviso y no como error. `useEstadoDeCola` cierra su `liveQuery` con la página oculta. `encolarJunto` acepta las tablas de la transacción —el directo pasa `[db.matchSnapshots]`— y registra «Encolado lento» si guardar pasa de 3 s. Rama `fix/sync-vaciado-pestana-visible`, sin base de datos.
+- **Pruebas:** 451 en verde, 21 nuevas: `turno.test.ts`, `arranque.test.ts` y `encolar.test.ts` nuevos, y casos añadidos en `vaciador.test.ts` y `almacen.test.ts`. Los de `tablas` corren sobre Dexie de verdad con `fake-indexeddb`, que estaba instalado y sin usar. Cambia una línea de `match/api/directo.test.ts`: la llamada a `encolarJunto` lleva ahora el tercer argumento. `useEstadoDeCola` no tiene prueba. Lint, Prettier y build limpios, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+- **Sin reproducir en un móvil**: la comprobación de verdad es anotar con dos pestañas abiertas. Tres eventos seguidos en una tienen que llegar a Supabase en segundos, no uno por minuto. Si la pestaña oculta tenía el cerrojo, el primero puede tardar hasta diez segundos, que es lo que tarda el segundo intento.
+- **A tener en cuenta:** dos ventanas visibles a la vez —en escritorio— se pueden quitar el cerrojo la una a la otra. No pierde ni duplica nada, por lo mismo que hace seguro el robo; solo repite algún envío.
+
+---
+
 ## Sesión 04/10/2026, mañana — T-215: ✅ cerrada
 
 - **Diagnóstico:** en la A12, `hacer` devolvía `null` igual si el guardado anterior seguía en marcha, si el reglamento rechazaba la acción o si fallaba IndexedDB, y el flujo pintaba el mismo «No se ha guardado. Corrige…» para los tres; mientras guardaba, la pantalla no decía nada, y por eso se repetía el toque.

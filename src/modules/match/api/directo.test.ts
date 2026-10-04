@@ -4,6 +4,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { db } from '@shared/lib/db';
+
 import { desdePaquete } from '../model/directo';
 import { aplicarTransicion, cargarDirecto, SIN_PRECARGA } from './directo';
 
@@ -181,7 +183,10 @@ describe('aplicarTransicion', () => {
 
     await aplicarTransicion(estado, trabajos);
 
-    expect(sync.encolarJunto).toHaveBeenCalledWith(trabajos, expect.any(Function));
+    // La transacción se abre solo sobre la cola y la instantánea (T-216).
+    expect(sync.encolarJunto).toHaveBeenCalledWith(trabajos, expect.any(Function), [
+      db.matchSnapshots,
+    ]);
     expect(almacen.puestas).toHaveLength(1);
   });
 

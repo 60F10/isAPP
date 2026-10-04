@@ -11,6 +11,7 @@ import { contar, crearTrabajo, purgables } from '../model/cola';
 import type { EntradaDeTrabajo, EstadoDeCola } from '../model/cola';
 import type { Almacen } from '../model/vaciador';
 import type { Trabajo } from '@shared/lib/db';
+import type { Table } from 'dexie';
 
 export const almacenDexie: Almacen = {
   pendientes: async (userId) =>
@@ -58,10 +59,17 @@ export async function encolarTrabajo(entrada: EntradaDeTrabajo): Promise<Trabajo
  * `tambien` solo puede tocar Dexie: cualquier otra espera dentro de la
  * transacción la cerraría antes de tiempo. Los trabajos llevan un
  * milisegundo de diferencia para que su orden sea el de la lista.
+ *
+ * `tablas` son las que toca `tambien` (D06-35, T-216). Con ellas, la
+ * transacción se abre sobre la cola y esas tablas, y no espera detrás de lo
+ * que otra pestaña tenga a medias en las demás; si `tambien` escribe en una
+ * que no está en la lista, Dexie rechaza y no se guarda nada. Sin ellas se
+ * abre sobre todas.
  */
 export async function encolarTrabajosJunto(
   entradas: readonly EntradaDeTrabajo[],
   tambien: () => Promise<void>,
+  tablas?: readonly Table[],
 ): Promise<Trabajo[]> {
   const userId = await usuarioActual();
 
@@ -74,7 +82,9 @@ export async function encolarTrabajosJunto(
     crearTrabajo(entrada, { id: crypto.randomUUID(), userId, ahora: ahora + orden }),
   );
 
-  await db.transaction('rw', db.tables, async () => {
+  const enTransaccion = tablas === undefined ? db.tables : [db.outbox, ...tablas];
+
+  await db.transaction('rw', enTransaccion, async () => {
     await db.outbox.bulkAdd(trabajos);
     await tambien();
   });
