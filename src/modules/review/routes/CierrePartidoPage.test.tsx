@@ -8,7 +8,7 @@
 // validan el minuto, que son puras y entran de verdad.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -87,6 +87,7 @@ function datos(
     partido?: Partial<DatosDelCierre['partido']>;
     eventos?: DatosDelCierre['eventos'];
     calculado?: DatosDelCierre['calculado'];
+    coberturas?: DatosDelCierre['coberturas'];
   } = {},
 ): DatosDelCierre {
   return {
@@ -95,6 +96,7 @@ function datos(
     eventos: opciones.eventos ?? [],
     partes: [],
     calculado: opciones.calculado ?? { aFavor: 1, enContra: 1 },
+    coberturas: opciones.coberturas ?? [],
   };
 }
 
@@ -470,5 +472,82 @@ describe('A13 · Panel de eventos (T-210b)', () => {
     expect(await screen.findByText('Lo apuntó: Isaac')).toBeInTheDocument();
     expect(screen.getByText('Lo apuntó: Otra persona')).toBeInTheDocument();
     expect(discordancias.fetchAutores).toHaveBeenCalledWith(['usuario-1', 'usuario-9']);
+  });
+});
+
+describe('A13 · Coberturas (T-209a)', () => {
+  const COBERTURAS: DatosDelCierre['coberturas'] = [
+    {
+      id: 'cob-1',
+      autorId: 'usuario-1',
+      alcance: 'full_team',
+      jugador: null,
+      desde: { periodo: 1, segundos: 0 },
+      hasta: { periodo: 2, segundos: 1500 },
+      diferido: false,
+    },
+    {
+      id: 'cob-2',
+      autorId: 'usuario-2',
+      alcance: 'goals_cards',
+      jugador: null,
+      desde: { periodo: 2, segundos: 300 },
+      hasta: null,
+      diferido: false,
+    },
+  ];
+
+  it('lista dos coberturas con su autor y su tramo, y marca la que sigue sin cerrar', async () => {
+    api.fetchCierre.mockResolvedValue(datos({ coberturas: COBERTURAS }));
+    discordancias.fetchAutores.mockResolvedValue(
+      new Map([
+        ['usuario-1', 'Raúl'],
+        ['usuario-2', 'Isaac'],
+      ]),
+    );
+    montar();
+
+    const titulo = await screen.findByRole('heading', { level: 2, name: 'Coberturas' });
+    const tarjeta = titulo.closest('section') as HTMLElement;
+
+    await within(tarjeta).findByText('Raúl');
+
+    expect(
+      within(tarjeta)
+        .getAllByRole('listitem')
+        .map((linea) => linea.textContent),
+    ).toEqual([
+      'Raúl · Todo el equipo · Del minuto 0 al 50',
+      'Isaac · Solo goles y tarjetas · Desde el minuto 30 · Sin cerrar',
+    ]);
+    expect(
+      within(tarjeta).getByText(/se termina sola en el final del partido/),
+    ).toBeInTheDocument();
+    expect(discordancias.fetchAutores).toHaveBeenCalledWith(['usuario-1', 'usuario-2']);
+    // Solo lectura: la tarjeta no ofrece nada que pulsar.
+    expect(within(tarjeta).queryByRole('button')).toBeNull();
+  });
+
+  it('sin ninguna, lo dice', async () => {
+    api.fetchCierre.mockResolvedValue(datos());
+    montar();
+
+    expect(
+      await screen.findByText('Nadie declaró qué seguía en este partido.'),
+    ).toBeInTheDocument();
+  });
+
+  it('cerrado, las sigue enseñando', async () => {
+    api.fetchCierre.mockResolvedValue(
+      datos({
+        partido: { status: 'closed', actaAFavor: 1, actaEnContra: 1 },
+        coberturas: [COBERTURAS[0]],
+      }),
+    );
+    discordancias.fetchAutores.mockResolvedValue(new Map([['usuario-1', 'Raúl']]));
+    montar();
+
+    expect(await screen.findByText('Raúl')).toBeInTheDocument();
+    expect(screen.getByText('Del minuto 0 al 50')).toBeInTheDocument();
   });
 });

@@ -5,6 +5,9 @@
 // que mete el partido en las estadísticas de temporada. Cerrado, se puede
 // reabrir (C-05). La lógica vive en `model/cierre.ts`; aquí solo se pinta.
 //
+// LAS COBERTURAS (T-209a) se listan, sin tocar nada: quién declaró seguir
+// qué, y desde y hasta cuándo. Las que sigan abiertas las termina el cierre.
+//
 // LOS EVENTOS SE REVISAN EN `PanelDeEventos` (T-210b): aprobar, descartar,
 // recuperar, corregir el minuto y ver los posibles repetidos. Solo con el
 // partido sin cerrar: cerrado, primero se reabre. C-01 sigue en pie: con
@@ -31,6 +34,7 @@ import { Pantalla } from '@shared/ui/Pantalla';
 import { CON_PENDIENTES, PARTIDO_CAMBIADO } from '../api/cierre';
 import { PanelDeEventos } from '../components/PanelDeEventos';
 import {
+  useAutores,
   useCerrarPartido,
   useCierre,
   useColaDelPartido,
@@ -40,6 +44,7 @@ import {
 } from '../hooks/useCierre';
 import {
   actaInicial,
+  alcanceEnTexto,
   bloqueosDelCierre,
   contarEventos,
   difiere,
@@ -52,6 +57,7 @@ import {
   origenDe,
   partesQueFaltan,
   resultadoEnTexto,
+  tramoEnTexto,
   validarActa,
 } from '../model/cierre';
 
@@ -329,6 +335,61 @@ function EsteMovil({ partidoId }: { partidoId: string }) {
   );
 }
 
+/**
+ * Lo que declaró seguir cada anotador (T-209a, DOC 04 §10.2): quién, qué y
+ * desde y hasta cuándo. Solo se lee. De quien la declaró, el nombre de su
+ * perfil; de quien no se ve, «Otra persona», como en los eventos.
+ */
+function Coberturas({ datos, cerrado }: { datos: DatosDelCierre; cerrado: boolean }) {
+  const { coberturas, partido } = datos;
+  const nombre = nombrador(datos.convocatoria);
+  const autores = useAutores([...new Set(coberturas.map((cobertura) => cobertura.autorId))].sort());
+  const abiertas = coberturas.filter((cobertura) => cobertura.hasta === null).length;
+
+  return (
+    <Card title="Coberturas" headingLevel={2}>
+      {coberturas.length === 0 ? (
+        <p className={styles.nota}>Nadie declaró qué seguía en este partido.</p>
+      ) : (
+        <div className={styles.bloque}>
+          <p className={styles.nota}>
+            Lo que cada anotador dijo que seguía. De aquí sale cuánto fiarse de cada dato.
+          </p>
+          <ul className={styles.lista}>
+            {coberturas.map((cobertura) => (
+              <li key={cobertura.id} className={styles.fila}>
+                <span className={styles.dato}>
+                  {autores.isPending
+                    ? '…'
+                    : (autores.data?.get(cobertura.autorId) ?? 'Otra persona')}
+                </span>
+                <span aria-hidden="true"> · </span>
+                <span>{alcanceEnTexto(cobertura, nombre)}</span>
+                <span aria-hidden="true"> · </span>
+                <span>{tramoEnTexto(cobertura, partido.minutosDeParte)}</span>
+                {cobertura.hasta === null ? (
+                  <>
+                    <span aria-hidden="true"> · </span>
+                    <span className={styles.dato}>Sin cerrar</span>
+                  </>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {abiertas > 0 && !cerrado ? (
+            <p className={styles.nota}>
+              {abiertas === 1
+                ? 'La que sigue sin cerrar se termina sola'
+                : 'Las que siguen sin cerrar se terminan solas'}{' '}
+              en el final del partido al cerrarlo.
+            </p>
+          ) : null}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 interface AbiertoProps {
   datos: DatosDelCierre;
   describir: Describir;
@@ -441,6 +502,8 @@ function Abierto({ datos, describir, alCerrar }: AbiertoProps) {
       </Card>
 
       <PanelDeEventos partido={partido} eventos={datos.eventos} describir={describir} />
+
+      <Coberturas datos={datos} cerrado={false} />
 
       <Card title="Este móvil" headingLevel={2}>
         <EsteMovil partidoId={partido.id} />
@@ -556,6 +619,8 @@ function Cerrado({ datos, aviso, alReabrir }: CerradoProps) {
           {aviso === null ? null : <p className={styles.aviso}>{aviso}</p>}
         </div>
       </Card>
+
+      <Coberturas datos={datos} cerrado />
 
       <Card title="Reabrir" headingLevel={2}>
         <div className={styles.bloque}>

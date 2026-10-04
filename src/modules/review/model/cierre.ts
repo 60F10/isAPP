@@ -53,6 +53,30 @@ export interface Resultado {
   enContra: number;
 }
 
+/** Un momento del partido: la parte y los segundos dentro de ella. */
+export interface MomentoDelPartido {
+  periodo: number;
+  segundos: number;
+}
+
+/**
+ * Lo que declaró seguir un anotador (T-209a, DOC 04 §10.2). `custom` no se
+ * ofrece en el directo, pero existe en la base y aquí se lee lo que haya.
+ */
+export interface CoberturaDelCierre {
+  id: string;
+  /** `user_id`: quién la declaró. */
+  autorId: string;
+  alcance: 'full_team' | 'single_player' | 'goals_cards' | 'custom';
+  /** Solo con `single_player`. */
+  jugador: string | null;
+  desde: MomentoDelPartido;
+  /** `null` si sigue abierta: se termina al cerrar el partido (C-03). */
+  hasta: MomentoDelPartido | null;
+  /** De un partido en diferido (DOC 04 §10.6). */
+  diferido: boolean;
+}
+
 export interface DatosDelCierre {
   partido: PartidoDelCierre;
   /** Del jugador solo apodo y dorsal: la convocatoria del partido. */
@@ -63,6 +87,8 @@ export interface DatosDelCierre {
   partes: number[];
   /** El marcador de `v_match_scores`: solo eventos aprobados (DOC 05 §11). */
   calculado: Resultado;
+  /** Lo que declaró seguir cada anotador, en el orden en que se declaró (T-209a). */
+  coberturas: CoberturaDelCierre[];
 }
 
 /**
@@ -296,4 +322,47 @@ export function golesAprobados(eventos: readonly EventoDelDirecto[]): EventoDelD
         a.periodo - b.periodo ||
         (a.segundos ?? Number.MAX_SAFE_INTEGER) - (b.segundos ?? Number.MAX_SAFE_INTEGER),
     );
+}
+
+/** Qué siguió, en palabras. Del jugador, lo que dé `nombre`: dorsal y apodo. */
+export function alcanceEnTexto(
+  cobertura: Pick<CoberturaDelCierre, 'alcance' | 'jugador'>,
+  nombre: (jugadorId: string) => string,
+): string {
+  switch (cobertura.alcance) {
+    case 'full_team':
+      return 'Todo el equipo';
+    case 'single_player':
+      return cobertura.jugador === null
+        ? 'Solo a un jugador'
+        : `Solo a ${nombre(cobertura.jugador)}`;
+    case 'goals_cards':
+      return 'Solo goles y tarjetas';
+    case 'custom':
+      return 'Una selección de tipos';
+  }
+}
+
+/** Los minutos de partido que van hasta ese momento, contando las partes anteriores enteras. */
+function minutoDePartido(momento: MomentoDelPartido, minutosDeParte: number): number {
+  return (momento.periodo - 1) * minutosDeParte + Math.floor(momento.segundos / 60);
+}
+
+/**
+ * Desde y hasta cuándo, en minutos de partido: «Del minuto 12 al 40». Una
+ * abierta solo dice desde cuándo; que sigue sin cerrar lo marca la pantalla.
+ * El descuento de una parte cuenta como minutos de más: una primera parte de
+ * 40 que se alargó dos acaba en el 42, y la segunda empieza en el 40.
+ */
+export function tramoEnTexto(
+  cobertura: Pick<CoberturaDelCierre, 'desde' | 'hasta' | 'diferido'>,
+  minutosDeParte: number,
+): string {
+  const desde = String(minutoDePartido(cobertura.desde, minutosDeParte));
+  const tramo =
+    cobertura.hasta === null
+      ? `Desde el minuto ${desde}`
+      : `Del minuto ${desde} al ${String(minutoDePartido(cobertura.hasta, minutosDeParte))}`;
+
+  return cobertura.diferido ? `${tramo}, en diferido` : tramo;
 }

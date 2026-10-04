@@ -5,6 +5,7 @@
 // y los eventos ya registrados. Del jugador, solo apodo, dorsal y posición:
 // la convocatoria es la de `lineup`, que no trae nada más.
 
+import type { CoberturaLocal } from './cobertura';
 import type { EstadoDirecto } from './directo';
 import type { LineaGuardada } from '@modules/lineup';
 import type { Reglamento } from '@modules/rules';
@@ -50,6 +51,11 @@ export interface Instantanea {
   descargadoEn: number;
   /** El estado del reductor del directo en este aparato (T-207). */
   estado?: EstadoDirecto;
+  /**
+   * Lo que sigue quien anota en este aparato (T-209a, D06-37). Fuera de
+   * `estado` a propósito: no es del partido, y el reductor no lo toca.
+   */
+  cobertura?: CoberturaLocal;
 }
 
 /** El resumen de una precarga para la interfaz. */

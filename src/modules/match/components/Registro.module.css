@@ -264,3 +264,20 @@
   font-size: var(--font-size-100);
   font-weight: var(--font-weight-semibold);
 }
+
+/* «Sigues: todo el equipo» y «Cambiar» (T-209a). Una línea bajo el marcador:
+   el texto se parte antes de empujar el botón fuera a 320 px. */
+.sigues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tap-gap);
+}
+
+.siguesTexto {
+  flex: 1 1 10rem;
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}

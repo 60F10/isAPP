@@ -127,15 +127,22 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
  * Conserva el estado del directo que hubiera guardado este aparato: refrescar
  * la precarga no puede borrar una pausa ni una parte que el servidor aún no
  * conoce. Qué estado manda lo decide `elegirEstado` al abrir el directo.
+ *
+ * Y conserva la cobertura declarada aquí (T-209a): si un refresco la borrara,
+ * al volver a abrir el directo se declararía otra encima de la que sigue
+ * abierta en el servidor.
  */
 export async function guardarPaquete(paquete: PaqueteDePartido, ahora: number): Promise<void> {
   await db.transaction('rw', db.matchSnapshots, db.matchEvents, async () => {
     const anterior = await db.matchSnapshots.get(paquete.partido.id);
-    const estado = anterior === undefined ? undefined : (anterior.datos as Instantanea).estado;
-    const instantanea: Instantanea =
-      estado === undefined
-        ? { paquete, descargadoEn: ahora }
-        : { paquete, descargadoEn: ahora, estado };
+    const previa = anterior === undefined ? undefined : (anterior.datos as Instantanea);
+    // Las claves que no hay no se escriben: `undefined` no es lo mismo que nada.
+    const instantanea: Instantanea = {
+      paquete,
+      descargadoEn: ahora,
+      ...(previa?.estado === undefined ? {} : { estado: previa.estado }),
+      ...(previa?.cobertura === undefined ? {} : { cobertura: previa.cobertura }),
+    };
 
     await db.matchSnapshots.put({
       matchId: paquete.partido.id,
