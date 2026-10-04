@@ -164,9 +164,12 @@ export const NOMBRES_DE_TIPO: Record<TipoDeCompeticion, string> = {
 /**
  * El reglamento del cadete de Isaac (DOC 04 §4.2), confirmado por Raúl con
  * Isaac el 26/09/2026: 2 × 40 con 15 de descanso, reloj corrido, cambios
- * fijos, 5 como mucho y sin reentrada, 18 convocados, 11 titulares y 5
+ * fijos, 7 como mucho y sin reentrada, 18 convocados, 11 titulares y 5
  * amarillas para un partido de sanción. Es con lo que nace una competición
  * nueva: se ajusta después en su ficha.
+ *
+ * Los cambios eran 5 hasta el 04/10/2026: Raúl lo corrigió tras el primer
+ * partido de liga (T-214). Una competición ya creada conserva su límite.
  */
 export const REGLAMENTO_CADETE: Reglamento = {
   periods_count: 2,
@@ -174,7 +177,7 @@ export const REGLAMENTO_CADETE: Reglamento = {
   halftime_minutes: 15,
   clock_mode: 'running',
   substitution_type: 'fixed',
-  substitutions_max: 5,
+  substitutions_max: 7,
   squad_max: 18,
   players_on_pitch: 11,
   yellow_cards_for_ban: 5,

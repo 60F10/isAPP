@@ -5,6 +5,16 @@
 
 ---
 
+## Sesión 04/10/2026, mañana — T-214: ✅ cerrada
+
+- **Hecho:** `REGLAMENTO_CADETE` da 7 cambios, que eran 5. Lo corrigió Raúl el 04/10, tras el At. Tacoronte 0 – 9 Unión Tejina del 03/10, donde el Tejina hizo 6 y el rival 7. Rama `fix/rules-cambios-cadete`, sin base de datos: el valor por defecto de la columna `substitutions_max` sigue en 5.
+- **Documentos:** dicen 7 el DOC 03 (A5), el DOC 04 §4.2, el DOC 01 (E3-06) y `CLAUDE.md`. La tabla del DOC 04 §4.1 conserva su 5, que es el de la columna.
+- **Pruebas:** 426 en verde, ninguna nueva: cambian tres, las dos de `competicion.test.ts` y la línea de resumen de `Competiciones.test.tsx`. Lint, Prettier y build limpios.
+- **Ojo:** la competición que ya existe, «Cadete Primera Tenerife G2», conserva su límite de 5. Lo cambia Raúl en la A08 (punto 56).
+- **Abierto:** los cinco hallazgos del primer partido, puntos 54 a 58 de «LO QUE SIGUE ABIERTO».
+
+---
+
 ## Sesión 04/10/2026, madrugada — T-213: ✅ cerrada
 
 - **Hecho:** la tarjeta «Próximo evento» de Inicio (A02) enseña el próximo partido del equipo activo con las mismas acciones que su fila del calendario: directo, convocatoria, edición y cierre, cada una con su permiso. Lo que pintaba cada fila de la A09 sale a `agenda/components/ResumenDePartido`, que comparten las dos pantallas. Rama `feat/agenda-inicio-proximo-partido`, sin base de datos.
@@ -343,6 +353,28 @@ Pendiente de hacer:
     `match_periods`.
 53. **C-03 a medias.** El cierre da por terminadas las coberturas abiertas en el final del
     partido, pero no las lista: hasta la T-209 no existe ninguna. La lista entra con la T-209.
+
+54. **La tarjeta a un técnico no cabe en el modelo.** Una `yellow_card` propia exige un jugador
+    convocado (DOC 04 §7.1, I-04). El 03/10 hubo amarilla al entrenador en el 32' y se apunta como
+    `note`. Entra con disciplina (A16), fuera del MVP, y pide decidir si el cuerpo técnico existe
+    como entidad sancionable.
+
+55. **Las ventanas de cambio y la prórroga no se modelan.** El reglamento da siete cambios en tres
+    ventanas más el descanso. La aplicación cuenta los cambios (R-04) y no las ventanas: las vigila
+    el árbitro, y un bloqueo mal configurado impediría apuntar lo que pasó. La prórroga queda sin
+    decidir hasta que haya copa.
+
+56. **Una competición ya creada conserva su límite.** `REGLAMENTO_CADETE` solo rige al dar de alta.
+    El límite de «Cadete Primera Tenerife G2» se cambia en la A08, que es dato y no código. La base
+    rechaza el cambio que pase del máximo.
+
+57. **Posiciones detalladas, a la espera de la lista de Isaac.** Laterales, mediapunta y demás: hoy
+    solo hay portero, defensa, medio y delantero (DOC 05 §15). Irían como detalle bajo esas cuatro
+    líneas, después de la T-210.
+
+58. **El acta de la federación sirve para contrastar y no entra en el repositorio.** Trae nombre y
+    apellidos de menores de los dos equipos. Se usa por dorsal al cerrar el partido (C-02); no se
+    guarda en `docs/` ni en la aplicación.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;

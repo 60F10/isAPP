@@ -68,7 +68,7 @@ Leyenda de estado: `📋` definido · `❓` requiere decisión (ver DOC 03) · `
 | E3-03 | Número de partes (2 tiempos, 4 cuartos en categorías menores)                        | G      | MVP  | 📋   |
 | E3-04 | Tipo de sustituciones: volantes o fijas · **cadete: fijas**                          | R+G    | MVP  | ✅   |
 | E3-05 | Máximo de convocados, configurable por competición **y** por equipo · **cadete: 18** | R      | MVP  | ✅   |
-| E3-06 | Máximo de sustituciones por partido · **cadete: 5**                                  | G      | MVP  | ✅   |
+| E3-06 | Máximo de sustituciones por partido · **cadete: 7**                                  | G      | MVP  | ✅   |
 | E3-07 | Ciclo de amarillas con sanción automática · **cadete: 5 amarillas = 1 partido**      | G      | MVP  | ✅   |
 | E3-08 | Reloj corrido o a tiempo parado · **cadete: corrido**                                | G      | MVP  | ✅   |
 | E3-09 | Número de jugadores en campo (11, 7, 8 según categoría)                              | G      | V1.1 | 📋   |
