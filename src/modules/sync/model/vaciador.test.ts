@@ -153,6 +153,45 @@ describe('vaciar', () => {
     expect(almacen.filas.get('a')).toMatchObject({ status: 'pending', lastError: 'reventó' });
   });
 
+  it('si `seguir` da false tras el primer trabajo, el segundo se queda sin tocar', async () => {
+    const almacen = enMemoria([
+      trabajo({ id: 'a', createdAt: 1 }),
+      trabajo({ id: 'x', matchId: 'm2', createdAt: 2 }),
+    ]);
+    const enviar = vi.fn(() => Promise.resolve(BIEN));
+
+    const resumen = await vaciar({
+      almacen,
+      enviar,
+      userId: 'u1',
+      ahora: () => 100,
+      azar: () => 0,
+      seguir: () => enviar.mock.calls.length === 0,
+    });
+
+    expect(enviar).toHaveBeenCalledTimes(1);
+    expect(resumen).toEqual({ enviados: 1, aplazados: 0, fallidos: [] });
+    expect(almacen.filas.get('a')).toMatchObject({ status: 'sent' });
+    expect(almacen.filas.get('x')).toMatchObject({ status: 'pending', attempts: 0 });
+  });
+
+  it('si `seguir` da false de entrada, no envía nada', async () => {
+    const almacen = enMemoria([trabajo({ id: 'a' })]);
+    const enviar = vi.fn(() => Promise.resolve(BIEN));
+
+    await vaciar({
+      almacen,
+      enviar,
+      userId: 'u1',
+      ahora: () => 100,
+      azar: () => 0,
+      seguir: () => false,
+    });
+
+    expect(enviar).not.toHaveBeenCalled();
+    expect(almacen.filas.get('a')).toMatchObject({ status: 'pending', attempts: 0 });
+  });
+
   it('no toca lo de otra cuenta', async () => {
     const almacen = enMemoria([trabajo({ id: 'ajeno', userId: 'u2' })]);
     const enviar = vi.fn(() => Promise.resolve(BIEN));

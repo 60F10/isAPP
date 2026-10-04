@@ -7,6 +7,10 @@
 // Vuelta a vuelta: elige el primero listo de cada partido, lo marca como
 // «enviándose», lo manda y guarda lo que haya pasado. Sigue hasta que no queda
 // nada listo: lo aplazado espera a su hora, lo fallido se queda quieto.
+//
+// Antes de coger cada trabajo pregunta a `seguir` (D06-35, T-216): si la
+// página se ha ocultado o le han quitado el cerrojo, termina ahí y el
+// siguiente se queda como estaba.
 
 import { aplicarDecision, clasificar, elegirListos } from './cola';
 
@@ -26,6 +30,12 @@ export interface OpcionesDeVaciado {
   userId: string;
   ahora: () => number;
   azar: () => number;
+  /**
+   * Si este vaciador sigue siendo el que tiene que vaciar. Se mira antes de
+   * coger cada trabajo; con `false`, el vaciado acaba sin tocar el siguiente.
+   * Sin ella, sigue hasta el final.
+   */
+  seguir?: () => boolean;
 }
 
 export interface ResumenDeVaciado {
@@ -44,6 +54,7 @@ function mensajeDe(error: unknown): string {
 
 export async function vaciar(opciones: OpcionesDeVaciado): Promise<ResumenDeVaciado> {
   const { almacen, enviar, userId, ahora, azar } = opciones;
+  const seguir = opciones.seguir ?? (() => true);
   const resumen: ResumenDeVaciado = { enviados: 0, aplazados: 0, fallidos: [] };
 
   for (let vuelta = 0; vuelta < VUELTAS_MAXIMAS; vuelta += 1) {
@@ -54,6 +65,10 @@ export async function vaciar(opciones: OpcionesDeVaciado): Promise<ResumenDeVaci
     }
 
     for (const trabajo of listos) {
+      if (!seguir()) {
+        return resumen;
+      }
+
       const enviandose: Trabajo = { ...trabajo, status: 'sending' };
       await almacen.guardar(enviandose);
 

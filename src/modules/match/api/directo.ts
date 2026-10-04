@@ -86,5 +86,7 @@ export async function aplicarTransicion(
     return;
   }
 
-  await encolarJunto(trabajos, () => escribirEstado(estado));
+  // La transacción, solo sobre la cola y la instantánea (D06-35): así no
+  // espera detrás de lo que otra pestaña tenga a medias en las demás tablas.
+  await encolarJunto(trabajos, () => escribirEstado(estado), [db.matchSnapshots]);
 }
