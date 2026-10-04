@@ -22,8 +22,6 @@
 // derive los segundos de `started_at` no la verá. Con reloj corrido, como el
 // cadete, solo se pausa por un parón largo (DOC 13).
 //
-// LAS PARTES SON DE TODOS (T-209c, D06-39). Se concilian por número con las
-// del servidor: el `id` y el arranque son del primero que llegó a la base.
 // LAS PARTES SON DE TODOS LOS APARATOS (T-209c, D06-39). Se concilian por
 // número con las del servidor: el `id` y el arranque son del primero que llegó
 // a la base, y por eso una parte se termina por partido y número, no por `id`.
@@ -42,8 +40,6 @@ export type Fase = 'inactivo' | 'en_juego' | 'pausado' | 'descanso' | 'finalizad
 
 export interface ParteLocal {
   /**
-   * El `id` de `match_periods`. Lo genera el dispositivo que la abre; si otro
-   * la abrió antes, se adopta el suyo al conciliar (T-209c, D06-39).
    * El `id` de `match_periods`. Lo genera el dispositivo que la abre, y se
    * cambia por el del servidor si otro la abrió antes (`conciliarPartes`).
    */

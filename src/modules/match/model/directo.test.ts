@@ -335,20 +335,6 @@ describe('enCurso', () => {
   });
 });
 
-/** Un gol apuntado en este aparato que todavía no ha llegado al servidor. */
-const MIO: EventoDelDirecto = {
-  clientEventId: 'sin-enviar',
-  tipo: 'goal',
-  periodo: 1,
-  segundos: 60,
-  rival: false,
-  jugador: 'p7',
-  segundo: null,
-  detalles: {},
-  estado: 'pending',
-  propio: true,
-};
-
 describe('elegirEstado', () => {
   const servidor = desdePaquete(paquete());
 
@@ -362,15 +348,6 @@ describe('elegirEstado', () => {
 
     expect(elegirEstado(local, delServidor)).toBe(local);
   });
-
-  it('si otro aparato ha avanzado el partido, la fase y las partes son las del servidor y los eventos los de este', () => {
-    const local: EstadoDirecto = { ...empezado(), eventos: [MIO] };
-    const delServidor: EstadoDirecto = {
-      ...reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 1 }).estado,
-      eventos: [],
-    };
-
-    const elegido = elegirEstado(local, delServidor);
 
   it('si otro aparato ha avanzado el partido, la fase y las partes son las del servidor y los eventos, los locales', () => {
     const local: EstadoDirecto = { ...empezado(), eventos: [GOL_LOCAL] };
