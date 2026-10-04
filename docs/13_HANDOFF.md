@@ -5,6 +5,15 @@
 
 ---
 
+## Sesión 04/10/2026, mañana — T-215: ✅ cerrada
+
+- **Diagnóstico:** en la A12, `hacer` devolvía `null` igual si el guardado anterior seguía en marcha, si el reglamento rechazaba la acción o si fallaba IndexedDB, y el flujo pintaba el mismo «No se ha guardado. Corrige…» para los tres; mientras guardaba, la pantalla no decía nada, y por eso se repetía el toque.
+- **Hecho:** `intentar` dentro de `Panel` devuelve el resultado o el fallo con su motivo (`ocupado`, `regla`, `dispositivo`) y `hacer` queda como envoltorio con el contrato de antes. `guardarFlujo` enseña el motivo de verdad en el flujo, y con `ocupado` no hace nada. `FlujoDeRegistro` recibe `ocupado` y `estado`: dice «Guardando…» en una región viva propia, a los 4 s «Sigue guardando en este dispositivo. No cierres la pantalla.», y desactiva todos sus botones. Rama `fix/match-guardando-flujo`, sin base de datos.
+- **Pruebas:** 430 en verde, cuatro nuevas en `LiveMatchPage.test.tsx`. Cambia una línea de una que ya había, «si no se puede guardar, el flujo sigue en su último paso y lo dice»: esperaba el texto genérico que desaparece y ahora espera el del dispositivo. El aviso de los 4 s no tiene prueba. Lint, Prettier y build limpios.
+- **Sin probar en un móvil.** Dos cosas que mirar allí: los botones de opción y de jugador no tienen estilo de desactivado en `Registro.module.css`, así que lo único que se ve es el texto; y al desactivarse el botón que tiene el foco, el foco puede irse a `body` si el guardado falla.
+
+---
+
 ## Sesión 04/10/2026, mañana — T-214: ✅ cerrada
 
 - **Hecho:** `REGLAMENTO_CADETE` da 7 cambios, que eran 5. Lo corrigió Raúl el 04/10, tras el At. Tacoronte 0 – 9 Unión Tejina del 03/10, donde el Tejina hizo 6 y el rival 7. Rama `fix/rules-cambios-cadete`, sin base de datos: el valor por defecto de la columna `substitutions_max` sigue en 5.

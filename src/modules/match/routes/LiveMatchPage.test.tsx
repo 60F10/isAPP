@@ -486,11 +486,108 @@ describe('A12 · Directo, esqueleto', () => {
       await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
       await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
 
-      expect(await screen.findByText(/No se ha guardado\. Corrige/)).toHaveAttribute(
-        'aria-live',
-        'polite',
-      );
+      expect(
+        await screen.findByText(/No se ha podido guardar en este dispositivo/),
+      ).toHaveAttribute('aria-live', 'polite');
       expect(screen.getByRole('button', { name: 'A favor' })).toBeInTheDocument();
+    });
+
+    // T-215: lo que ve quien anota mientras el aparato guarda y cuando falla.
+    describe('estado de guardado (T-215)', () => {
+      const ERROR_DE_DISPOSITIVO =
+        'No se ha podido guardar en este dispositivo. No ha cambiado nada: vuelve a intentarlo.';
+
+      /** Deja el guardado a medias y devuelve cómo terminarlo a mano. */
+      function guardadoAMedias(): () => void {
+        let terminar: () => void = () => undefined;
+
+        api.aplicarTransicion.mockReturnValue(
+          new Promise<void>((resolver) => {
+            terminar = resolver;
+          }),
+        );
+
+        return () => {
+          terminar();
+        };
+      }
+
+      it('con el guardado a medias dice «Guardando…», desactiva el paso y no enseña ningún error', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        const terminar = guardadoAMedias();
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+        await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+        const flujo = within(screen.getByRole('region', { name: 'Córner' }));
+
+        expect(await flujo.findByText('Guardando…')).toHaveAttribute('aria-live', 'polite');
+
+        for (const boton of flujo.getAllByRole('button')) {
+          expect(boton).toBeDisabled();
+        }
+
+        expect(screen.queryByText(/No se ha guardado/)).toBeNull();
+        expect(screen.queryByText(/No se ha podido guardar/)).toBeNull();
+
+        terminar();
+        expect(await screen.findAllByText(/Córner a favor/)).not.toHaveLength(0);
+      });
+
+      it('un segundo toque con el guardado a medias no guarda dos veces ni da error', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        const terminar = guardadoAMedias();
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+        await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+        await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+        expect(api.aplicarTransicion).toHaveBeenCalledTimes(1);
+        expect(screen.queryByText(/No se ha guardado/)).toBeNull();
+        expect(screen.queryByText(/No se ha podido guardar/)).toBeNull();
+
+        terminar();
+
+        // La confirmación de 2 s y la línea de «Últimos eventos».
+        expect(await screen.findAllByText("Córner a favor · 2'")).toHaveLength(2);
+        expect(screen.queryByRole('region', { name: 'Córner' })).toBeNull();
+        expect(api.aplicarTransicion).toHaveBeenCalledTimes(1);
+      });
+
+      it('si el reglamento dice que no, el motivo se lee en el flujo', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Nota' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Del partido' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Guardar la nota' }));
+
+        const flujo = within(screen.getByRole('region', { name: 'Nota' }));
+
+        expect(await flujo.findByText('Escribe la nota.')).toHaveAttribute('aria-live', 'polite');
+        expect(api.aplicarTransicion).not.toHaveBeenCalled();
+      });
+
+      it('si falla el dispositivo, lo dice en el flujo y los botones vuelven a estar activos', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        api.aplicarTransicion.mockRejectedValue(new Error('QuotaExceededError'));
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Córner' }));
+        await userEvent.click(screen.getByRole('button', { name: 'A favor' }));
+
+        const flujo = within(screen.getByRole('region', { name: 'Córner' }));
+
+        expect(await flujo.findByText(ERROR_DE_DISPOSITIVO)).toHaveAttribute('aria-live', 'polite');
+
+        for (const boton of flujo.getAllByRole('button')) {
+          expect(boton).toBeEnabled();
+        }
+
+        expect(flujo.queryByText('Guardando…')).toBeNull();
+      });
     });
 
     it('la ficha de un jugador se abre con el foco en su título', async () => {
