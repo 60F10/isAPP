@@ -130,7 +130,7 @@ Calendario → Partido → Convocatoria → [Iniciar partido] → DIRECTO → [F
                        No convocados                   Offline + cola sync      Comentarios
 ```
 
-Es un flujo lineal con estados: `programado → convocado → en_juego → finalizado → cerrado`. La pantalla de cierre no se salta: sin cerrar el partido, sus datos no entran en las estadísticas de temporada.
+Es un flujo lineal con estados: `programado → convocado → en_juego → finalizado → cerrado`. La pantalla de cierre no se salta: sin cerrar el partido, sus datos no entran en las estadísticas de temporada. Desde la T-212, «Iniciar partido» es el enlace «Directo» del calendario, y la convocatoria vuelve al calendario al guardar.
 
 ### 3.3 Reglas de navegación
 

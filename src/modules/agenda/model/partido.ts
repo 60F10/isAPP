@@ -251,6 +251,16 @@ export function sePuedeEditar(estado: EstadoDePartido): boolean {
 }
 
 /**
+ * Si el calendario enlaza el directo del partido (A12, T-212): convocado o en
+ * juego. Programado no tiene convocatoria que llevar al campo, y terminado
+ * solo le queda el cierre. Qué se puede hacer allí lo decide `match`; esto
+ * solo elige cuándo enseñar el enlace.
+ */
+export function tieneDirecto(estado: EstadoDePartido): boolean {
+  return estado === 'called' || estado === 'live';
+}
+
+/**
  * Si el calendario enlaza el cierre del partido (A13, T-210a): terminado,
  * suspendido o cerrado; en diferido, también convocado o en juego, porque
  * ese partido no tiene reloj y se termina desde el cierre. Qué se puede

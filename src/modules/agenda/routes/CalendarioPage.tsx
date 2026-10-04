@@ -3,8 +3,9 @@
 // Los partidos del equipo activo en la temporada en curso, en dos listas: por
 // jugar, del más cercano al más lejano, y jugados, del más reciente al más
 // antiguo. La abre cualquiera que pertenezca al equipo; programar y editar
-// solo quien tiene `schedule.manage`, y la convocatoria quien tiene
-// `lineup.manage`. Lo que no se puede hacer no se enseña.
+// solo quien tiene `schedule.manage`, la convocatoria quien tiene
+// `lineup.manage` y el directo (T-212) quien tiene `match.live.write`. Lo que
+// no se puede hacer no se enseña.
 //
 // Los entrenamientos (E4-01) no salen todavía: su pantalla es de después del
 // MVP (DOC 08 §7).
@@ -23,6 +24,7 @@ import {
   separarCalendario,
   sePuedeEditar,
   tieneCierre,
+  tieneDirecto,
 } from '../model/partido';
 
 import styles from './CalendarioPage.module.css';
@@ -36,16 +38,18 @@ const HORA = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digi
 interface FilaProps {
   partido: Partido;
   equipo: string;
+  anota: boolean;
   programa: boolean;
   convoca: boolean;
   cierra: boolean;
 }
 
-function Fila({ partido, equipo, programa, convoca, cierra }: FilaProps) {
+function Fila({ partido, equipo, anota, programa, convoca, cierra }: FilaProps) {
   const instante = new Date(partido.kickoffAt);
   const titulo = enfrentamiento(partido, equipo);
   const pendiente = sePuedeEditar(partido.status);
   const conCierre = cierra && tieneCierre(partido);
+  const conDirecto = anota && tieneDirecto(partido.status);
 
   return (
     <li className={styles.fila}>
@@ -63,8 +67,17 @@ function Fila({ partido, equipo, programa, convoca, cierra }: FilaProps) {
         {NOMBRES_DE_ESTADO[partido.status]}
         {partido.isRetroactive ? ' · en diferido' : null}
       </p>
-      {(programa && pendiente) || (convoca && pendiente) || conCierre ? (
+      {conDirecto || (programa && pendiente) || (convoca && pendiente) || conCierre ? (
         <div className={styles.acciones}>
+          {conDirecto ? (
+            <Link
+              className={styles.accion}
+              to={`/partidos/${partido.id}/directo`}
+              aria-label={partido.isRetroactive ? `Apuntar ${titulo}` : `Directo de ${titulo}`}
+            >
+              {partido.isRetroactive ? 'Apuntar' : 'Directo'}
+            </Link>
+          ) : null}
           {convoca && pendiente ? (
             <Link
               className={styles.accion}
@@ -103,12 +116,13 @@ interface ListaProps {
   vacio: string;
   partidos: readonly Partido[];
   equipo: string;
+  anota: boolean;
   programa: boolean;
   convoca: boolean;
   cierra: boolean;
 }
 
-function Lista({ titulo, vacio, partidos, equipo, programa, convoca, cierra }: ListaProps) {
+function Lista({ titulo, vacio, partidos, equipo, anota, programa, convoca, cierra }: ListaProps) {
   return (
     <Card title={titulo} headingLevel={2}>
       {partidos.length === 0 ? (
@@ -120,6 +134,7 @@ function Lista({ titulo, vacio, partidos, equipo, programa, convoca, cierra }: L
               key={partido.id}
               partido={partido}
               equipo={equipo}
+              anota={anota}
               programa={programa}
               convoca={convoca}
               cierra={cierra}
@@ -139,6 +154,7 @@ export function CalendarioPage() {
   const programa = useHasPermission('schedule.manage') === true;
   const convoca = useHasPermission('lineup.manage') === true;
   const cierra = useHasPermission('match.close') === true;
+  const anota = useHasPermission('match.live.write') === true;
 
   const contenido = () => {
     if (equipoId === null) {
@@ -192,6 +208,7 @@ export function CalendarioPage() {
           }
           partidos={proximos}
           equipo={equipoNombre}
+          anota={anota}
           programa={programa}
           convoca={convoca}
           cierra={cierra}
@@ -201,6 +218,7 @@ export function CalendarioPage() {
           vacio="Todavía no se ha jugado ninguno esta temporada."
           partidos={jugados}
           equipo={equipoNombre}
+          anota={anota}
           programa={programa}
           convoca={convoca}
           cierra={cierra}

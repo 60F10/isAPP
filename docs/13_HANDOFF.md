@@ -5,6 +5,15 @@
 
 ---
 
+## Sesión 04/10/2026 — T-212: ✅ cerrada
+
+- **Hecho:** el calendario (A09) enlaza el directo (A12) en cada partido convocado o en juego, a quien tiene `match.live.write`: «Directo», o «Apuntar» si el partido es en diferido. `tieneDirecto` en `agenda/model/partido.ts`. Rama `feat/agenda-acceso-directo`, sin base de datos.
+- **Pruebas:** 419 en verde, 2 nuevas (una de modelo y una de pantalla). Lint, Prettier y build limpios, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+- **Deuda:** la A11 no enlaza al directo, se llega por el calendario tras guardar la convocatoria. Inicio sigue sin el próximo partido, que es la T-213.
+- **Sin probar en un móvil.**
+
+---
+
 ## Sesión 27/09/2026, madrugada — T-210a y correcciones: ✅ cerrada
 
 Dos sesiones de Cowork programadas, sin Raúl delante. La del 26/09 a las 22:10 leyó los documentos,
