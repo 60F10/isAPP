@@ -5,7 +5,7 @@
 
 ## Qué es
 
-Seis arreglos que salieron de revisar la T-209b y la T-209c (DOC 13, punto 79). Ninguno cambia el esquema ni el reductor del partido.
+Siete arreglos que salieron de revisar la T-209b y la T-209c (DOC 13, punto 79). Ninguno cambia el esquema ni el reductor del partido.
 
 ## Reglas de esta sesión
 
@@ -28,6 +28,7 @@ Seis arreglos que salieron de revisar la T-209b y la T-209c (DOC 13, punto 79). 
 | 4   | Una descarga lenta que termina después de otra más nueva pisa en IndexedDB el paquete bueno                                                                                                                     | `guardarPaquete` no escribe si la instantánea guardada tiene un `pedidoEn` mayor que el que llega. Sin `pedidoEn` en alguno de los dos, escribe como hasta ahora                                                                                                                                                       |
 | 5   | El canal de Realtime pide los tres tipos de cambio con el filtro del partido. Supabase no filtra los borrados («Delete events are not filterable»): un evento deshecho en otro móvil puede no avisar            | Por cada tabla, dos escuchas con filtro, `INSERT` y `UPDATE`. Y para `match_events`, una tercera de `DELETE` **sin filtro**: avisa con cualquier borrado de la tabla, de cualquier partido, y el refresco no trae nada si no era de este. Agrupar durante 1 s ya evita la ráfaga                                       |
 | 6   | Los eventos del paquete se descargan sin orden. Tras revisar eventos en el cierre, PostgREST los devuelve en otro orden y «Últimos eventos» sale desordenado en un aparato que carga el partido por primera vez | La consulta de `match_events` de `descargarPaquete` lleva `.order('created_at').order('client_event_id')`                                                                                                                                                                                                              |
+| 7   | «Últimos eventos» llama «Rechazado» al estado `rejected`. El DOC 07 §2.2 y el cierre dicen «Descartado»                                                                                                         | «Descartado», en `UltimosEventos.tsx` y en su prueba                                                                                                                                                                                                                                                                   |
 
 ## Las pruebas que sobran y la que no prueba lo que dice
 
@@ -47,6 +48,7 @@ La T-209c se hizo dos veces y quedaron pruebas repetidas.
 | `src/modules/match/routes/LiveMatchPage.tsx` y su `.test.tsx` | Arreglos 1, 2 y 3                          |
 | `src/modules/match/api/precarga.ts` y `precarga.test.ts`      | Arreglos 4 y 6                             |
 | `src/modules/match/api/tiempoReal.ts` y `tiempoReal.test.ts`  | Arreglo 5                                  |
+| `src/modules/match/components/UltimosEventos.tsx` y su prueba | Arreglo 7                                  |
 | Los cuatro archivos de pruebas de la tabla anterior           | Las pruebas que sobran y la que se corrige |
 
 ## Pruebas
