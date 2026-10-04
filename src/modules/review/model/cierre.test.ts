@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actaInicial,
   admiteCierre,
+  alcanceEnTexto,
   bloqueosDelCierre,
   contarEventos,
   difiere,
@@ -16,10 +17,11 @@ import {
   origenDe,
   partesQueFaltan,
   resultadoEnTexto,
+  tramoEnTexto,
   validarActa,
 } from './cierre';
 
-import type { DatosDelCierre, PartidoDelCierre, Resultado } from './cierre';
+import type { CoberturaDelCierre, DatosDelCierre, PartidoDelCierre, Resultado } from './cierre';
 import type { EventoDelDirecto } from '@modules/match';
 
 const PARTIDO: PartidoDelCierre = {
@@ -301,5 +303,54 @@ describe('golesAprobados', () => {
       'sin-segundos',
       'tarde',
     ]);
+  });
+});
+
+describe('coberturas (T-209a)', () => {
+  const COBERTURA: CoberturaDelCierre = {
+    id: 'cob-1',
+    autorId: 'usuario-1',
+    alcance: 'full_team',
+    jugador: null,
+    desde: { periodo: 1, segundos: 0 },
+    hasta: { periodo: 2, segundos: 2520 },
+    diferido: false,
+  };
+  const nombre = (id: string) => (id === 'p7' ? '7 · Juanito' : 'Jugador fuera de la convocatoria');
+
+  it('alcanceEnTexto dice qué siguió, con el jugador si era uno', () => {
+    expect(alcanceEnTexto(COBERTURA, nombre)).toBe('Todo el equipo');
+    expect(alcanceEnTexto({ ...COBERTURA, alcance: 'single_player', jugador: 'p7' }, nombre)).toBe(
+      'Solo a 7 · Juanito',
+    );
+    expect(alcanceEnTexto({ ...COBERTURA, alcance: 'goals_cards' }, nombre)).toBe(
+      'Solo goles y tarjetas',
+    );
+    expect(alcanceEnTexto({ ...COBERTURA, alcance: 'custom' }, nombre)).toBe(
+      'Una selección de tipos',
+    );
+  });
+
+  it('tramoEnTexto va en minutos de partido, contando las partes anteriores', () => {
+    expect(tramoEnTexto(COBERTURA, 40)).toBe('Del minuto 0 al 82');
+    expect(
+      tramoEnTexto(
+        {
+          ...COBERTURA,
+          desde: { periodo: 1, segundos: 754 },
+          hasta: { periodo: 2, segundos: 0 },
+        },
+        40,
+      ),
+    ).toBe('Del minuto 12 al 40');
+  });
+
+  it('una abierta dice desde cuándo, y una en diferido lo dice', () => {
+    expect(
+      tramoEnTexto({ ...COBERTURA, desde: { periodo: 2, segundos: 300 }, hasta: null }, 40),
+    ).toBe('Desde el minuto 45');
+    expect(tramoEnTexto({ ...COBERTURA, diferido: true }, 40)).toBe(
+      'Del minuto 0 al 82, en diferido',
+    );
   });
 });

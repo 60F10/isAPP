@@ -5,6 +5,39 @@
 
 ---
 
+## Sesión 04/10/2026, noche — T-209a: cobertura declarada: ✅ cerrada
+
+Sesión programada, rama `feat/match-cobertura-declarada`. **Sin base de datos y sin migración.**
+
+- **Hecho:** abrir la A12 declara qué sigue quien anota, con `full_team`, si el aparato no tiene
+  una abierta y el partido no ha terminado. Una línea bajo el marcador, «Sigues: todo el equipo»,
+  y «Cambiar», que abre en su sitio «Todo el equipo», «Un jugador» —entre los convocados— y «Solo
+  goles y tarjetas»; cambiar cierra la que hay y abre otra desde ese instante. Se cierra al salir
+  con el botón y al finalizar. La A13 gana la tarjeta «Coberturas», de solo lectura, cerrada o no.
+- **Dónde vive (D06-37):** `match/model/cobertura.ts`, puro; `match/api/cobertura.ts`, que encola
+  y escribe `Instantanea.cobertura` en una transacción; `match/components/Cobertura.tsx`. El
+  reductor y `EstadoDirecto` no se han tocado. `guardarPaquete` conserva la cobertura.
+- **Decisiones pequeñas, que el traspaso no decía:** con todas las partes jugadas, o el partido
+  finalizado, el instante es el final de la última parte y no una parte de más, que es también
+  donde las termina el cierre; **en diferido salir no la cierra**, porque sin reloj no hay
+  instante y el DOC 04 §10.6 la da por entera, y la termina el cierre; con anotaciones sin enviar
+  la cobertura no se cierra hasta «Salir igualmente»; si la instantánea ya tiene una abierta que
+  no es la que la pantalla creía, no se guarda ni se encola nada; y si declarar o cerrar falla en
+  el aparato, se anota y se sale igual. En la A13 el tramo va en minutos transcurridos, «Del
+  minuto 0 al 82»: el descuento de la primera parte cuenta de más y la segunda empieza en el 40.
+- **Pruebas:** 554 en verde, lint, formato y build limpios, sin `INEFFECTIVE_DYNAMIC_IMPORT`. La
+  de `api/cobertura` va sobre Dexie de verdad, con `fake-indexeddb`: comprueba que es todo o nada.
+  `match-*.js` pasa de 55,65 a 61,49 kB (de 17,40 a 18,89 comprimidos) y `review-*.js` de 28,09 a
+  30,43 (de 9,03 a 9,65); el arranque no cambia.
+- **Deuda:** la misma persona en dos aparatos abre dos coberturas, y la fórmula del DOC 04 §10.3
+  las contaría como corroboración. El índice de fiabilidad sigue sin pintarse en ninguna
+  pantalla: es del bloque B. Y salir del directo por el botón de atrás del navegador no cierra la
+  cobertura: sigue abierta, y al volver no se declara otra.
+- **Sin probar en un móvil ni contra la base de verdad.** Las políticas de `coverage_declarations`
+  se dan por buenas según el traspaso: la primera alta real dirá si la cola la deja pasar.
+
+---
+
 ## Sesión 04/10/2026, tarde — T-210b: el cierre revisa los eventos: ✅ cerrada
 
 Sesión programada, rama `feat/review-discordancias`. **Sin base de datos y sin migración.**
@@ -382,6 +415,7 @@ Pendiente de hacer:
     `match_periods`.
 53. **C-03 a medias.** El cierre da por terminadas las coberturas abiertas en el final del
     partido, pero no las lista: hasta la T-209a no existe ninguna. La lista entra con ella.
+    **Cerrado con la T-209a:** el directo las declara y la A13 las lista.
 
 54. **La tarjeta a un técnico no cabe en el modelo.** Una `yellow_card` propia exige un jugador
     convocado (DOC 04 §7.1, I-04). El 03/10 hubo amarilla al entrenador en el 32' y se apunta como
@@ -450,6 +484,8 @@ Pendiente de hacer:
 66. **El primer partido no tiene cobertura declarada**, porque la declaración llega con la T-209a.
     Su fiabilidad saldrá «Sin cobertura declarada» hasta que se le ponga la del diferido, que el
     DOC 04 §10.6 da por entera desde el minuto 0.
+    **Tras la T-209a sigue igual:** el primer partido no tiene cobertura hasta que alguien se la
+    ponga a mano.
 
 67. **Los traspasos guiados viven en el proyecto de Claude, no en el repositorio**:
     `claude/traspaso_T-xxx.md`. Cada sesión que ejecuta uno añade su cierre aquí arriba, corto, y

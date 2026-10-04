@@ -10,7 +10,8 @@
 //      (DOC 04 §5.4). Sin partes, el recálculo no da minutos a nadie.
 //   3. Recalcular los tramos con `rebuild_match_stints` (C-04).
 //   4. Dar por terminadas las coberturas abiertas en el final del partido
-//      (C-03). Hasta la T-209 no hay ninguna.
+//      (C-03): las de quien cerró la aplicación sin salir del directo, y la
+//      de un partido en diferido, que no se cierra al salir (T-209a).
 //   5. Contar otra vez los pendientes y pasar el partido a `closed` con el
 //      acta, quién y cuándo. Lo vigila `enforce_match_changes`, que pide
 //      `match.close`.
@@ -43,13 +44,18 @@ const COLUMNAS_PARTIDO =
 const COLUMNAS_EVENTO =
   'id, client_event_id, event_type, period, seconds, is_opponent, player_id, secondary_player_id, details, status, created_by, duplicate_group_id';
 
+// Lo que declaró seguir cada anotador (T-209a). Los tipos cubiertos no se
+// piden: la tarjeta dice el alcance, y la fiabilidad se calcula en la base.
+const COLUMNAS_COBERTURA =
+  'id, user_id, scope, target_player_id, start_period, start_seconds, end_period, end_seconds, is_retroactive';
+
 /** Estados desde los que se cierra. En diferido se comprueba además `is_retroactive`. */
 const DESDE_DIFERIDO: EstadoDelPartido[] = ['finished', 'suspended', 'called', 'live'];
 const DESDE: EstadoDelPartido[] = ['finished', 'suspended'];
 
 /** Todo lo que pinta la A13, o `null` si el partido no existe o la RLS no deja leerlo. */
 export async function fetchCierre(partidoId: string): Promise<DatosDelCierre | null> {
-  const [partido, marcador, eventos, convocatoria, partes] = await Promise.all([
+  const [partido, marcador, eventos, convocatoria, partes, coberturas] = await Promise.all([
     supabase.from('matches').select(COLUMNAS_PARTIDO).eq('id', partidoId).maybeSingle(),
     supabase
       .from('v_match_scores')
@@ -63,9 +69,14 @@ export async function fetchCierre(partidoId: string): Promise<DatosDelCierre | n
       .select('player_id, shirt_number, players(nickname)')
       .eq('match_id', partidoId),
     supabase.from('match_periods').select('period_number').eq('match_id', partidoId),
+    supabase
+      .from('coverage_declarations')
+      .select(COLUMNAS_COBERTURA)
+      .eq('match_id', partidoId)
+      .order('created_at'),
   ]);
 
-  for (const respuesta of [partido, marcador, eventos, convocatoria, partes]) {
+  for (const respuesta of [partido, marcador, eventos, convocatoria, partes, coberturas]) {
     if (respuesta.error) {
       throw respuesta.error;
     }
@@ -118,6 +129,18 @@ export async function fetchCierre(partidoId: string): Promise<DatosDelCierre | n
       aFavor: marcador.data?.goals_for ?? 0,
       enContra: marcador.data?.goals_against ?? 0,
     },
+    coberturas: (coberturas.data ?? []).map((cobertura) => ({
+      id: cobertura.id,
+      autorId: cobertura.user_id,
+      alcance: cobertura.scope,
+      jugador: cobertura.target_player_id,
+      desde: { periodo: cobertura.start_period, segundos: cobertura.start_seconds },
+      hasta:
+        cobertura.end_period === null || cobertura.end_seconds === null
+          ? null
+          : { periodo: cobertura.end_period, segundos: cobertura.end_seconds },
+      diferido: cobertura.is_retroactive,
+    })),
   };
 }
 

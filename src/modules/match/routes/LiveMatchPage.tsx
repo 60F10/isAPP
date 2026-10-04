@@ -18,6 +18,12 @@
 // (DOC 07 §2) y confirmación en el mismo sitio para lo que no tiene vuelta
 // atrás, terminar una parte y finalizar. Salir es una acción explícita, y
 // con anotaciones sin enviar lo dice antes (D06-10b).
+//
+// DESDE LA T-209a, LA COBERTURA DECLARADA (DOC 04 §10.2, D06-37). Al abrir se
+// declara qué sigue quien anota —todo el equipo, si no dice otra cosa—, se
+// puede cambiar bajo el marcador y se cierra al salir con el botón y al
+// finalizar. Va aparte del reductor, por `api/cobertura`: que falle no impide
+// anotar ni salir, y la que se quede abierta la termina el cierre (C-03).
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -32,12 +38,20 @@ import { Button } from '@shared/ui/Button';
 import { Pantalla } from '@shared/ui/Pantalla';
 import { Toast } from '@shared/ui/Toast';
 
+import {
+  cambiarCobertura,
+  cerrarCobertura,
+  declararCobertura,
+  leerCobertura,
+} from '../api/cobertura';
 import { aplicarTransicion, cargarDirecto, SIN_PRECARGA } from '../api/directo';
 import { useAhora } from '../hooks/useAhora';
 import { Botonera } from '../components/Botonera';
+import { Cobertura } from '../components/Cobertura';
 import { FlujoDeRegistro } from '../components/FlujoDeRegistro';
 import { UltimosEventos } from '../components/UltimosEventos';
 import { useBloqueoDePantalla } from '../hooks/useBloqueoDePantalla';
+import { alcancesOfrecidos, describirCobertura, instanteActual } from '../model/cobertura';
 import { describirEvento } from '../model/describir';
 import { enCurso, reducir } from '../model/directo';
 import { cambiosHechos, marcador } from '../model/eventos';
@@ -55,6 +69,7 @@ import { formatoReloj, minutoDePresentacion, rangoDeParte, segundosDeParte } fro
 import styles from './LiveMatchPage.module.css';
 
 import type { DirectoCargado } from '../api/directo';
+import type { Alcance, CoberturaLocal } from '../model/cobertura';
 import type { Accion, EstadoDirecto, Resultado } from '../model/directo';
 import type { EventoDelDirecto } from '../model/eventos';
 import type { Boton, Flujo } from '../model/flujo';
@@ -193,6 +208,54 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     </>
   ) : null;
   const tituloFicha = useRef<HTMLHeadingElement>(null);
+  // Lo que sigue quien anota en este aparato (T-209a). `null` es que no hay
+  // ninguna abierta; `coberturaLista`, que ya se ha mirado.
+  const [cobertura, setCobertura] = useState<CoberturaLocal | null>(null);
+  const [coberturaLista, setCoberturaLista] = useState(false);
+  const cambiandoCobertura = useRef(false);
+  const userId = session === null ? null : session.user.id;
+
+  const coberturaMirada = useRef(false);
+
+  // Al abrir: si el aparato no tiene una abierta y el partido no ha terminado,
+  // se declara «todo el equipo» desde este instante. Una vez por pantalla, con
+  // lo que se cargó: la marca lo impide aunque el efecto se repita, y si aun
+  // así se llamara dos veces, `declararCobertura` devuelve la que ya hay en
+  // vez de abrir otra.
+  useEffect(() => {
+    if (coberturaMirada.current) {
+      return;
+    }
+
+    coberturaMirada.current = true;
+    const inicial = cargado.estado;
+
+    void (async () => {
+      try {
+        let abierta = await leerCobertura(inicial.partidoId);
+
+        if (abierta === null && inicial.fase !== 'finalizado' && userId !== null) {
+          abierta = await declararCobertura({
+            id: crypto.randomUUID(),
+            partidoId: inicial.partidoId,
+            userId,
+            alcance: 'full_team',
+            jugador: null,
+            tiposActivos: inicial.tiposActivos,
+            desde: instanteActual(inicial, Date.now()),
+            diferido: inicial.diferido,
+          });
+        }
+
+        setCobertura(abierta);
+      } catch {
+        // Sin declarar se anota igual: la línea dice «sin declarar» y deja
+        // declararla a mano.
+      } finally {
+        setCoberturaLista(true);
+      }
+    })();
+  }, [cargado.estado, userId]);
 
   // La ficha sustituye a la botonera: el foco va a su título (2.4.3).
   useEffect(() => {
@@ -366,8 +429,6 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
 
   /** Guarda el evento del flujo terminado: confirmación de 2 s y vibración. */
   const guardarFlujo = async (terminado: Flujo) => {
-    const userId = session === null ? null : session.user.id;
-
     if (userId === null) {
       setErrorDeFlujo('Sin sesión no se puede apuntar.');
       return;
@@ -483,9 +544,75 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     estado.fase === 'inactivo' &&
     estado.titulares.length !== estado.titularesPedidos;
 
-  const salir = async () => {
-    const userId = session === null ? null : session.user.id;
+  /**
+   * Cierra la cobertura de este aparato en el instante de `hasta`. En diferido
+   * no hay instante que valga: se queda abierta y la termina el cierre, en el
+   * final del partido (DOC 04 §10.6). Si no se puede guardar, también.
+   *
+   * La hora entra como argumento, como en el reductor: la pone quien pulsa.
+   */
+  const terminarCobertura = async (hasta: EstadoDirecto, ahora: number) => {
+    if (cobertura === null || hasta.diferido) {
+      return;
+    }
 
+    try {
+      setCobertura(await cerrarCobertura(hasta.partidoId, cobertura, instanteActual(hasta, ahora)));
+    } catch {
+      // Se queda abierta: la termina el cierre del partido (C-03).
+    }
+  };
+
+  /** Lo que hace «Cambiar»: cierra la que hay y abre otra desde este instante. */
+  const cambiarLoQueSigue = async (alcance: Alcance, jugador: string | null) => {
+    if (userId === null || cambiandoCobertura.current) {
+      return;
+    }
+
+    cambiandoCobertura.current = true;
+    setAviso(null);
+
+    try {
+      const nueva = await cambiarCobertura(cobertura, {
+        id: crypto.randomUUID(),
+        partidoId: estado.partidoId,
+        userId,
+        alcance,
+        jugador,
+        tiposActivos: estado.tiposActivos,
+        desde: instanteActual(estado, Date.now()),
+        diferido: estado.diferido,
+      });
+
+      setCobertura(nueva);
+      anunciar(`Ahora sigues: ${describirCobertura(nueva, nombreDe)}`);
+    } catch {
+      const mensaje =
+        'No se ha podido guardar lo que sigues en este dispositivo. Sigue como estaba.';
+
+      setAviso(mensaje);
+      anunciar(mensaje);
+    } finally {
+      cambiandoCobertura.current = false;
+    }
+  };
+
+  /** Finaliza el partido y, si sale bien, deja de seguir: ya no hay nada que seguir. */
+  const finalizar = async (ahora: number) => {
+    const resultado = await hacer({ tipo: 'finalizar', ahora }, 'Partido finalizado');
+
+    if (resultado !== null) {
+      await terminarCobertura(resultado.estado, ahora);
+    }
+  };
+
+  /** Salir de verdad: se cierra la cobertura y se va al calendario. */
+  const irse = async () => {
+    await terminarCobertura(estado, Date.now());
+    void navigate('/calendario');
+  };
+
+  const salir = async () => {
     if (userId !== null && pendientesAlSalir === null) {
       try {
         const cuantos = await contarPendientes(userId);
@@ -502,7 +629,9 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
       }
     }
 
-    void navigate('/calendario');
+    // La cobertura se cierra después de contar: su cierre también va a la
+    // cola, y contado antes saldría siempre como una anotación sin enviar.
+    await irse();
   };
 
   const controles = () => {
@@ -541,7 +670,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
           si="Sí, finalizar"
           alConfirmar={() => {
             setConfirmando(null);
-            void hacer({ tipo: 'finalizar', ahora: Date.now() }, 'Partido finalizado');
+            void finalizar(Date.now());
           }}
           alCancelar={() => {
             setConfirmando(null);
@@ -669,7 +798,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
                 variant="secondary"
                 className={styles.grande}
                 onClick={() => {
-                  void navigate('/calendario');
+                  void irse();
                 }}
               >
                 Salir igualmente
@@ -706,6 +835,21 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
           </p>
         ) : null}
       </section>
+
+      {/* Lo que sigue quien anota (T-209a). En diferido es una sola y no se
+          elige; con el partido terminado ya no se sigue nada. */}
+      {coberturaLista && estado.fase !== 'finalizado' ? (
+        <Cobertura
+          cobertura={cobertura}
+          alcances={estado.diferido ? [] : alcancesOfrecidos(estado.tiposActivos)}
+          convocados={[...convocados].sort(porDorsal).map((linea) => linea.playerId)}
+          nombre={nombreDe}
+          dorsal={dorsalDe}
+          alElegir={(alcance, jugador) => {
+            void cambiarLoQueSigue(alcance, jugador);
+          }}
+        />
+      ) : null}
 
       {aviso === null ? null : <p className={styles.aviso}>{aviso}</p>}
       {faltanTitulares ? (

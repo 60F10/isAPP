@@ -241,6 +241,36 @@ describe('guardarPaquete con estado del directo', () => {
       { matchId: 'par-1', updatedAt: 500, datos: { paquete, descargadoEn: 500, estado } },
     ]);
   });
+
+  it('conserva la cobertura declarada en este aparato, con estado o sin él (T-209a)', async () => {
+    const paquete: PaqueteDePartido = await descargarPaquete('par-1');
+    const cobertura = { id: 'cob-1', alcance: 'full_team', abierta: true };
+    almacen.anterior = {
+      matchId: 'par-1',
+      updatedAt: 1,
+      datos: { paquete, descargadoEn: 1, cobertura },
+    };
+
+    await guardarPaquete(paquete, 500);
+
+    const estado = { partidoId: 'par-1', fase: 'pausado' };
+    almacen.anterior = {
+      matchId: 'par-1',
+      updatedAt: 1,
+      datos: { paquete, descargadoEn: 1, estado, cobertura },
+    };
+
+    await guardarPaquete(paquete, 600);
+
+    expect(almacen.snapshots).toEqual([
+      { matchId: 'par-1', updatedAt: 500, datos: { paquete, descargadoEn: 500, cobertura } },
+      {
+        matchId: 'par-1',
+        updatedAt: 600,
+        datos: { paquete, descargadoEn: 600, estado, cobertura },
+      },
+    ]);
+  });
 });
 
 describe('pedirAlmacenPersistente', () => {
