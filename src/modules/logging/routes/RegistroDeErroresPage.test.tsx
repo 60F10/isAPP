@@ -5,13 +5,22 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AnnounceContext } from '@shared/hooks/announceContext';
+
 import { RegistroDeErroresPage } from './RegistroDeErroresPage';
 
-import type { ErrorRegistrado, FiltrosDeErrores, PaginaDeErrores } from '../api/errorLogs';
+import type {
+  CursorDeErrores,
+  ErrorRegistrado,
+  FiltrosDeErrores,
+  PaginaDeErrores,
+} from '../api/errorLogs';
 
 const api = vi.hoisted(() => ({
   fetchEsAdministrador: vi.fn<() => Promise<boolean>>(),
-  fetchErrores: vi.fn<(filtros: FiltrosDeErrores, desde: number) => Promise<PaginaDeErrores>>(),
+  fetchErrores:
+    vi.fn<(filtros: FiltrosDeErrores, desde: CursorDeErrores | null) => Promise<PaginaDeErrores>>(),
+  anunciar: vi.fn<(mensaje: string) => void>(),
   contarErroresDesde: vi.fn<(desde: Date) => Promise<number>>(),
 }));
 
@@ -36,7 +45,9 @@ function montar() {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <RegistroDeErroresPage />
+      <AnnounceContext value={{ anunciar: api.anunciar }}>
+        <RegistroDeErroresPage />
+      </AnnounceContext>
     </QueryClientProvider>,
   );
 }
@@ -78,7 +89,7 @@ describe('RegistroDeErroresPage', () => {
     await vi.waitFor(() => {
       expect(api.fetchErrores).toHaveBeenLastCalledWith(
         expect.objectContaining({ origen: 'sync' }),
-        0,
+        null,
       );
     });
   });
@@ -94,8 +105,72 @@ describe('RegistroDeErroresPage', () => {
 
     expect(await screen.findByText('Fallo número 2')).toBeInTheDocument();
     expect(screen.getByText('Fallo número 1')).toBeInTheDocument();
-    expect(api.fetchErrores).toHaveBeenLastCalledWith(expect.anything(), 50);
+    expect(api.fetchErrores).toHaveBeenLastCalledWith(expect.anything(), {
+      createdAt: '2026-10-03T10:30:00Z',
+      id: 'e1',
+    });
     expect(screen.queryByRole('button', { name: 'Cargar 50 más' })).not.toBeInTheDocument();
+  });
+
+  it('«Cargar 50 más» pide con el cursor de la última fila y deja el foco en la primera nueva', async () => {
+    api.fetchErrores
+      .mockResolvedValueOnce({
+        filas: [error(1), error(2, { createdAt: '2026-10-03T10:00:00Z' })],
+        hayMas: true,
+      })
+      .mockResolvedValueOnce({
+        filas: [error(3, { createdAt: '2026-10-03T09:00:00Z' })],
+        hayMas: false,
+      });
+    montar();
+    await screen.findByText('Fallo número 2');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cargar 50 más' }));
+
+    await screen.findByText('Fallo número 3');
+    expect(api.fetchErrores).toHaveBeenLastCalledWith(expect.anything(), {
+      createdAt: '2026-10-03T10:00:00Z',
+      id: 'e2',
+    });
+    await vi.waitFor(() => {
+      const fila = screen.getByText('Fallo número 3').closest('tr');
+
+      expect(fila).toHaveFocus();
+    });
+  });
+
+  it('cambiar un filtro anuncia cuántos errores hay', async () => {
+    api.fetchErrores.mockImplementation((filtros) =>
+      Promise.resolve(
+        filtros.soloHoy
+          ? { filas: [error(1), error(2)], hayMas: false }
+          : { filas: [error(1), error(2), error(3)], hayMas: false },
+      ),
+    );
+    montar();
+    await screen.findByText('Fallo número 3');
+
+    await userEvent.click(screen.getByLabelText('Solo de hoy'));
+
+    await vi.waitFor(() => {
+      expect(api.anunciar).toHaveBeenCalledWith('2 errores');
+    });
+  });
+
+  it('un filtro sin resultados lo anuncia', async () => {
+    api.fetchErrores.mockImplementation((filtros) =>
+      Promise.resolve(
+        filtros.soloHoy ? { filas: [], hayMas: false } : { filas: [error(1)], hayMas: false },
+      ),
+    );
+    montar();
+    await screen.findByText('Fallo número 1');
+
+    await userEvent.click(screen.getByLabelText('Solo de hoy'));
+
+    await vi.waitFor(() => {
+      expect(api.anunciar).toHaveBeenCalledWith('Ningún error cumple esos filtros.');
+    });
   });
 
   it('sin ser administrador, dice la frase de la cuenta y no consulta nada', async () => {

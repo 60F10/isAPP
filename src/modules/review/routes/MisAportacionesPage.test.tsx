@@ -233,7 +233,11 @@ describe('MisAportacionesPage', () => {
     await pulsar('Sin asistencia');
 
     await waitFor(() => {
-      expect(api.cambiarSegundo).toHaveBeenCalledWith({ id: 'e1', segundo: null });
+      expect(api.cambiarSegundo).toHaveBeenCalledWith({
+        id: 'e1',
+        partidoId: 'par-1',
+        segundo: null,
+      });
     });
     await waitFor(() => {
       expect(anunciar).toHaveBeenCalledWith('Asistencia quitada.');
@@ -248,7 +252,11 @@ describe('MisAportacionesPage', () => {
     await pulsar('10 · Nauzet');
 
     await waitFor(() => {
-      expect(api.cambiarJugador).toHaveBeenCalledWith({ id: 'e1', jugador: 'jug-10' });
+      expect(api.cambiarJugador).toHaveBeenCalledWith({
+        id: 'e1',
+        partidoId: 'par-1',
+        jugador: 'jug-10',
+      });
     });
     // Tras el cambio se vuelve a pedir la lista.
     await waitFor(() => {
@@ -270,7 +278,11 @@ describe('MisAportacionesPage', () => {
     await pulsar('10 · Nauzet');
 
     await waitFor(() => {
-      expect(api.cambiarSegundo).toHaveBeenCalledWith({ id: 'e1', segundo: 'jug-10' });
+      expect(api.cambiarSegundo).toHaveBeenCalledWith({
+        id: 'e1',
+        partidoId: 'par-1',
+        segundo: 'jug-10',
+      });
     });
   });
 
@@ -285,6 +297,7 @@ describe('MisAportacionesPage', () => {
     await waitFor(() => {
       expect(discordancias.cambiarMinuto).toHaveBeenCalledWith({
         id: 'e1',
+        partidoId: 'par-1',
         periodo: 1,
         segundos: 660,
       });
@@ -303,7 +316,7 @@ describe('MisAportacionesPage', () => {
     await pulsar('Sí, borrar');
 
     await waitFor(() => {
-      expect(api.borrarEvento).toHaveBeenCalledWith('e1');
+      expect(api.borrarEvento).toHaveBeenCalledWith({ id: 'e1', partidoId: 'par-1' });
     });
     await waitFor(() => {
       expect(anunciar).toHaveBeenCalledWith('Evento borrado.');
@@ -351,6 +364,23 @@ describe('MisAportacionesPage', () => {
     await pulsar('10 · Nauzet');
 
     expect(await screen.findByText('El jugador no está convocado en este partido')).toBeVisible();
+  });
+
+  it('tras un fallo que no es `SIN_FILAS`, el foco vuelve a la leyenda del formulario', async () => {
+    servidor({ partidos: [partido({ id: 'par-1' })], eventos: [evento({ id: 'e1' })] });
+    api.cambiarJugador.mockRejectedValue({ code: 'P0001', message: 'No está convocado' });
+    montar();
+
+    await pulsar('Jugador: Evento e1');
+    await pulsar('10 · Nauzet');
+
+    await screen.findByText('No está convocado');
+    const leyenda = screen.getByText(/^.+: Evento e1$/, { selector: 'legend' });
+
+    expect(leyenda).toHaveAttribute('tabindex', '-1');
+    await waitFor(() => {
+      expect(leyenda).toHaveFocus();
+    });
   });
 
   it('un evento ya revisado, sin el permiso de aprobar, no ofrece nada y lo dice', async () => {

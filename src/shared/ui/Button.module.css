@@ -33,7 +33,8 @@
   outline-offset: var(--focus-offset);
 }
 
-.button:disabled {
+.button:disabled,
+.button[aria-disabled='true'] {
   background-color: var(--color-disabled-bg);
   border-color: var(--color-disabled-border);
   color: var(--color-disabled-text);

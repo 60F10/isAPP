@@ -5,7 +5,7 @@ import { supabase } from '@shared/lib/supabase';
 import { TAMANO_DE_PAGINA } from '../model/consulta';
 
 import type { Json } from '@app-types/database.types';
-import type { FiltrosDeErrores } from '../model/consulta';
+import type { CursorDeErrores, FiltrosDeErrores } from '../model/consulta';
 import type { Dispositivo, FilaDeError } from '../model/errorLog';
 
 /**
@@ -28,7 +28,7 @@ export async function insertarErrorLog(fila: FilaDeError): Promise<void> {
 // Lectura para la C02 (T-303). Solo `is_platform_admin()` recibe filas.
 // ---------------------------------------------------------------------------
 
-export type { FiltrosDeErrores } from '../model/consulta';
+export type { CursorDeErrores, FiltrosDeErrores } from '../model/consulta';
 
 export interface ErrorRegistrado {
   id: string;
@@ -47,9 +47,12 @@ export interface PaginaDeErrores {
   hayMas: boolean;
 }
 
-/** Escapa lo que `LIKE` toma por comodín. */
-function escaparComodines(texto: string): string {
-  return texto.replace(/[\\%_]/g, (letra) => `\\${letra}`);
+/**
+ * Escapa lo que `LIKE` toma por comodín (`%`, `_` y la barra) y quita el `*`,
+ * que en los filtros de PostgREST también hace de comodín.
+ */
+export function escaparComodines(texto: string): string {
+  return texto.replace(/\*/g, '').replace(/[\\%_]/g, (letra) => `\\${letra}`);
 }
 
 function inicioDelDia(): Date {
@@ -122,20 +125,30 @@ export async function fetchNombres(ids: readonly string[]): Promise<Map<string, 
 }
 
 /**
- * Una página de errores, del más reciente al más antiguo, con los filtros
- * aplicados en la consulta. Se piden `TAMANO_DE_PAGINA + 1` para saber si
- * queda más sin una segunda consulta de recuento.
+ * Una página de errores, del más reciente al más antiguo (`created_at` e `id`
+ * descendentes), con los filtros aplicados en la consulta. Se pagina por
+ * cursor y no por desplazamiento: si entra un error mientras se mira, la
+ * página siguiente no repite ni se salta ninguna fila. `desde` es la última
+ * fila vista, y se pide lo anterior: `created_at` menor, o igual con `id`
+ * menor. Se piden `TAMANO_DE_PAGINA + 1` para saber si queda más sin una
+ * segunda consulta de recuento.
  */
 export async function fetchErrores(
   filtros: FiltrosDeErrores,
-  desde: number,
+  desde: CursorDeErrores | null,
 ): Promise<PaginaDeErrores> {
   let consulta = supabase
     .from('error_logs')
     .select('id, user_id, route, message, stack, device, app_version, created_at')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
-    .range(desde, desde + TAMANO_DE_PAGINA);
+    .limit(TAMANO_DE_PAGINA + 1);
+
+  if (desde !== null) {
+    consulta = consulta.or(
+      `created_at.lt.${desde.createdAt},and(created_at.eq.${desde.createdAt},id.lt.${desde.id})`,
+    );
+  }
 
   if (filtros.origen !== 'todos') {
     consulta = consulta.like('message', `[${filtros.origen}]%`);

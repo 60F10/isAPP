@@ -41,6 +41,8 @@ export async function marcarRepetidos(partidoId: string): Promise<number> {
 
 export interface Resolucion {
   id: string;
+  /** El partido del evento: va en el filtro, junto al `id`. */
+  partidoId: string;
   /** El estado que se vio en pantalla. */
   de: Estado;
   /** El estado al que pasa. */
@@ -53,11 +55,12 @@ export interface Resolucion {
  * y cuándo, y nada más. Lanza `EVENTO_CAMBIADO` si el evento ya no está en
  * el estado de partida.
  */
-export async function resolverEvento({ id, de, a, userId }: Resolucion): Promise<void> {
+export async function resolverEvento({ id, partidoId, de, a, userId }: Resolucion): Promise<void> {
   const { data, error } = await supabase
     .from('match_events')
     .update({ status: a, reviewed_by: userId, reviewed_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('match_id', partidoId)
     .eq('status', de)
     .select('id')
     .maybeSingle();
@@ -77,23 +80,27 @@ export async function resolverEvento({ id, de, a, userId }: Resolucion): Promise
  * otro haya resuelto mientras tanto se quedan como están. Lanza
  * `EVENTO_CAMBIADO` si ya no quedaba ninguno pendiente.
  *
- * @returns cuántos se han aprobado.
+ * @returns cuántos se pidieron y cuántos se han aprobado: si son menos, los
+ * demás habían cambiado y la pantalla lo dice.
  */
 export async function aprobarPendientes({
   ids,
+  partidoId,
   userId,
 }: {
   ids: readonly string[];
+  partidoId: string;
   userId: string;
-}): Promise<number> {
+}): Promise<{ pedidos: number; aprobados: number }> {
   if (ids.length === 0) {
-    return 0;
+    return { pedidos: 0, aprobados: 0 };
   }
 
   const { data, error } = await supabase
     .from('match_events')
     .update({ status: 'approved', reviewed_by: userId, reviewed_at: new Date().toISOString() })
     .in('id', ids)
+    .eq('match_id', partidoId)
     .eq('status', 'pending')
     .select('id');
 
@@ -105,19 +112,22 @@ export async function aprobarPendientes({
     throw new Error(EVENTO_CAMBIADO);
   }
 
-  return data.length;
+  return { pedidos: ids.length, aprobados: data.length };
 }
 
 /**
  * Corrige cuándo pasó un evento: escribe `period` y `seconds`, y nada más. El
- * estado y la revisión no se tocan. Sin permiso, cero filas y `SIN_FILAS`.
+ * estado y la revisión no se tocan. Cero filas es `SIN_FILAS`: sin permiso, o
+ * el evento ya no existe o ya no es de este partido.
  */
 export async function cambiarMinuto({
   id,
+  partidoId,
   periodo,
   segundos,
 }: {
   id: string;
+  partidoId: string;
   periodo: number;
   segundos: number;
 }): Promise<void> {
@@ -125,6 +135,7 @@ export async function cambiarMinuto({
     .from('match_events')
     .update({ period: periodo, seconds: segundos })
     .eq('id', id)
+    .eq('match_id', partidoId)
     .select('id')
     .maybeSingle();
 

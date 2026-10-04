@@ -1,7 +1,7 @@
 // Hooks del cierre (T-210a) y de su panel de eventos (T-210b): atan `model/`
 // y `api/` a la A13.
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@modules/auth';
 
@@ -161,6 +161,9 @@ export function useAutores(ids: readonly string[]) {
     queryFn: () => fetchAutores(ids),
     enabled: ids.length > 0,
     staleTime: AUTORES_AL_DIA_MS,
+    // Al aparecer un autor nuevo la clave cambia: sin esto, «Lo apuntó:» se
+    // iría de todos los eventos hasta que contestara la consulta.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -179,7 +182,7 @@ export function useResolverEvento(partidoId: string) {
         throw new Error('Sin sesión.');
       }
 
-      await resolverEvento({ ...cambio, userId: session.user.id });
+      await resolverEvento({ ...cambio, partidoId, userId: session.user.id });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: reviewKeys.cierre(partidoId) });
@@ -190,7 +193,7 @@ export function useResolverEvento(partidoId: string) {
 /**
  * Aprueba en bloque los pendientes que se ven (C-01).
  *
- * @returns cuántos se han aprobado.
+ * @returns cuántos se pidieron y cuántos se han aprobado.
  */
 export function useAprobarPendientes(partidoId: string) {
   const { session } = useAuth();
@@ -202,7 +205,7 @@ export function useAprobarPendientes(partidoId: string) {
         throw new Error('Sin sesión.');
       }
 
-      return aprobarPendientes({ ids, userId: session.user.id });
+      return aprobarPendientes({ ids, partidoId, userId: session.user.id });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: reviewKeys.cierre(partidoId) });
@@ -215,7 +218,7 @@ export function useCambiarMinuto(partidoId: string) {
 
   return useMutation({
     mutationFn: (cambio: { id: string; periodo: number; segundos: number }) =>
-      cambiarMinuto(cambio),
+      cambiarMinuto({ ...cambio, partidoId }),
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: reviewKeys.cierre(partidoId) });
     },

@@ -40,3 +40,20 @@
   flex-wrap: wrap;
   gap: var(--tap-gap);
 }
+
+.conjunto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.leyenda {
+  padding: 0;
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}

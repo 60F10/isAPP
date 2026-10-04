@@ -3,9 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { contarErroresDesde, fetchErrores, fetchEsAdministrador } from '../api/errorLogs';
-import { TAMANO_DE_PAGINA } from '../model/consulta';
-
-import type { FiltrosDeErrores } from '../model/consulta';
+import type { CursorDeErrores, FiltrosDeErrores } from '../model/consulta';
 
 const clavesDeLogging = {
   all: ['logging'] as const,
@@ -25,17 +23,26 @@ export function useEsAdministrador() {
 }
 
 /**
- * Una página de errores. Cada página es su propia consulta: no se usa
- * `useInfiniteQuery` porque arrastra al paquete inicial el trozo común de
- * TanStack Query, y la C02 es perezosa.
+ * Una página de errores, pedida por cursor: `cursor` es la última fila de la
+ * página anterior, o `null` para la primera. Cada página es su propia consulta:
+ * no se usa `useInfiniteQuery` porque arrastra al paquete inicial el trozo
+ * común de TanStack Query, y la C02 es perezosa.
+ *
+ * Las páginas con cursor no se vuelven a pedir solas: con una fila nueva por
+ * delante, pedirlas otra vez movería sus límites.
  */
-export function useErrores(filtros: FiltrosDeErrores, pagina: number, activo = true) {
+export function useErrores(
+  filtros: FiltrosDeErrores,
+  cursor: CursorDeErrores | null,
+  activo = true,
+) {
   return useQuery({
-    queryKey: [...clavesDeLogging.errores(filtros), pagina],
-    queryFn: () => fetchErrores(filtros, pagina * TAMANO_DE_PAGINA),
+    queryKey: [...clavesDeLogging.errores(filtros), cursor?.createdAt ?? null, cursor?.id ?? null],
+    queryFn: () => fetchErrores(filtros, cursor),
     enabled: activo,
     // Varios componentes leen la misma página: sin esto, cada montaje la pide otra vez.
-    staleTime: 30_000,
+    staleTime: cursor === null ? 30_000 : Infinity,
+    refetchOnWindowFocus: cursor === null,
   });
 }
 

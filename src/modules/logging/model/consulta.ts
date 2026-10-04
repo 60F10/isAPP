@@ -42,6 +42,12 @@ export interface FiltrosDeErrores {
   soloHoy: boolean;
 }
 
+/** La última fila vista: la página siguiente pide lo anterior a ella. */
+export interface CursorDeErrores {
+  createdAt: string;
+  id: string;
+}
+
 export const SIN_FILTROS: FiltrosDeErrores = { origen: 'todos', ruta: '', soloHoy: false };
 
 const CON_ORIGEN = /^\[([a-z]+)\]\s*/;

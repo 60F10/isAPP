@@ -8,8 +8,14 @@
 // Una tabla de verdad a partir de 600 px. Por debajo, el mismo marcado se
 // compone en tarjetas con CSS, para no duplicar el contenido en el DOM.
 
-import { useState } from 'react';
+// Los roles de la tabla van escritos a mano, a propósito: por debajo de 600 px
+// el CSS la pasa a `display: block` y los navegadores le quitan su semántica.
+// Con los roles puestos, sigue siendo una tabla para quien la lee con un lector.
+/* oxlint-disable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role */
 
+import { useEffect, useRef, useState } from 'react';
+
+import { useAnnounce } from '@shared/hooks/announceContext';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Field } from '@shared/ui/Field';
@@ -28,7 +34,7 @@ import {
 import styles from './RegistroDeErroresPage.module.css';
 
 import type { ErrorRegistrado } from '../api/errorLogs';
-import type { FiltrosDeErrores, OrigenConocido } from '../model/consulta';
+import type { CursorDeErrores, FiltrosDeErrores, OrigenConocido } from '../model/consulta';
 
 const FECHA = new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -42,9 +48,9 @@ function Detalle({ error }: { error: ErrorRegistrado }) {
   return (
     <details className={styles.detalle}>
       <summary className={styles.resumenDetalle}>Ver detalle</summary>
-      <h4 className={styles.subtitulo}>Mensaje</h4>
+      <h3 className={styles.subtitulo}>Mensaje</h3>
       <p className={styles.mensaje}>{error.mensaje}</p>
-      <h4 className={styles.subtitulo}>Traza</h4>
+      <h3 className={styles.subtitulo}>Traza</h3>
       {error.traza === null ? (
         <p>Sin traza.</p>
       ) : (
@@ -54,7 +60,7 @@ function Detalle({ error }: { error: ErrorRegistrado }) {
           {error.traza}
         </pre>
       )}
-      <h4 className={styles.subtitulo}>Dispositivo</h4>
+      <h3 className={styles.subtitulo}>Dispositivo</h3>
       {datos.length === 0 ? (
         <p>Sin datos del dispositivo.</p>
       ) : (
@@ -71,8 +77,25 @@ function Detalle({ error }: { error: ErrorRegistrado }) {
   );
 }
 
-function FilasDeLaPagina({ filtros, pagina }: { filtros: FiltrosDeErrores; pagina: number }) {
-  const errores = useErrores(filtros, pagina);
+interface FilasDeLaPaginaProps {
+  filtros: FiltrosDeErrores;
+  cursor: CursorDeErrores | null;
+  /** La página se acaba de añadir con «Cargar más»: su primera fila recibe el foco. */
+  enfocar: boolean;
+}
+
+function FilasDeLaPagina({ filtros, cursor, enfocar }: FilasDeLaPaginaProps) {
+  const errores = useErrores(filtros, cursor);
+  const refPrimera = useRef<HTMLTableRowElement>(null);
+  const llegaron = errores.data !== undefined;
+
+  // El botón que se pulsó sigue en su sitio, pero quien lo usa no sabe qué ha
+  // llegado: el foco va a la primera fila nueva.
+  useEffect(() => {
+    if (enfocar && llegaron) {
+      refPrimera.current?.focus();
+    }
+  }, [enfocar, llegaron]);
 
   if (errores.data === undefined) {
     return null;
@@ -80,20 +103,34 @@ function FilasDeLaPagina({ filtros, pagina }: { filtros: FiltrosDeErrores; pagin
 
   return (
     <>
-      {errores.data.filas.map((error) => (
-        <tbody key={error.id} className={styles.error}>
-          <tr>
-            <th scope="row" data-etiqueta="Fecha">
+      {errores.data.filas.map((error, indice) => (
+        <tbody key={error.id} className={styles.error} role="rowgroup">
+          <tr
+            ref={indice === 0 ? refPrimera : undefined}
+            role="row"
+            tabIndex={indice === 0 ? -1 : undefined}
+          >
+            <th scope="row" role="rowheader" data-etiqueta="Fecha">
               <time dateTime={error.createdAt}>{FECHA.format(new Date(error.createdAt))}</time>
             </th>
-            <td data-etiqueta="Origen">{NOMBRES_DE_ORIGEN[origenDe(error.mensaje)]}</td>
-            <td data-etiqueta="Ruta">{error.ruta ?? '—'}</td>
-            <td data-etiqueta="Mensaje">{resumenDeMensaje(error.mensaje)}</td>
-            <td data-etiqueta="Versión">{error.appVersion ?? '—'}</td>
-            <td data-etiqueta="Quién">{error.nombre ?? 'Otra persona'}</td>
+            <td role="cell" data-etiqueta="Origen">
+              {NOMBRES_DE_ORIGEN[origenDe(error.mensaje)]}
+            </td>
+            <td role="cell" data-etiqueta="Ruta">
+              {error.ruta ?? '—'}
+            </td>
+            <td role="cell" data-etiqueta="Mensaje">
+              {resumenDeMensaje(error.mensaje)}
+            </td>
+            <td role="cell" data-etiqueta="Versión">
+              {error.appVersion ?? '—'}
+            </td>
+            <td role="cell" data-etiqueta="Quién">
+              {error.nombre ?? 'Otra persona'}
+            </td>
           </tr>
-          <tr className={styles.filaDetalle}>
-            <td colSpan={6}>
+          <tr className={styles.filaDetalle} role="row">
+            <td role="cell" colSpan={6}>
               <Detalle error={error} />
             </td>
           </tr>
@@ -105,19 +142,21 @@ function FilasDeLaPagina({ filtros, pagina }: { filtros: FiltrosDeErrores; pagin
 
 export function RegistroDeErroresPage() {
   const [filtros, ponerFiltros] = useState<FiltrosDeErrores>(SIN_FILTROS);
-  const [paginas, setPaginas] = useState(1);
+  /** El cursor de cada página desde la segunda: la última fila de la anterior. */
+  const [cursores, setCursores] = useState<readonly CursorDeErrores[]>([]);
+  const anunciar = useAnnounce();
   const [rutaEscrita, setRutaEscrita] = useState('');
   const administrador = useEsAdministrador();
   const esAdministrador = administrador.data === true;
-  const primera = useErrores(filtros, 0, esAdministrador);
-  const ultima = useErrores(filtros, paginas - 1, esAdministrador);
+  const primera = useErrores(filtros, null, esAdministrador);
+  const ultima = useErrores(filtros, cursores.at(-1) ?? null, esAdministrador);
   const ultimas24 = useRecuento(24, esAdministrador);
   const ultimos7 = useRecuento(24 * 7, esAdministrador);
 
   // Cambiar un filtro vuelve a la primera página.
   const setFiltros = (nuevos: FiltrosDeErrores) => {
     ponerFiltros(nuevos);
-    setPaginas(1);
+    setCursores([]);
   };
   const hayFiltros = filtros.origen !== 'todos' || filtros.ruta !== '' || filtros.soloHoy;
 
@@ -127,6 +166,34 @@ export function RegistroDeErroresPage() {
     if (ruta !== filtros.ruta) {
       setFiltros({ ...filtros, ruta });
     }
+  };
+
+  // Lo que da filtrar se anuncia: nadie ve la lista cambiar si no mira.
+  const { data: datosDePrimera, isError: falloDePrimera } = primera;
+
+  useEffect(() => {
+    if (falloDePrimera) {
+      anunciar('No se pudieron cargar los errores. Vuelve a intentarlo.');
+    } else if (datosDePrimera !== undefined) {
+      anunciar(
+        datosDePrimera.filas.length === 0
+          ? hayFiltros
+            ? 'Ningún error cumple esos filtros.'
+            : 'No hay ningún error registrado.'
+          : `${plural(datosDePrimera.filas.length)}${datosDePrimera.hayMas ? ' o más' : ''}`,
+      );
+    }
+  }, [datosDePrimera, falloDePrimera, hayFiltros, anunciar]);
+
+  const cargarMas = () => {
+    const filas = ultima.data?.filas;
+    const ultimaFila = filas === undefined ? undefined : filas.at(-1);
+
+    if (ultima.isFetching || ultimaFila === undefined) {
+      return;
+    }
+
+    setCursores([...cursores, { createdAt: ultimaFila.createdAt, id: ultimaFila.id }]);
   };
 
   let contenido;
@@ -215,41 +282,54 @@ export function RegistroDeErroresPage() {
 
         {primera.isSuccess && primera.data.filas.length > 0 ? (
           <div className={styles.envoltorio}>
-            <table className={styles.tabla}>
+            <table className={styles.tabla} role="table">
               <caption className={styles.caption}>
                 Errores registrados, del más reciente al más antiguo
               </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Fecha</th>
-                  <th scope="col">Origen</th>
-                  <th scope="col">Ruta</th>
-                  <th scope="col">Mensaje</th>
-                  <th scope="col">Versión</th>
-                  <th scope="col">Quién</th>
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th scope="col" role="columnheader">
+                    Fecha
+                  </th>
+                  <th scope="col" role="columnheader">
+                    Origen
+                  </th>
+                  <th scope="col" role="columnheader">
+                    Ruta
+                  </th>
+                  <th scope="col" role="columnheader">
+                    Mensaje
+                  </th>
+                  <th scope="col" role="columnheader">
+                    Versión
+                  </th>
+                  <th scope="col" role="columnheader">
+                    Quién
+                  </th>
                 </tr>
               </thead>
-              {Array.from({ length: paginas }, (_, pagina) => (
+              {[null, ...cursores].map((cursor, pagina) => (
                 <FilasDeLaPagina
-                  key={`${JSON.stringify(filtros)}-${pagina}`}
+                  key={`${JSON.stringify(filtros)}-${cursor?.id ?? 'primera'}`}
                   filtros={filtros}
-                  pagina={pagina}
+                  cursor={cursor}
+                  enfocar={pagina > 0 && pagina === cursores.length}
                 />
               ))}
             </table>
           </div>
         ) : null}
 
-        {ultima.data?.hayMas === true ? (
+        {ultima.data?.hayMas === true || (cursores.length > 0 && ultima.isPending) ? (
           <div>
             <Button
               variant="secondary"
-              disabled={ultima.isFetching}
-              onClick={() => {
-                setPaginas(paginas + 1);
-              }}
+              aria-disabled={ultima.isFetching || ultima.isPending}
+              onClick={cargarMas}
             >
-              {ultima.isFetching ? 'Cargando…' : `Cargar ${TAMANO_DE_PAGINA} más`}
+              {ultima.isFetching || ultima.isPending
+                ? 'Cargando…'
+                : `Cargar ${TAMANO_DE_PAGINA} más`}
             </Button>
           </div>
         ) : null}

@@ -133,7 +133,7 @@ La T-103 bajó de dos sesiones a una porque los veintiún iconos y el logo ya es
 | **T-219**  | Banda de sincronización: listar lo rechazado y descartarlo                                           | C04           | T-216        | 0,25     | `feat/sync-descartar-rechazados`     | ✅     |
 | **T-220**  | Flecos del flujo de registro, «Sin asistencia» arriba y enlace al directo desde la convocatoria      | A11, A12      | T-218        | 0,25     | `fix/match-flecos-del-flujo`         | ✅     |
 | **T-221**  | Arreglos de la revisión: foco y borrado de la banda, y la cobertura por persona                      | A12, C04      | T-209a       | 0,5      | `fix/match-arreglos-de-la-revision`  | ⬜     |
-| **T-222**  | Arreglos de la revisión: cierre, «Mis aportaciones» y registro de errores, con pruebas de sus `api/` | A13, A14, C02 | T-211, T-303 | 0,5      | `fix/review-arreglos-de-la-revision` | ⬜     |
+| **T-222**  | Arreglos de la revisión: cierre, «Mis aportaciones» y registro de errores, con pruebas de sus `api/` | A13, A14, C02 | T-211, T-303 | 0,5      | `fix/review-arreglos-de-la-revision` | ✅     |
 
 **La T-201, cerrada el 26/09, con dos piezas fuera.** A03 enseña y edita el club del equipo activo; A04 lista los equipos del club separando los propios de los rivales, y los da de alta y los edita. **Fuera**: el alta de un club nuevo, porque con la RLS actual el club nacería invisible hasta para quien lo crea (ciclo del DOC 13, punto 21), y el escudo, porque el cubo `crests` no existe. El logo del C.D. Unión Tejina espera en `docs/recursos/` para subirlo cuando exista. Sin borrado: ni `clubs` ni `teams` tienen política para ello.
 

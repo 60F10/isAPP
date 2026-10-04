@@ -5,6 +5,18 @@
 
 ---
 
+## Sesión 04/10/2026, noche — T-222: arreglos del cierre, «Mis aportaciones» y el registro de errores: ✅ cerrada
+
+Sesión programada, rama `fix/review-arreglos-de-la-revision`. **Sin base de datos y sin migración.**
+
+- `review`: `resolverEvento`, `aprobarPendientes`, `cambiarMinuto`, `cambiarJugador`, `cambiarSegundo` y `borrarEvento` filtran también por `match_id`. `aprobarPendientes` devuelve `{ pedidos, aprobados }` y la tarjeta avisa si son menos. Cero filas al cambiar el minuto dice «Ese evento ya no se puede cambiar…» en la A13 y la A14 (`EVENTO_YA_NO_SE_PUEDE_CAMBIAR`, en `model/discordancias.ts`). «Guardando…» solo con la mutación en marcha, `flag_duplicate_candidates` una vez por partido y montaje, los autores con `keepPreviousData` y, en la A14, el foco vuelve a la leyenda del formulario tras un fallo (`MinutoDelEvento` gana una leyenda).
+- `logging`: `fetchErrores(filtros, cursor)` pagina por cursor (`created_at` e `id` descendentes) y `useErrores` no vuelve a pedir solas las páginas con cursor. La pantalla anuncia el resultado de filtrar, deja el foco en la primera fila nueva, usa `aria-disabled` en «Cargar 50 más» (`Button.module.css` lo estiliza como `disabled`), tiene los roles de tabla escritos a mano y `h3` en `Detalle`. `escaparComodines` quita los `*`.
+- Pruebas nuevas de las tres `api/`: `discordancias.test.ts`, `aportaciones.test.ts` y `errorLogs.test.ts`, con un doble de `supabase` que apunta las llamadas encadenadas.
+
+Punto 76 de abajo: **cerrado.** Punto 73: el filtro lleva ya el partido, y sigue faltando el disparador en la base.
+
+---
+
 ## Sesión 04/10/2026, noche — T-209c: las partes, compartidas entre aparatos: ✅ cerrada
 
 Sesión programada, rama `fix/match-partes-compartidas`. **Sin base de datos y sin migración.**
@@ -708,7 +720,7 @@ Pendiente de hacer:
     (T-210b) y «Mis aportaciones» (T-211) solo esconden las acciones si el partido está cerrado;
     sus `update` y `delete` van por el `id` del evento y la base no mira el estado del partido.
     Si otro aparato cierra mientras, quien tiene `event.approve` cambia o borra un evento de un
-    partido cerrado y los tramos ya no cuadran. La T-222 añade el `match_id` al filtro; cerrarlo
+    partido cerrado y los tramos ya no cuadran. La T-222 añadió el `match_id` al filtro; cerrarlo
     de verdad es un disparador en la base, **sin escribir y sin tarea**: pide decidir antes cómo
     se corrige entonces un partido cerrado desde SQL.
 
@@ -725,7 +737,7 @@ Pendiente de hacer:
     avisa si aprobó menos de los pedidos; el registro pagina por desplazamiento y repite o se
     salta filas si entran errores mientras; faltan regiones vivas y foco tras «Cargar 50 más» y
     tras un fallo; y ninguna de las tres `api/` nuevas tiene prueba propia: sus pantallas las
-    prueban con dobles. Va en la T-222.
+    prueban con dobles. Cerrado en la T-222.
 
 77. **Realtime sin publicar.** La T-209b deja escrito el canal y funciona sin él: el refresco de
     seguridad va cada 20 s hasta que llega el primer aviso de verdad, y a partir de ahí cada 60.
