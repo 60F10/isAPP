@@ -329,7 +329,13 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const describir = (evento: EventoDelDirecto) =>
     describirEvento(evento, nombreDe, estado.minutosDeParte, NOMBRES_DE_EVENTO);
 
-  const contexto = contextoDe(estado);
+  // En diferido, los candidatos son los del minuto del flujo abierto, no los
+  // del final del partido (D06-36). Sin flujo o sin minuto, los de siempre.
+  const instante =
+    flujo === null || !estado.diferido
+      ? undefined
+      : (minutoDelFlujo(flujo, estado.minutosDeParte) ?? undefined);
+  const contexto = contextoDe(estado, instante);
   // R-04: con los cambios agotados, el botón se desactiva y dice por qué.
   const cambiosAgotados = cambiosHechos(estado.eventos) >= estado.cambiosMax;
   const desactivados = cambiosAgotados

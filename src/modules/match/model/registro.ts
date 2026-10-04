@@ -15,7 +15,14 @@
 // escritos, sin `occurred_at`. Si la parte todavía no existe, se crea con su
 // duración prevista, que es la que manda cuando no se sabe la real.
 
-import { amonestados, calcularEnCampo, cambiosHechos, expulsados, sustituidos } from './eventos';
+import {
+  amonestados,
+  calcularEnCampo,
+  cambiosHechos,
+  expulsados,
+  hastaElInstante,
+  sustituidos,
+} from './eventos';
 import { segundosDeParte } from './reloj';
 
 import type { EstadoDirecto, ParteLocal, Resultado } from './directo';
@@ -147,11 +154,22 @@ function momento(estado: EstadoDirecto, accion: AccionRegistrar): Momento | stri
  * Devuelve el tipo definitivo —una amarilla a un amonestado es la segunda—,
  * o el motivo del rechazo en palabras. Sin segunda amarilla encendida en la
  * competición, la segunda amarilla se apunta como roja: expulsa igual.
+ *
+ * `anteriores` solo llega en diferido (D06-36, T-217): son los eventos que ya
+ * habían pasado en el minuto escrito. Con ellos, quién está en el campo,
+ * quién está expulsado y quién amonestado se miran en ese minuto y no al
+ * final del partido. Los cambios hechos y quien ya salió en un cambio se
+ * siguen contando con todos los eventos, sean del minuto que sean.
  */
 type Validacion = { tipo: TipoDeEvento } | { error: string };
 
-function validar(estado: EstadoDirecto, borrador: BorradorDeEvento): Validacion {
+function validar(
+  estado: EstadoDirecto,
+  borrador: BorradorDeEvento,
+  anteriores?: readonly EventoDelDirecto[],
+): Validacion {
   const { tipo, rival, jugador, segundo, detalles } = borrador;
+  const conocidos = anteriores ?? estado.eventos;
 
   if (!estado.tiposActivos.includes(tipo)) {
     return { error: 'Ese tipo de evento está apagado en esta competición.' };
@@ -167,9 +185,11 @@ function validar(estado: EstadoDirecto, borrador: BorradorDeEvento): Validacion 
       : { error: 'Del rival no se apunta jugador.' };
   }
 
-  const enCampo = new Set(estado.enCampo);
+  const enCampo = new Set(
+    anteriores === undefined ? estado.enCampo : calcularEnCampo(estado.titulares, anteriores),
+  );
   const convocados = new Set(estado.convocados);
-  const fuera = expulsados(estado.eventos);
+  const fuera = expulsados(conocidos);
 
   const enElCampo = (id: string | null) => id !== null && enCampo.has(id);
 
@@ -205,7 +225,7 @@ function validar(estado: EstadoDirecto, borrador: BorradorDeEvento): Validacion 
         return { error: 'Ese jugador ya está expulsado.' };
       }
 
-      const yaAmonestado = amonestados(estado.eventos).has(jugador);
+      const yaAmonestado = amonestados(conocidos).has(jugador);
 
       if (tipo === 'yellow_card' && yaAmonestado) {
         return {
@@ -273,7 +293,13 @@ export function registrar(estado: EstadoDirecto, accion: AccionRegistrar): Resul
     return ilegal(estado, 'El partido ha terminado: lo que falte se corrige en el cierre.');
   }
 
-  const validacion = validar(estado, accion.borrador);
+  // En diferido se valida contra el minuto escrito, no contra el final del
+  // partido. Con reloj, `minuto` no pinta nada.
+  const anteriores =
+    estado.diferido && accion.minuto !== undefined
+      ? hastaElInstante(estado.eventos, accion.minuto)
+      : undefined;
+  const validacion = validar(estado, accion.borrador, anteriores);
 
   if ('error' in validacion) {
     return ilegal(estado, validacion.error);

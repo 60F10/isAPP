@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { aBorrador, botonesActivos, contextoDe, minutoDelFlujo, siguientePaso } from './flujo';
 
+import type { EventoDelDirecto } from './eventos';
 import type { ContextoDeFlujo, Flujo } from './flujo';
 
 const CONTEXTO: ContextoDeFlujo = {
@@ -169,6 +170,7 @@ describe('contextoDe', () => {
   it('quién puede entrar: convocados fuera del campo, sin expulsados ni, con cambios fijos, sustituidos', () => {
     const contexto = contextoDe({
       enCampo: ['p1', 'p8'],
+      titulares: ['p1', 'p7'],
       convocados: ['p1', 'p7', 'p8', 'p9', 'p10'],
       eventos: [
         {
@@ -204,5 +206,86 @@ describe('contextoDe', () => {
 
     expect(contexto.paraEntrar).toEqual(['p9']);
     expect(contexto.tarjetables).toEqual(['p1', 'p7', 'p8', 'p9']);
+  });
+});
+
+// En diferido, quién está en el campo depende del minuto del evento que se
+// está apuntando, no del final del partido (D06-36, T-217).
+describe('contextoDe en diferido, con el instante del flujo', () => {
+  const cambio: EventoDelDirecto = {
+    clientEventId: 'cambio',
+    tipo: 'substitution',
+    periodo: 2,
+    segundos: 300,
+    rival: false,
+    jugador: 'p7',
+    segundo: 'p8',
+    detalles: {},
+    estado: 'approved',
+    propio: true,
+  };
+  const roja: EventoDelDirecto = {
+    ...cambio,
+    clientEventId: 'roja',
+    tipo: 'red_card',
+    segundos: 400,
+    jugador: 'p9',
+    segundo: null,
+  };
+  const diferido = {
+    // Lo que queda al final del partido: p8 dentro y p7 fuera.
+    enCampo: ['p1', 'p8'],
+    titulares: ['p1', 'p7'],
+    convocados: ['p1', 'p7', 'p8', 'p9', 'p10'],
+    eventos: [cambio],
+    cambiosFijos: true,
+    tiposActivos: CONTEXTO.tiposActivos,
+    diferido: true,
+    periodos: 2,
+  };
+
+  it('antes del cambio está quien salió; después, quien entró', () => {
+    expect(contextoDe(diferido, { periodo: 1, segundos: 1_200 }).enCampo).toEqual(['p1', 'p7']);
+    expect(contextoDe(diferido, { periodo: 2, segundos: 600 }).enCampo).toEqual(['p1', 'p8']);
+  });
+
+  it('con cambios fijos, quien ya entra o sale en un cambio apuntado no se ofrece para entrar en otro minuto', () => {
+    expect(contextoDe(diferido, { periodo: 1, segundos: 1_200 }).paraEntrar).toEqual(['p9', 'p10']);
+    expect(contextoDe(diferido, { periodo: 2, segundos: 600 }).paraEntrar).toEqual(['p9', 'p10']);
+  });
+
+  it('con cambios volantes, antes del cambio se ofrece a quien todavía no ha entrado', () => {
+    const volantes = { ...diferido, cambiosFijos: false };
+
+    expect(contextoDe(volantes, { periodo: 1, segundos: 1_200 }).paraEntrar).toEqual([
+      'p8',
+      'p9',
+      'p10',
+    ]);
+    expect(contextoDe(volantes, { periodo: 2, segundos: 600 }).paraEntrar).toEqual([
+      'p7',
+      'p9',
+      'p10',
+    ]);
+  });
+
+  it('una expulsión posterior no quita a nadie de los candidatos de antes', () => {
+    const conRoja = { ...diferido, eventos: [cambio, roja] };
+
+    expect(contextoDe(conRoja, { periodo: 1, segundos: 0 }).tarjetables).toContain('p9');
+    expect(contextoDe(conRoja, { periodo: 1, segundos: 0 }).paraEntrar).toContain('p9');
+    expect(contextoDe(conRoja, { periodo: 2, segundos: 600 }).tarjetables).not.toContain('p9');
+    expect(contextoDe(conRoja, { periodo: 2, segundos: 600 }).paraEntrar).not.toContain('p9');
+  });
+
+  it('sin instante, como siempre: el campo del estado', () => {
+    expect(contextoDe(diferido).enCampo).toEqual(['p1', 'p8']);
+    expect(contextoDe(diferido).paraEntrar).toEqual(['p9', 'p10']);
+  });
+
+  it('con reloj, el instante no cambia nada', () => {
+    const conReloj = { ...diferido, diferido: false };
+
+    expect(contextoDe(conReloj, { periodo: 1, segundos: 1_200 })).toEqual(contextoDe(conReloj));
   });
 });

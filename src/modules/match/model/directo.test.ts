@@ -302,4 +302,38 @@ describe('elegirEstado', () => {
 
     expect(elegirEstado(local, empezado())).toBe(local);
   });
+
+  it('el reglamento y la convocatoria salen siempre del servidor; la pausa sigue siendo del local (D06-36)', () => {
+    const local = reducir(empezado(), { tipo: 'pausar', ahora: INICIO + 1 }).estado;
+    // El mismo avance —una parte abierta—, pero con el límite de cambios
+    // subido y un convocado más desde que se abrió el directo.
+    const delServidor: EstadoDirecto = {
+      ...local,
+      fase: 'en_juego',
+      partes: local.partes.map((parte) => ({ ...parte, pausadoMs: 0, pausaDesde: null })),
+      cambiosMax: 7,
+      convocados: [...local.convocados, 'p9'],
+      posicionesIniciales: { ...local.posicionesIniciales, p9: null },
+    };
+
+    const elegido = elegirEstado(local, delServidor);
+
+    expect(elegido.cambiosMax).toBe(7);
+    expect(elegido.convocados).toEqual(['p1', 'p7', 'p8', 'p9']);
+    expect(elegido.posicionesIniciales).toHaveProperty('p9', null);
+    expect(elegido.fase).toBe('pausado');
+    expect(elegido.partes).toEqual(local.partes);
+    expect(elegido.eventos).toBe(local.eventos);
+  });
+
+  it('si el servidor cambia los titulares, el campo se recalcula con ellos', () => {
+    const local = empezado();
+    const delServidor: EstadoDirecto = { ...local, titulares: ['p1', 'p8'] };
+
+    const elegido = elegirEstado(local, delServidor);
+
+    expect(elegido.titulares).toEqual(['p1', 'p8']);
+    expect(elegido.enCampo).toEqual(['p1', 'p8']);
+    expect(elegido.partes).toBe(local.partes);
+  });
 });

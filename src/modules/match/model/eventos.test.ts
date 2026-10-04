@@ -7,6 +7,8 @@ import {
   cambiosHechos,
   desdeFilas,
   expulsados,
+  hastaElInstante,
+  incorporados,
   marcador,
   sustituidos,
   unirEventos,
@@ -178,5 +180,46 @@ describe('marcador', () => {
         evento({ clientEventId: '7', tipo: 'corner' }),
       ]),
     ).toEqual({ aFavor: 3, enContra: 2, pendientes: 1 });
+  });
+});
+
+describe('hastaElInstante', () => {
+  const eventos = [
+    evento({ clientEventId: 'parte-anterior', periodo: 1, segundos: 2_000 }),
+    evento({ clientEventId: 'antes', periodo: 2, segundos: 100 }),
+    evento({ clientEventId: 'mismo-segundo', periodo: 2, segundos: 300 }),
+    evento({ clientEventId: 'despues', periodo: 2, segundos: 301 }),
+    evento({ clientEventId: 'sin-segundos', periodo: 1, segundos: null }),
+    evento({ clientEventId: 'parte-posterior', periodo: 3, segundos: 0 }),
+  ];
+
+  it('deja los de una parte anterior y los de la misma parte hasta ese segundo, incluido', () => {
+    expect(
+      hastaElInstante(eventos, { periodo: 2, segundos: 300 }).map((e) => e.clientEventId),
+    ).toEqual(['parte-anterior', 'antes', 'mismo-segundo']);
+  });
+
+  it('los que no tienen segundos quedan fuera, también los de una parte anterior', () => {
+    expect(
+      hastaElInstante(eventos, { periodo: 3, segundos: 0 }).map((e) => e.clientEventId),
+    ).not.toContain('sin-segundos');
+  });
+});
+
+describe('incorporados', () => {
+  it('quienes entran en un cambio, sin los rechazados ni los del rival', () => {
+    expect(
+      incorporados([
+        evento({ clientEventId: 'a', tipo: 'substitution', jugador: 'p7', segundo: 'p8' }),
+        evento({
+          clientEventId: 'b',
+          tipo: 'substitution',
+          jugador: 'p1',
+          segundo: 'p9',
+          estado: 'rejected',
+        }),
+        evento({ clientEventId: 'c', tipo: 'goal', jugador: 'p1', segundo: 'p10' }),
+      ]),
+    ).toEqual(new Set(['p8']));
   });
 });

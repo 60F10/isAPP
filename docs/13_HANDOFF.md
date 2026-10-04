@@ -5,6 +5,17 @@
 
 ---
 
+## Sesión 04/10/2026, mañana — T-217: ✅ cerrada
+
+- **Fallo 1:** el móvil se quedaba con el reglamento y la convocatoria del día en que abrió el directo, porque `elegirEstado` devolvía el estado local entero a igualdad de avance: con el límite subido de 5 a 7 cambios y dos convocados más, seguía con 5 y sin ellos.
+- **Fallo 2:** en diferido, los candidatos y la validación usaban `estado.enCampo`, que es el campo del final del partido: con el cambio del 46 ya metido, un gol del 20 no ofrecía a quien salió y sí a quien entró.
+- **Hecho (D06-36):** `elegirEstado` elige como antes la fase, las partes y los eventos, y pone siempre del servidor la convocatoria y el reglamento, con `enCampo` recalculado. `hastaElInstante` e `incorporados` en `model/eventos.ts`; `contextoDe(estado, instante?)` y `validar` miran el campo, los expulsados y los amonestados en el minuto del evento, solo en diferido. `LiveMatchPage` le pasa a `contextoDe` el instante del flujo abierto. Rama `fix/match-estado-al-dia`, sin base de datos.
+- **Pruebas:** 467 en verde, 16 nuevas en `directo.test.ts`, `eventos.test.ts`, `flujo.test.ts` y `registro.test.ts`. Dos cosas fuera del guion del traspaso: `elegirEstado` devuelve el mismo objeto local cuando el servidor no trae nada distinto, porque tres pruebas que ya había comparan por identidad y así siguen en verde sin tocarlas; y a la prueba de `contextoDe` que ya había se le añade `titulares`, que ahora pide el tipo. Lint, Prettier y build limpios.
+- **Deuda, asumida:** apuntar un evento anterior no revisa los posteriores ya metidos. Un cambio apuntado en el 20 no invalida un gol del 30 de quien salió, y una amarilla anterior a otra ya apuntada deja las dos como amarillas, sin segunda. Si quedan incoherentes, lo dirá el cierre.
+- **Sin probar en un móvil.** La ficha de jugador en diferido sigue usando el campo del final del partido: queda fuera de esta tarea.
+
+---
+
 ## Sesión 04/10/2026, mañana — T-216: ✅ cerrada
 
 - **Diagnóstico:** el 04/10, con la aplicación en varias pestañas del móvil, cada evento tardó un minuto en salir. Los registros de la API de Supabase, de 00:21 a 00:41 UTC, dan trece peticiones de la cola, una por minuto exacto y en el segundo 40: una pestaña oculta se despertaba, cogía el cerrojo `sasi-outbox`, mandaba un trabajo y se dormía con él cogido, y la que se veía lo encontraba ocupado con `ifAvailable` y no vaciaba.

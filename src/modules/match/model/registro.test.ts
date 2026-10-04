@@ -327,6 +327,105 @@ describe('registrar', () => {
     const otro = registrar(estado, { jugador: 'p1' }, { minuto: { periodo: 2, segundos: 700 } });
     expect(otro.trabajos.map((t) => t.entity)).toEqual(['match_event']);
   });
+
+  describe('en diferido, con un cambio ya apuntado en la 2ª parte (D06-36)', () => {
+    function conElCambio(): EstadoDirecto {
+      const base = paquete();
+      const diferido = desdePaquete({ ...base, partido: { ...base.partido, isRetroactive: true } });
+
+      return registrar(
+        diferido,
+        { tipo: 'substitution', jugador: 'p7', segundo: 'p8' },
+        { minuto: { periodo: 2, segundos: 300 } },
+      ).estado;
+    }
+
+    it('un gol de quien salió vale antes del cambio y no después', () => {
+      const estado = conElCambio();
+      expect(estado.enCampo).toEqual(['p1', 'p8']);
+
+      const antes = registrar(
+        estado,
+        { jugador: 'p7' },
+        { minuto: { periodo: 1, segundos: 1_200 } },
+      );
+      expect(antes.error).toBeNull();
+
+      const despues = registrar(
+        estado,
+        { jugador: 'p7' },
+        { minuto: { periodo: 2, segundos: 600 } },
+      );
+      expect(despues.error).toBe('Ese jugador no está en el campo.');
+    });
+
+    it('un gol de quien entró vale después del cambio y no antes', () => {
+      const estado = conElCambio();
+
+      const antes = registrar(
+        estado,
+        { jugador: 'p8' },
+        { minuto: { periodo: 1, segundos: 1_200 } },
+      );
+      expect(antes.error).toBe('Ese jugador no está en el campo.');
+
+      const despues = registrar(
+        estado,
+        { jugador: 'p8' },
+        { minuto: { periodo: 2, segundos: 600 } },
+      );
+      expect(despues.error).toBeNull();
+    });
+
+    it('los cambios hechos se cuentan todos, sean del minuto que sean (R-04)', () => {
+      const anterior = registrar(
+        conElCambio(),
+        { tipo: 'substitution', jugador: 'p1', segundo: 'p9' },
+        { minuto: { periodo: 1, segundos: 600 } },
+      );
+
+      expect(anterior.error).toBe('Ya se han hecho los 1 cambios del reglamento.');
+    });
+
+    it('una amarilla anterior a otra ya apuntada es una amarilla, no la segunda', () => {
+      const conAmarilla = registrar(
+        conElCambio(),
+        { tipo: 'yellow_card', jugador: 'p1' },
+        { minuto: { periodo: 2, segundos: 100 } },
+      ).estado;
+
+      const anterior = registrar(
+        conAmarilla,
+        { tipo: 'yellow_card', jugador: 'p1' },
+        { minuto: { periodo: 1, segundos: 600 } },
+      );
+      const posterior = registrar(
+        conAmarilla,
+        { tipo: 'yellow_card', jugador: 'p1' },
+        { minuto: { periodo: 2, segundos: 900 } },
+      );
+
+      // La 1ª parte no existía: delante del evento va el trabajo que la crea.
+      expect(anterior.trabajos.at(-1)?.payload.valores).toMatchObject({
+        event_type: 'yellow_card',
+      });
+      expect(posterior.trabajos.at(-1)?.payload.valores).toMatchObject({
+        event_type: 'second_yellow',
+      });
+    });
+  });
+
+  it('con reloj, el minuto no pinta nada: se valida contra quien está en el campo ahora', () => {
+    const { estado } = registrar(enJuego(), {
+      tipo: 'substitution',
+      jugador: 'p7',
+      segundo: 'p8',
+    });
+
+    const gol = registrar(estado, { jugador: 'p7' }, { minuto: { periodo: 1, segundos: 0 } });
+
+    expect(gol.error).toBe('Ese jugador no está en el campo.');
+  });
 });
 
 describe('deshacer', () => {
