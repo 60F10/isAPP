@@ -13,7 +13,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 // Rutas directas y no el barril: ver `AuthProvider`.
 import { cerrarSesion } from '@modules/auth/api/session';
@@ -228,6 +228,11 @@ export function AjustesPage() {
         )}
         {falloAlSalir ? (
           <p className={styles.fallo}>No se pudo cerrar la sesión. Vuelve a intentarlo.</p>
+        ) : null}
+        {profile?.is_platform_admin === true ? (
+          <p>
+            <Link to="/admin/logs">Registro de errores</Link>
+          </p>
         ) : null}
       </Card>
     </Pantalla>

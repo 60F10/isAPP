@@ -5,6 +5,27 @@
 
 ---
 
+## Sesión 04/10/2026, noche — T-303: registro de errores para administración (C02): ✅ cerrada
+
+Sesión programada, rama `feat/logging-panel-admin`. **Sin base de datos y sin migración.**
+
+- **Hecho:** `/admin/logs` deja de ser pantalla pendiente: `logging/routes/RegistroDeErroresPage.tsx`,
+  perezosa por el barril de `logging`. Enlace «Registro de errores» al final de Ajustes, solo con
+  `is_platform_admin`. Sin ser administrador, «Tu cuenta no puede ver el registro de errores.» y
+  ninguna consulta de errores.
+- **Dónde vive:** `model/consulta.ts` (origen, resumen, filtros), `api/errorLogs.ts`
+  (`fetchErrores`, `contarErroresDesde`, `fetchNombres`, `fetchEsAdministrador`) y
+  `hooks/useErrores.ts`. `logging` solo importa de `shared`: el perfil se pide con su propia
+  consulta y no por `AuthProvider`.
+- **Decisión pequeña:** sin `useInfiniteQuery`; cada página es su consulta con `staleTime`.
+- **Paquete inicial:** 175,42 kB comprimidos frente a 173,85 en `main` (mismo recorrido, desde
+  `index.html` y `App-*.js`): **+1,57 kB**, por el reparto de trozos de Rollup (`useQuery` sale de
+  `App` a su trozo), no por código de la C02, que es perezosa. Sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+- **Deuda:** los errores no se borran ni caducan; no hay aviso de error nuevo; un fallo de guardado
+  que el directo enseña como mensaje no llega al registro. Sin probar en móvil ni contra la base.
+
+---
+
 ## Sesión 04/10/2026, noche — T-211: «Mis aportaciones» (A14): ✅ cerrada
 
 Sesión programada, rama `feat/review-mis-aportaciones`. **Sin base de datos y sin migración.**

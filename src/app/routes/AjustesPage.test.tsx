@@ -39,7 +39,7 @@ const AUTH: AuthState = {
   reintentarContexto: () => undefined,
 };
 
-function montar(conSesion = false) {
+function montar(conSesion = false, esAdministrador = false) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
@@ -54,7 +54,7 @@ function montar(conSesion = false) {
       <AuthContext
         value={{
           ...AUTH,
-          profile: perfil('Isaac'),
+          profile: perfil('Isaac', esAdministrador),
           session: conSesion ? ({ user: { id: 'usuario-1' } } as Session) : null,
         }}
       >
@@ -68,12 +68,12 @@ function montar(conSesion = false) {
   return { anunciar };
 }
 
-function perfil(nombre: string): AuthState['profile'] {
+function perfil(nombre: string, esAdministrador = false): AuthState['profile'] {
   return {
     id: 'usuario-1',
     display_name: nombre,
     avatar_url: null,
-    is_platform_admin: false,
+    is_platform_admin: esAdministrador,
     created_at: '2026-09-01T00:00:00Z',
     updated_at: '2026-09-01T00:00:00Z',
   };
@@ -116,6 +116,21 @@ describe('AjustesPage', () => {
     montar();
 
     expect(screen.getByText('Isaac')).toBeInTheDocument();
+  });
+
+  it('el enlace al registro de errores sale solo para el administrador de plataforma', () => {
+    montar(false, true);
+
+    expect(screen.getByRole('link', { name: 'Registro de errores' })).toHaveAttribute(
+      'href',
+      '/admin/logs',
+    );
+  });
+
+  it('sin ser administrador no sale el enlace al registro de errores', () => {
+    montar();
+
+    expect(screen.queryByRole('link', { name: 'Registro de errores' })).not.toBeInTheDocument();
   });
 
   it('cerrar sesión lleva a la pantalla de acceso', async () => {
