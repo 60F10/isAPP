@@ -77,6 +77,22 @@
   outline-offset: var(--focus-offset);
 }
 
+/* «Suspender el partido» (T-226): al final de la pantalla, separado de las
+   listas por una línea, y de 48 px como «Salir del directo». Su confirmación
+   sale aquí mismo, con los botones grandes de las demás. */
+.suspender {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+  border-block-start: 2px solid var(--color-border);
+}
+
+.suspender .confirmar {
+  align-self: stretch;
+}
+
 .aviso {
   max-inline-size: 60ch;
   color: var(--color-danger);

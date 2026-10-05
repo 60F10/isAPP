@@ -31,7 +31,7 @@ import type { LineaGuardada, Llamada } from '@modules/lineup';
 import type { Reglamento } from '@modules/rules';
 
 const COLUMNAS_PARTIDO =
-  'id, team_id, competition_id, is_home, kickoff_at, venue, status, is_retroactive, rival:teams!matches_opponent_team_id_fkey(name), competicion:competitions(periods_count, period_minutes, halftime_minutes, clock_mode, substitution_type, substitutions_max, squad_max, players_on_pitch, yellow_cards_for_ban, red_card_default_bans, enabled_event_types)';
+  'id, team_id, competition_id, is_home, kickoff_at, venue, status, is_retroactive, suspended_period, suspended_seconds, rival:teams!matches_opponent_team_id_fkey(name), competicion:competitions(periods_count, period_minutes, halftime_minutes, clock_mode, substitution_type, substitutions_max, squad_max, players_on_pitch, yellow_cards_for_ban, red_card_default_bans, enabled_event_types)';
 
 const COLUMNAS_EVENTO =
   'id, client_event_id, match_id, event_type, period, seconds, occurred_at, is_opponent, player_id, secondary_player_id, details, status, created_by, created_at';
@@ -48,6 +48,8 @@ interface FilaPartido {
   venue: string | null;
   status: EstadoDelPartido;
   is_retroactive: boolean;
+  suspended_period: number | null;
+  suspended_seconds: number | null;
   rival: { name: string } | null;
   competicion: Reglamento | null;
 }
@@ -120,6 +122,9 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
       venue: fila.venue,
       status: fila.status,
       isRetroactive: fila.is_retroactive,
+      // Dónde se suspendió, para el directo (T-226). `null` si no lo está.
+      suspendedPeriod: fila.suspended_period,
+      suspendedSeconds: fila.suspended_seconds,
     },
     reglamento: fila.competicion,
     convocatoria: lineas.map((linea) => ({

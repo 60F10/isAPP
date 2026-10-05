@@ -36,6 +36,18 @@ function esCompleto(estado: EstadoDirecto | undefined): estado is EstadoDirecto 
   return estado !== undefined && Array.isArray(estado.eventos) && Array.isArray(estado.titulares);
 }
 
+/**
+ * Un estado guardado antes de la T-226 no trae `suspension`. No se descarta
+ * por eso, como el de antes de la T-208: se lee como `null`, que es lo que
+ * era, un partido sin suspender.
+ */
+function conSuspension(estado: EstadoDirecto): EstadoDirecto {
+  const guardado: Omit<EstadoDirecto, 'suspension'> & Partial<Pick<EstadoDirecto, 'suspension'>> =
+    estado;
+
+  return guardado.suspension === undefined ? { ...estado, suspension: null } : estado;
+}
+
 export async function cargarDirecto(partidoId: string): Promise<DirectoCargado> {
   let refrescado = true;
 
@@ -55,7 +67,7 @@ export async function cargarDirecto(partidoId: string): Promise<DirectoCargado> 
   const servidor = desdePaquete(instantanea.paquete);
   // Un estado guardado con la forma de antes de la T-208 no tiene eventos ni
   // titulares: se descarta y manda el del servidor, que sí los trae.
-  const local = esCompleto(instantanea.estado) ? instantanea.estado : undefined;
+  const local = esCompleto(instantanea.estado) ? conSuspension(instantanea.estado) : undefined;
   // La cola se mira desde que se pidió el paquete que se va a usar.
   const enCola = await pendientesDelPartido(
     partidoId,

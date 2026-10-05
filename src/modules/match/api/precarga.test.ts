@@ -187,6 +187,28 @@ describe('descargarPaquete', () => {
     );
   });
 
+  it('pide del partido la parte y el segundo de la suspensión, y los trae en el paquete (T-226)', async () => {
+    red.respuestas.matches = {
+      data: {
+        ...(red.respuestas.matches?.data as Record<string, unknown>),
+        status: 'suspended',
+        suspended_period: 1,
+        suspended_seconds: 1390,
+      },
+      error: null,
+    };
+
+    const paquete = await descargarPaquete('par-1');
+
+    expect(red.selects.matches).toMatch(/\bsuspended_period\b/);
+    expect(red.selects.matches).toMatch(/\bsuspended_seconds\b/);
+    expect(paquete.partido).toMatchObject({
+      status: 'suspended',
+      suspendedPeriod: 1,
+      suspendedSeconds: 1390,
+    });
+  });
+
   it('sin partido legible no hay paquete', async () => {
     red.respuestas.matches = { data: null, error: null };
 

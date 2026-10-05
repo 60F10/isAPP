@@ -169,6 +169,42 @@ describe('desdePaquete', () => {
       'finalizado',
     );
   });
+
+  it('un partido suspendido llega terminado, con la parte y el segundo de la suspensión (T-226)', () => {
+    const base = paquete();
+    const estado = desdePaquete({
+      ...base,
+      partido: {
+        ...base.partido,
+        status: 'suspended',
+        suspendedPeriod: 1,
+        suspendedSeconds: 1_390,
+      },
+    });
+
+    expect(estado.fase).toBe('finalizado');
+    expect(estado.suspension).toEqual({ parte: 1, segundos: 1_390 });
+  });
+
+  it('con un paquete de antes de la T-226, sin esos dos campos, no hay suspensión', () => {
+    const base = paquete();
+
+    expect(desdePaquete(base).suspension).toBeNull();
+    expect(
+      desdePaquete({ ...base, partido: { ...base.partido, status: 'suspended' } }).suspension,
+    ).toBeNull();
+  });
+
+  it('la parte y el segundo no cuentan si el partido no está suspendido', () => {
+    const base = paquete();
+
+    expect(
+      desdePaquete({
+        ...base,
+        partido: { ...base.partido, status: 'live', suspendedPeriod: 1, suspendedSeconds: 1_390 },
+      }).suspension,
+    ).toBeNull();
+  });
 });
 
 describe('reducir', () => {
@@ -313,6 +349,135 @@ describe('reducir', () => {
   });
 });
 
+// T-226: suspender es una transición más del reductor (D06-41).
+describe('reducir · suspender (T-226)', () => {
+  /** La parte 1 en juego, y el reloj en el 23:10. */
+  const A_LOS_23_10 = INICIO + 1_390_000;
+
+  it('en juego a los 23:10 de la parte 1: cierra la parte y deja el partido suspendido ahí', () => {
+    const { estado, trabajos, error } = reducir(empezado(), {
+      tipo: 'suspender',
+      ahora: A_LOS_23_10,
+    });
+
+    expect(error).toBeNull();
+    expect(estado.fase).toBe('finalizado');
+    expect(estado.partes).toEqual([
+      {
+        id: 'parte-1',
+        numero: 1,
+        inicio: INICIO,
+        pausadoMs: 0,
+        pausaDesde: null,
+        segundosReales: 1_390,
+      },
+    ]);
+    expect(estado.suspension).toEqual({ parte: 1, segundos: 1_390 });
+    // Primero la parte y después el partido: la cola los envía en orden.
+    expect(trabajos.map((trabajo) => [trabajo.entity, trabajo.op])).toEqual([
+      ['match_period', 'update'],
+      ['match', 'update'],
+    ]);
+    expect(trabajos[0]).toEqual({
+      entity: 'match_period',
+      op: 'update',
+      matchId: 'par-1',
+      payload: {
+        valores: { ended_at: '2026-10-04T11:23:10.000Z', actual_seconds: 1_390 },
+        clave: { match_id: 'par-1', period_number: '1' },
+      },
+    });
+    expect(enCurso(estado)).toBe(false);
+  });
+
+  it('el trabajo del partido lleva el estado, la parte y el segundo, y nada más', () => {
+    const { trabajos } = reducir(empezado(), { tipo: 'suspender', ahora: A_LOS_23_10 });
+
+    expect(trabajos[1]).toEqual({
+      entity: 'match',
+      op: 'update',
+      matchId: 'par-1',
+      payload: {
+        valores: { status: 'suspended', suspended_period: 1, suspended_seconds: 1_390 },
+        clave: { id: 'par-1' },
+      },
+    });
+  });
+
+  it('en pausa descuenta la pausa, igual que terminar la parte', () => {
+    // Medio minuto parado al principio y, a los 23:10 de juego, otra pausa
+    // que sigue abierta cuando se suspende, más de un minuto después.
+    let estado = reducir(empezado(), { tipo: 'pausar', ahora: INICIO + 60_000 }).estado;
+    estado = reducir(estado, { tipo: 'reanudar', ahora: INICIO + 90_000 }).estado;
+    estado = reducir(estado, { tipo: 'pausar', ahora: INICIO + 1_420_000 }).estado;
+
+    const suspendido = reducir(estado, { tipo: 'suspender', ahora: INICIO + 1_500_000 });
+    const terminado = reducir(estado, { tipo: 'terminar_parte', ahora: INICIO + 1_500_000 });
+
+    expect(suspendido.error).toBeNull();
+    expect(suspendido.estado.suspension).toEqual({ parte: 1, segundos: 1_390 });
+    expect(suspendido.estado.partes).toEqual(terminado.estado.partes);
+    expect(suspendido.trabajos[0]).toEqual(terminado.trabajos[0]);
+    expect(suspendido.trabajos[1]?.payload.valores).toEqual({
+      status: 'suspended',
+      suspended_period: 1,
+      suspended_seconds: 1_390,
+    });
+  });
+
+  it('en el descanso: un solo trabajo, el del partido, con los segundos reales de la parte 1', () => {
+    const descanso = reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 2_490_000 });
+    const { estado, trabajos, error } = reducir(descanso.estado, {
+      tipo: 'suspender',
+      ahora: INICIO + 2_700_000,
+    });
+
+    expect(error).toBeNull();
+    expect(estado.fase).toBe('finalizado');
+    expect(estado.partes).toBe(descanso.estado.partes);
+    expect(estado.suspension).toEqual({ parte: 1, segundos: 2_490 });
+    expect(trabajos).toEqual([
+      {
+        entity: 'match',
+        op: 'update',
+        matchId: 'par-1',
+        payload: {
+          valores: { status: 'suspended', suspended_period: 1, suspended_seconds: 2_490 },
+          clave: { id: 'par-1' },
+        },
+      },
+    ]);
+  });
+
+  it('sin empezar, ya terminado y en diferido es ilegal: sin trabajos y con su mensaje', () => {
+    const base = paquete();
+    const sinEmpezar = desdePaquete(base);
+    const terminado = desdePaquete({ ...base, partido: { ...base.partido, status: 'finished' } });
+    const diferido = desdePaquete({ ...base, partido: { ...base.partido, isRetroactive: true } });
+
+    for (const [estado, mensaje] of [
+      [sinEmpezar, 'El partido no ha empezado.'],
+      [terminado, 'El partido ya ha terminado.'],
+      [diferido, 'En diferido, el partido se termina desde el cierre.'],
+    ] as const) {
+      const resultado = reducir(estado, { tipo: 'suspender', ahora: INICIO });
+
+      expect(resultado.estado).toBe(estado);
+      expect(resultado.trabajos).toEqual([]);
+      expect(resultado.error).toBe(mensaje);
+    }
+  });
+
+  it('un partido ya suspendido no se vuelve a suspender', () => {
+    const suspendido = reducir(empezado(), { tipo: 'suspender', ahora: A_LOS_23_10 }).estado;
+    const otraVez = reducir(suspendido, { tipo: 'suspender', ahora: A_LOS_23_10 + 5_000 });
+
+    expect(otraVez.estado).toBe(suspendido);
+    expect(otraVez.trabajos).toEqual([]);
+    expect(otraVez.error).toBe('El partido ya ha terminado.');
+  });
+});
+
 describe('enCurso', () => {
   it('está en curso desde que empieza hasta que se finaliza', () => {
     expect(enCurso(desdePaquete(paquete()))).toBe(false);
@@ -390,6 +555,58 @@ describe('elegirEstado', () => {
     expect(elegido.titulares).toEqual(['p1', 'p8']);
     expect(elegido.enCampo).toEqual(['p1', 'p8']);
     expect(elegido.partes).toBe(local.partes);
+  });
+});
+
+describe('elegirEstado con un partido suspendido (T-226)', () => {
+  /** El servidor, con la parte 1 cerrada a los 23:10 y el partido suspendido ahí. */
+  function suspendidoEnElServidor(id: string): EstadoDirecto {
+    const base = paquete({
+      partes: [parteDelServidor({ id, actualSeconds: 1_390, endedAt: '2026-10-04T11:23:10Z' })],
+    });
+
+    return desdePaquete({
+      ...base,
+      partido: {
+        ...base.partido,
+        status: 'suspended',
+        suspendedPeriod: 1,
+        suspendedSeconds: 1_390,
+      },
+    });
+  }
+
+  it('con el aparato en juego y el servidor suspendido: termina, con la suspensión del servidor', () => {
+    const local: EstadoDirecto = { ...abiertaAqui(), eventos: [GOL_LOCAL] };
+
+    const elegido = elegirEstado(local, suspendidoEnElServidor('parte-A'));
+
+    expect(elegido.fase).toBe('finalizado');
+    expect(elegido.suspension).toEqual({ parte: 1, segundos: 1_390 });
+    expect(elegido.partes[0]).toMatchObject({ id: 'parte-A', segundosReales: 1_390 });
+    expect(elegido.eventos).toBe(local.eventos);
+  });
+
+  it('lo mismo si además ha cambiado el reglamento: la suspensión no se pierde', () => {
+    const servidor: EstadoDirecto = { ...suspendidoEnElServidor('parte-A'), cambiosMax: 7 };
+
+    const elegido = elegirEstado(abiertaAqui(), servidor);
+
+    expect(elegido.cambiosMax).toBe(7);
+    expect(elegido.fase).toBe('finalizado');
+    expect(elegido.suspension).toEqual({ parte: 1, segundos: 1_390 });
+  });
+
+  it('suspendido aquí y sin llegar todavía al servidor: la suspensión del aparato se queda', () => {
+    const local = reducir(empezado(), { tipo: 'suspender', ahora: INICIO + 1_390_000 }).estado;
+
+    expect(elegirEstado(local, delServidorCon([parteDelServidor({ id: 'parte-1' })]))).toBe(local);
+  });
+
+  it('sin diferencias, sigue devolviendo el mismo objeto', () => {
+    const local = reducir(empezado(), { tipo: 'suspender', ahora: INICIO + 1_390_000 }).estado;
+
+    expect(elegirEstado(local, suspendidoEnElServidor('parte-1'))).toBe(local);
   });
 });
 

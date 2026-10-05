@@ -24,6 +24,13 @@ export interface PartidoPrecargado {
   venue: string | null;
   status: EstadoDelPartido;
   isRetroactive: boolean;
+  /**
+   * La parte y el segundo en que se suspendió (T-226): los dos con el estado
+   * `suspended`, y `null` si no. Opcionales: un paquete guardado de antes no
+   * los trae, y valen `null`.
+   */
+  suspendedPeriod?: number | null;
+  suspendedSeconds?: number | null;
 }
 
 export interface ParteDelPartido {

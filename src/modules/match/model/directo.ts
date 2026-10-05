@@ -25,6 +25,11 @@
 // LAS PARTES SON DE TODOS LOS APARATOS (T-209c, D06-39). Se concilian por
 // número con las del servidor: el `id` y el arranque son del primero que llegó
 // a la base, y por eso una parte se termina por partido y número, no por `id`.
+//
+// SUSPENDER ES UNA TRANSICIÓN MÁS (T-226, D06-41). Cierra la parte abierta, si
+// la hay, y deja el partido en `suspended` con su parte y su segundo. La fase
+// local es `finalizado`, como la de un partido terminado: lo que distingue al
+// suspendido es `suspension`. No se deshace, y en diferido no la hay.
 
 import { calcularEnCampo, desdeFilas } from './eventos';
 import { conEventos, deshacer, registrar } from './registro';
@@ -77,11 +82,23 @@ export interface EstadoDirecto {
   tiposActivos: TipoDeEvento[];
   /** Partido en diferido: sin reloj, con el minuto a mano (DOC 04 §5.4). */
   diferido: boolean;
+  /**
+   * Dónde se suspendió el partido (T-226, DOC 04 §8.1): el número de la parte
+   * y sus segundos. `null` si no está suspendido. Con ella, la fase es
+   * `finalizado`.
+   */
+  suspension: Suspension | null;
+}
+
+export interface Suspension {
+  parte: number;
+  segundos: number;
 }
 
 export type Accion =
   | { tipo: 'empezar_parte'; ahora: number; parteId: string }
   | { tipo: 'pausar' | 'reanudar' | 'terminar_parte' | 'finalizar'; ahora: number }
+  | { tipo: 'suspender'; ahora: number }
   | AccionRegistrar
   | { tipo: 'deshacer'; clientEventId: string };
 
@@ -109,7 +126,8 @@ export function desdePaquete(paquete: PaqueteDePartido): EstadoDirecto {
     }));
 
   const ultima = partes[partes.length - 1];
-  const { status } = paquete.partido;
+  // Un paquete guardado antes de la T-226 no trae la parte ni el segundo.
+  const { status, suspendedPeriod = null, suspendedSeconds = null } = paquete.partido;
   let fase: Fase = 'inactivo';
 
   if (status === 'finished' || status === 'closed' || status === 'suspended') {
@@ -143,6 +161,10 @@ export function desdePaquete(paquete: PaqueteDePartido): EstadoDirecto {
     cambiosFijos: reglamento.substitution_type === 'fixed',
     tiposActivos: reglamento.enabled_event_types,
     diferido,
+    suspension:
+      status === 'suspended' && suspendedPeriod !== null && suspendedSeconds !== null
+        ? { parte: suspendedPeriod, segundos: suspendedSeconds }
+        : null,
   };
 }
 
@@ -166,6 +188,42 @@ function estadoDelPartido(partidoId: string, status: 'live' | 'finished'): Entra
 
 function conParte(estado: EstadoDirecto, parte: ParteLocal): ParteLocal[] {
   return estado.partes.map((otra) => (otra.id === parte.id ? parte : otra));
+}
+
+/**
+ * Cierra la parte abierta: sus segundos reales, descontada la pausa, y el
+ * trabajo que la termina en la base. Lo usan `terminar_parte` y `suspender`
+ * (T-226), que cierran igual.
+ */
+function cerrarParte(
+  estado: EstadoDirecto,
+  abierta: ParteLocal,
+  ahora: number,
+): { parte: ParteLocal; trabajo: EntradaDeTrabajo } {
+  const hasta = abierta.pausaDesde ?? ahora;
+  const segundosReales = Math.max(
+    0,
+    Math.floor((hasta - abierta.inicio - abierta.pausadoMs) / 1000),
+  );
+
+  return {
+    parte: { ...abierta, pausaDesde: null, segundosReales },
+    trabajo: {
+      entity: 'match_period',
+      op: 'update',
+      matchId: estado.partidoId,
+      payload: {
+        valores: {
+          ended_at: new Date(ahora).toISOString(),
+          actual_seconds: segundosReales,
+        },
+        // Por partido y número, no por `id` (D06-39): si otro aparato
+        // abrió antes esta parte, el `id` de este no está en la base
+        // hasta el siguiente refresco. El número va como texto.
+        clave: { match_id: estado.partidoId, period_number: String(abierta.numero) },
+      },
+    },
+  };
 }
 
 export function reducir(estado: EstadoDirecto, accion: Accion): Resultado {
@@ -272,35 +330,11 @@ export function reducir(estado: EstadoDirecto, accion: Accion): Resultado {
         return ilegal(estado, 'No hay ninguna parte en juego.');
       }
 
-      const hasta = abierta.pausaDesde ?? accion.ahora;
-      const segundosReales = Math.max(
-        0,
-        Math.floor((hasta - abierta.inicio - abierta.pausadoMs) / 1000),
-      );
+      const cierre = cerrarParte(estado, abierta, accion.ahora);
 
       return {
-        estado: {
-          ...estado,
-          fase: 'descanso',
-          partes: conParte(estado, { ...abierta, pausaDesde: null, segundosReales }),
-        },
-        trabajos: [
-          {
-            entity: 'match_period',
-            op: 'update',
-            matchId: estado.partidoId,
-            payload: {
-              valores: {
-                ended_at: new Date(accion.ahora).toISOString(),
-                actual_seconds: segundosReales,
-              },
-              // Por partido y número, no por `id` (D06-39): si otro aparato
-              // abrió antes esta parte, el `id` de este no está en la base
-              // hasta el siguiente refresco. El número va como texto.
-              clave: { match_id: estado.partidoId, period_number: String(abierta.numero) },
-            },
-          },
-        ],
+        estado: { ...estado, fase: 'descanso', partes: conParte(estado, cierre.parte) },
+        trabajos: [cierre.trabajo],
         error: null,
       };
     }
@@ -317,6 +351,55 @@ export function reducir(estado: EstadoDirecto, accion: Accion): Resultado {
       return {
         estado: { ...estado, fase: 'finalizado' },
         trabajos: [estadoDelPartido(estado.partidoId, 'finished')],
+        error: null,
+      };
+    }
+
+    case 'suspender': {
+      if (estado.fase === 'finalizado') {
+        return ilegal(estado, 'El partido ya ha terminado.');
+      }
+
+      if (estado.diferido) {
+        return ilegal(estado, 'En diferido, el partido se termina desde el cierre.');
+      }
+
+      if (estado.fase === 'inactivo') {
+        return ilegal(estado, 'El partido no ha empezado.');
+      }
+
+      // Con una parte abierta —en juego o en pausa— se cierra como en
+      // `terminar_parte`. En el descanso ya está cerrada, y vale como está.
+      const cierre = abierta === undefined ? null : cerrarParte(estado, abierta, accion.ahora);
+      const partes = cierre === null ? estado.partes : conParte(estado, cierre.parte);
+      const ultima = partes[partes.length - 1];
+
+      if (ultima === undefined || ultima.segundosReales === null) {
+        return ilegal(estado, 'El partido no ha empezado.');
+      }
+
+      const suspension: Suspension = { parte: ultima.numero, segundos: ultima.segundosReales };
+      const partido: EntradaDeTrabajo = {
+        entity: 'match',
+        op: 'update',
+        matchId: estado.partidoId,
+        payload: {
+          // Los tres a la vez: la base exige la parte y el segundo con el
+          // estado `suspended` (restricción `matches_suspension`).
+          valores: {
+            status: 'suspended',
+            suspended_period: suspension.parte,
+            suspended_seconds: suspension.segundos,
+          },
+          clave: { id: estado.partidoId },
+        },
+      };
+
+      return {
+        estado: { ...estado, fase: 'finalizado', partes, suspension },
+        // La parte antes que el partido: la cola respeta el orden, y así nadie
+        // ve un partido suspendido con una parte abierta.
+        trabajos: cierre === null ? [partido] : [cierre.trabajo, partido],
         error: null,
       };
     }
@@ -447,6 +530,9 @@ function faseConciliada(
  * y el campo se recalcula con sus titulares. Sin red, `servidor` sale del
  * último paquete descargado, que es lo mejor que se sabe.
  *
+ * LA SUSPENSIÓN (T-226) es la de este aparato si la tiene, y si no la del
+ * servidor: quien suspendió sin red no la pierde, y quien no, se entera.
+ *
  * Si no cambia nada, devuelve `local` tal cual: no provoca un repintado.
  */
 export function elegirEstado(
@@ -459,20 +545,27 @@ export function elegirEstado(
 
   const partes = conciliarPartes(local.partes, servidor.partes);
   const fase = faseConciliada(local, servidor, partes);
+  const suspension = local.suspension ?? servidor.suspension;
   const alDia = DEL_SERVIDOR.every((campo) => igual(local[campo], servidor[campo]));
 
-  if (alDia && partes === local.partes && fase === local.fase) {
+  if (
+    alDia &&
+    partes === local.partes &&
+    fase === local.fase &&
+    igual(suspension, local.suspension)
+  ) {
     return local;
   }
 
   if (alDia) {
-    return { ...local, fase, partes };
+    return { ...local, fase, partes, suspension };
   }
 
   return {
     ...local,
     fase,
     partes,
+    suspension,
     titulares: servidor.titulares,
     convocados: servidor.convocados,
     posicionesIniciales: servidor.posicionesIniciales,
