@@ -5,6 +5,26 @@
 
 ---
 
+## Sesión 05/10/2026, noche — tanda siguiente: la T-225 y la T-226: ✅ cerrada
+
+Sesión con Raúl. **Sin base de datos y sin código**: dos traspasos y su programación.
+
+- **`main` está en verde** tras la T-221, la T-223 y la T-224: lint, formato, **768 pruebas en 58
+  archivos** y build. Las tres se han dado por buenas con su informe; no se han revisado contra
+  su traspaso, como sí se hizo con las anteriores.
+- **Salen dos tareas**, las dos piezas del directo que estaban escritas en los documentos y sin
+  tarea: la **T-225**, la banda «Partido en directo · mm:ss · Volver» (punto 41), y la **T-226**,
+  suspender desde la A12 (punto 40). Traspasos en `docs/traspasos/`. Programadas para esta noche,
+  de una en una.
+- **Lo que queda sin Raúl se acaba aquí.** De la lista de abajo, lo demás pide la base (T-301a,
+  Realtime, puntos 65 y 73), una decisión suya (puntos 1 y 18), un móvil (puntos 42, 46, 60 y 62)
+  o dos partidos metidos (bloque B). El cuello de botella ya no son las sesiones.
+- **Las tareas se programan desde una conversación con el repositorio añadido**
+  (`claude/diag_sesion_programada.md`, en el proyecto de Claude): la sesión programada hereda el
+  clon y no puede añadírselo.
+
+---
+
 ## Sesión 05/10/2026 — T-224: flecos del cierre, «Mis aportaciones» y el registro de errores: ✅ cerrada
 
 Sesión programada, rama `fix/review-flecos-de-la-revision`. **Sin base de datos.** Los siete
@@ -653,11 +673,11 @@ Pendiente de hacer:
 40. **El directo no suspende.** El DOC 04 §8.1 tiene el estado `suspended` con su minuto, y desde la
     T-210a la A13 cierra y reabre partidos suspendidos y dice dónde se suspendieron. Pero la A12
     solo lleva a `finished`: suspender es una acción de su reductor, con su transición en la cola
-    y `suspended_period` y `suspended_seconds` (la base exige los dos). Sin tarea asignada; entra
-    antes si un amistoso lo pide.
+    y `suspended_period` y `suspended_seconds` (la base exige los dos). **Es la T-226**, sin el
+    diferido.
 41. **Falta la banda «Partido en directo · mm:ss · Volver»** en el resto de pantallas (DOC 02
     §3.1). La marca de `shared/lib/partidoEnCurso.ts` ya dice qué partido está en curso; falta la
-    banda. Sin tarea asignada.
+    banda. **Es la T-225.**
 42. **Sin comprobar en el navegador**: ni el reloj a 7:1 al sol, ni el bloqueo de pantalla en un
     móvil de verdad. Los colores salen de los tokens del directo del DOC 07.
 43. **Corregir el minuto de un evento** (E8-09) es hoy deshacerlo y volver a apuntarlo. La
@@ -907,18 +927,19 @@ cifra de referencia. En crudo, `precache 37 entries (940.82 KiB)`.
    asistencia» arriba, el panel del cierre y «Mis aportaciones». Y con dos móviles en un partido
    de prueba: que uno vea lo que apunta el otro y que los dos relojes marquen lo mismo.
 4. **Decir si los equipos nacen fuera de la lista** (punto 14). Es como está escrito.
+5. **Decidir los destinos de la barra** (punto 1). En la prueba de campo, un anotador sin
+   `team.manage` que pulse «Equipo» cae en `/403`. La salida recomendada es la B.
 
 **Las tareas, en orden**, cada una con su traspaso en `docs/traspasos/` o en el proyecto de Claude:
 
 | Orden | Tarea      | Qué                                                              | Esfuerzo | Necesita a Raúl |
 | :---- | :--------- | :--------------------------------------------------------------- | :------- | :-------------- |
-| 1     | **T-221**  | Arreglos de la revisión: la banda y la cobertura                 | Medio    | No              |
-| 2     | **T-223**  | Flecos del directo entre aparatos                                | Medio    | No              |
-| 3     | **T-224**  | Flecos del cierre, «Mis aportaciones» y el registro de errores   | Bajo     | No              |
-| 4     | **T-301a** | Migración de personas: invitaciones, seguir y solicitudes        | Alto     | Sí              |
-| 5     | **T-301b** | A07, personas y permisos                                         | Medio    | No, tras la a   |
-| 6     | **T-301c** | Entrar sin equipo: seguir, pedir permisos y el seguidor que mira | Medio    | No, tras la b   |
-| 7     | **T-302**  | Prueba de campo, el sábado 17 de octubre en casa. Tiene guion    | —        | Sí              |
+| 1     | **T-225**  | La banda «Partido en directo» en el resto de pantallas           | Medio    | No              |
+| 2     | **T-226**  | Suspender el partido desde el directo                            | Medio    | No              |
+| 3     | **T-301a** | Migración de personas: invitaciones, seguir y solicitudes        | Alto     | Sí              |
+| 4     | **T-301b** | A07, personas y permisos                                         | Medio    | No, tras la a   |
+| 5     | **T-301c** | Entrar sin equipo: seguir, pedir permisos y el seguidor que mira | Medio    | No, tras la b   |
+| 6     | **T-302**  | Prueba de campo, el sábado 17 de octubre en casa. Tiene guion    | —        | Sí              |
 
 La T-302 tiene fecha y no espera a nadie: lo que no esté fusionado y publicado el jueves 15 no
 entra en la prueba. Todas tocan el DOC 08 y este documento: de una en una.
