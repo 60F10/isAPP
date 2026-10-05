@@ -5,6 +5,35 @@
 
 ---
 
+## Sesión 05/10/2026 — T-221: arreglos de la revisión en la banda y la cobertura: ✅ cerrada
+
+Sesión programada, rama `fix/match-arreglos-de-la-revision`. **Sin base de datos.** Los diez
+arreglos del traspaso, con las pruebas escritas antes. Lint, formato, **743 pruebas en 57
+archivos** (eran 712) y build, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+
+- **La banda (`sync`).** El foco ya no cae en `body`: a la pregunta al abrir la confirmación, al
+  «Descartar» de ese elemento con «No», y tras descartar al del siguiente, al del anterior, al
+  titular de la banda o, si la banda se va, al `h1`. Cada «Descartar» se llama «Descartar:
+  <entidad> · <fecha y hora>», y la confirmación es un grupo con ese nombre.
+  `descartarRechazado` es un solo `delete()` de Dexie. Si Dexie falla se dice y la confirmación
+  sigue abierta; si ya no estaba, también se dice. El anuncio es «Descartado: <entidad>».
+- **La cobertura (`match`).** `CoberturaLocal` lleva `userId`; `leerCobertura(partidoId, userId)`
+  solo devuelve la propia y la de otra cuenta se pisa sin encolar su cierre (D06-37, DOC 06
+  §5.4). Declarar, cerrar y cambiar devuelven `{ cobertura, aplicado }`. «Salir» espera al cierre
+  1,5 s como mucho. `contarPendientes(userId, { sin: ['coverage'] })` deja la cobertura fuera de
+  la pregunta al salir del directo; la banda y Ajustes siguen contándola.
+- **Tres cosas decididas sin nadie delante**, por si no gustan:
+  1. La confirmación es un `<fieldset aria-label>` y no un `<div role="group">`: es el mismo
+     papel, y `oxlint` avisa del `role` escrito a mano (`prefer-tag-over-role`).
+  2. El nombre de «Descartar» lleva la hora **con segundos**; el texto visible sigue en minutos.
+     Sin ellos, dos anotaciones rechazadas en el mismo minuto se llamarían igual.
+  3. El fallo al descartar y el «No se ha cambiado» de la cobertura, además de anunciarse, **se
+     ven**: la región viva está oculta, y quien mira la pantalla no se enteraba.
+- **`CLAUDE.md` no se ha tocado**: el traspaso no lo pedía. Su párrafo «Siguientes tareas» sigue
+  nombrando la T-221; la siguiente es la T-223.
+
+---
+
 ## Sesión 04/10/2026, noche — revisión de la T-209b, la T-209c y la T-222, y `main` otra vez en verde: ✅ cerrada
 
 Sesión con Raúl. **Sin base de datos.** Dos PR: la #78, que arregla `main`, y esta, de documentación.
@@ -723,12 +752,18 @@ Pendiente de hacer:
 
 74. **La banda pierde el foco al descartar**, su borrado no es una sola operación y un fallo de
     Dexie al descartar se queda sin decir nada (T-219). Va en la T-221.
+    **Cerrado por la T-221.** Queda: el foco va al `h1` buscándolo en el documento, que es lo
+    único que `sync` sabe de la pantalla.
 
 75. **La cobertura es del aparato, no de la persona.** Si alguien deja una abierta y otra cuenta
     entra en ese móvil, no declara la suya y al salir encola un cierre que la base rechaza.
     Además: salir del directo espera a que se guarde el cierre de la cobertura, sin límite de
     tiempo; cambiar lo que se sigue anuncia el cambio aunque no se haya guardado; y abrir el
     directo sin red deja «1 anotación sin enviar» sin haber apuntado nada. Va en la T-221.
+    **Cerrado por la T-221.** Queda, como deuda: los fallos de la cobertura en el aparato no
+    llegan al registro de errores, porque `match` no puede importar de `logging`; si el cierre
+    no llega a guardarse al salir, la cobertura queda abierta hasta el cierre del partido; y una
+    guardada antes de la T-221, sin `userId`, se sigue dando por propia de quien entre.
 
 76. **Flecos del cierre, de «Mis aportaciones» y del registro de errores**: aprobar en bloque no
     avisa si aprobó menos de los pedidos; el registro pagina por desplazamiento y repite o se

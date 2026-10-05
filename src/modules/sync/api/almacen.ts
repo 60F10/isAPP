@@ -10,7 +10,7 @@ import { contar, crearTrabajo, purgables } from '../model/cola';
 
 import type { EntradaDeTrabajo, EstadoDeCola } from '../model/cola';
 import type { Almacen } from '../model/vaciador';
-import type { Trabajo } from '@shared/lib/db';
+import type { Entidad, Trabajo } from '@shared/lib/db';
 import type { Table } from 'dexie';
 
 export const almacenDexie: Almacen = {
@@ -92,9 +92,25 @@ export async function encolarTrabajosJunto(
   return trabajos;
 }
 
+/** Qué no entra en la cuenta de `contarPendientes`. */
+export interface OpcionesDeCuenta {
+  /**
+   * Las entidades que no cuentan (T-221). El directo deja fuera `coverage`:
+   * la cobertura se encola sola al abrir, y preguntar por «1 anotación sin
+   * enviar» a quien no ha apuntado nada es mentirle. La cola sigue sin mirar
+   * la fila: solo de qué tabla es (DOC 06 §4.2).
+   */
+  sin?: readonly Entidad[];
+}
+
 /** Cuántos trabajos siguen por enviar de esa persona. Para avisar antes de salir. */
-export async function contarPendientes(userId: string): Promise<number> {
-  return (await almacenDexie.pendientes(userId)).length;
+export async function contarPendientes(
+  userId: string,
+  { sin = [] }: OpcionesDeCuenta = {},
+): Promise<number> {
+  const pendientes = await almacenDexie.pendientes(userId);
+
+  return pendientes.filter((trabajo) => !sin.includes(trabajo.entity)).length;
 }
 
 /** Borra lo enviado hace más de 48 horas (DOC 06 §8.5). */
@@ -204,18 +220,20 @@ export async function purgarPartido(matchId: string): Promise<void> {
  * Borra de la cola un trabajo rechazado (T-219). Solo si es `failed` y de esa
  * persona: lo pendiente va a enviarse y lo de otra cuenta no es suyo.
  *
- * @returns si lo borró.
+ * Es una sola operación de Dexie (T-221): el estado y el dueño se miran
+ * dentro del propio borrado, no antes. Leer, comprobar y borrar en tres pasos
+ * dejaba un hueco en el que otra pestaña podía cambiar el trabajo.
+ *
+ * @returns si lo borró. `false` es que ya no estaba, o que no era descartable.
  */
 export async function descartarRechazado(id: string, userId: string): Promise<boolean> {
-  const trabajo = await db.outbox.get(id);
+  const borrados = await db.outbox
+    .where('id')
+    .equals(id)
+    .and((trabajo) => trabajo.status === 'failed' && trabajo.userId === userId)
+    .delete();
 
-  if (trabajo === undefined || trabajo.status !== 'failed' || trabajo.userId !== userId) {
-    return false;
-  }
-
-  await db.outbox.delete(id);
-
-  return true;
+  return borrados > 0;
 }
 
 /**

@@ -24,6 +24,8 @@
 // puede cambiar bajo el marcador y se cierra al salir con el botón y al
 // finalizar. Va aparte del reductor, por `api/cobertura`: que falle no impide
 // anotar ni salir, y la que se quede abierta la termina el cierre (C-03).
+// Desde la T-221 es de quien la declara: solo se mira y se cierra la propia,
+// y salir no espera a su cierre más de segundo y medio.
 //
 // DESDE LA T-209b, LO QUE APUNTAN LOS DEMÁS (D06-38). La pantalla vuelve a
 // descargar el partido cada poco (`useRefresco`) y lo funde con lo suyo: lo
@@ -189,6 +191,13 @@ const ESPERA_DE_GUARDADO_MS = 4_000;
  */
 const ESPERA_DE_REFRESCO_MS = 500;
 const VUELTAS_DE_REFRESCO = 5;
+/**
+ * Lo más que «Salir» espera a que se guarde el cierre de la cobertura
+ * (T-221). Si IndexedDB se cuelga, se sale igual: el cierre sigue su curso y,
+ * si no llega, la cobertura la termina el cierre del partido (C-03).
+ */
+const ESPERA_AL_SALIR_MS = 1_500;
+const COBERTURA_SIN_CAMBIAR = 'No se ha cambiado: este dispositivo ya tenía otra abierta.';
 
 function esperar(milisegundos: number): Promise<void> {
   return new Promise((resolve) => {
@@ -245,13 +254,17 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
 
   const coberturaMirada = useRef(false);
 
-  // Al abrir: si el aparato no tiene una abierta y el partido no ha terminado,
-  // se declara «todo el equipo» desde este instante. Una vez por pantalla, con
-  // lo que se cargó: la marca lo impide aunque el efecto se repita, y si aun
-  // así se llamara dos veces, `declararCobertura` devuelve la que ya hay en
-  // vez de abrir otra.
+  // Al abrir: si quien anota no tiene una abierta en el aparato y el partido
+  // no ha terminado, se declara «todo el equipo» desde este instante. Una vez
+  // por pantalla, con lo que se cargó: la marca lo impide aunque el efecto se
+  // repita, y si aun así se llamara dos veces, `declararCobertura` devuelve la
+  // que ya hay en vez de abrir otra.
+  //
+  // La marca se pone solo cuando hay `userId` (T-221): puesta antes, si la
+  // sesión llegara tarde no se declararía nunca. La abierta de otra cuenta no
+  // cuenta: `leerCobertura` solo devuelve la de esta persona.
   useEffect(() => {
-    if (coberturaMirada.current) {
+    if (userId === null || coberturaMirada.current) {
       return;
     }
 
@@ -260,10 +273,10 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
 
     void (async () => {
       try {
-        let abierta = await leerCobertura(inicial.partidoId);
+        let abierta = await leerCobertura(inicial.partidoId, userId);
 
-        if (abierta === null && inicial.fase !== 'finalizado' && userId !== null) {
-          abierta = await declararCobertura({
+        if (abierta === null && inicial.fase !== 'finalizado') {
+          const declarada = await declararCobertura({
             id: crypto.randomUUID(),
             partidoId: inicial.partidoId,
             userId,
@@ -273,6 +286,8 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
             desde: instanteActual(inicial, Date.now()),
             diferido: inicial.diferido,
           });
+
+          abierta = declarada.cobertura;
         }
 
         setCobertura(abierta);
@@ -682,7 +697,14 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     }
 
     try {
-      setCobertura(await cerrarCobertura(hasta.partidoId, cobertura, instanteActual(hasta, ahora)));
+      const cierre = await cerrarCobertura(
+        hasta.partidoId,
+        cobertura,
+        instanteActual(hasta, ahora),
+      );
+
+      // Aplicado o no, es la que queda abierta en el aparato.
+      setCobertura(cierre.cobertura);
     } catch {
       // Se queda abierta: la termina el cierre del partido (C-03).
     }
@@ -698,7 +720,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     setAviso(null);
 
     try {
-      const nueva = await cambiarCobertura(cobertura, {
+      const cambio = await cambiarCobertura(cobertura, {
         id: crypto.randomUUID(),
         partidoId: estado.partidoId,
         userId,
@@ -709,8 +731,17 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
         diferido: estado.diferido,
       });
 
-      setCobertura(nueva);
-      anunciar(`Ahora sigues: ${describirCobertura(nueva, nombreDe)}`);
+      // Aplicado o no, la pantalla enseña la que hay en el aparato.
+      setCobertura(cambio.cobertura);
+
+      if (cambio.aplicado) {
+        anunciar(`Ahora sigues: ${describirCobertura(cambio.cobertura, nombreDe)}`);
+      } else {
+        // Otra pestaña o un doble toque se adelantaron: no se ha guardado
+        // nada, y decir «Ahora sigues» sería anunciar un cambio que no hubo.
+        setAviso(COBERTURA_SIN_CAMBIAR);
+        anunciar(COBERTURA_SIN_CAMBIAR);
+      }
     } catch {
       const mensaje =
         'No se ha podido guardar lo que sigues en este dispositivo. Sigue como estaba.';
@@ -731,16 +762,21 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     }
   };
 
-  /** Salir de verdad: se cierra la cobertura y se va al calendario. */
+  /**
+   * Salir de verdad: se cierra la cobertura y se va al calendario. Al cierre
+   * se le espera lo justo (T-221): «Salir» sale aunque IndexedDB no conteste.
+   */
   const irse = async () => {
-    await terminarCobertura(estado, Date.now());
+    await Promise.race([terminarCobertura(estado, Date.now()), esperar(ESPERA_AL_SALIR_MS)]);
     void navigate('/calendario');
   };
 
   const salir = async () => {
     if (userId !== null && pendientesAlSalir === null) {
       try {
-        const cuantos = await contarPendientes(userId);
+        // La cobertura no cuenta (T-221): se encola sola al abrir, y sin red
+        // saldría «1 anotación sin enviar» sin haber apuntado nada.
+        const cuantos = await contarPendientes(userId, { sin: ['coverage'] });
 
         if (cuantos > 0) {
           setPendientesAlSalir(cuantos);
@@ -754,8 +790,6 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
       }
     }
 
-    // La cobertura se cierra después de contar: su cierre también va a la
-    // cola, y contado antes saldría siempre como una anotación sin enviar.
     await irse();
   };
 

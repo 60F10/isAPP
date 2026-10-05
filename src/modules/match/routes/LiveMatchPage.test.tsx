@@ -132,7 +132,7 @@ function auth(permisos: AppPermission[] = ['match.live.write']): AuthState {
   };
 }
 
-function montar(permisos?: AppPermission[]) {
+function montar(permisos?: AppPermission[], { sinSesion = false } = {}) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
@@ -142,24 +142,35 @@ function montar(permisos?: AppPermission[]) {
     ],
     { initialEntries: ['/partidos/par-1/directo'] },
   );
-
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <AuthContext value={auth(permisos)}>
+  const cliente = new QueryClient();
+  const arbol = (estado: AuthState) => (
+    <QueryClientProvider client={cliente}>
+      <AuthContext value={estado}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
         </AnnounceContext>
       </AuthContext>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 
-  return { anunciar };
+  const { rerender } = render(
+    arbol(sinSesion ? { ...auth(permisos), session: null } : auth(permisos)),
+  );
+
+  return {
+    anunciar,
+    /** La sesión llega después de pintar: lo que mira el arreglo 10 de la T-221. */
+    conSesion: () => {
+      rerender(arbol(auth(permisos)));
+    },
+  };
 }
 
 /** La cobertura que devolvería la API al declarar: abierta y con lo pedido. */
 function abierta(datos: Declaracion): CoberturaLocal {
   return {
     id: datos.id,
+    userId: datos.userId,
     alcance: datos.alcance,
     jugador: datos.jugador,
     tipos: [...datos.tiposActivos],
@@ -170,6 +181,7 @@ function abierta(datos: Declaracion): CoberturaLocal {
 
 const TODO_EL_EQUIPO: CoberturaLocal = {
   id: 'cob-1',
+  userId: 'usuario-1',
   alcance: 'full_team',
   jugador: null,
   tipos: PAQUETE.reglamento.enabled_event_types,
@@ -190,14 +202,15 @@ beforeEach(() => {
   cobertura.leerCobertura.mockReset();
   cobertura.leerCobertura.mockResolvedValue(null);
   cobertura.declararCobertura.mockReset();
+  // Desde la T-221, las tres dicen la que queda abierta y si se aplicó.
   cobertura.declararCobertura.mockImplementation((datos: Declaracion) =>
-    Promise.resolve(abierta(datos)),
+    Promise.resolve({ cobertura: abierta(datos), aplicado: true }),
   );
   cobertura.cerrarCobertura.mockReset();
-  cobertura.cerrarCobertura.mockResolvedValue(null);
+  cobertura.cerrarCobertura.mockResolvedValue({ cobertura: null, aplicado: true });
   cobertura.cambiarCobertura.mockReset();
   cobertura.cambiarCobertura.mockImplementation((_anterior: unknown, datos: Declaracion) =>
-    Promise.resolve(abierta(datos)),
+    Promise.resolve({ cobertura: abierta(datos), aplicado: true }),
   );
 });
 
@@ -393,7 +406,8 @@ describe('A12 · Directo, esqueleto', () => {
       montar();
 
       expect(await screen.findByText('Sigues: todo el equipo')).toBeInTheDocument();
-      expect(cobertura.leerCobertura).toHaveBeenCalledWith('par-1');
+      // Solo la de quien tiene la sesión: la de otra cuenta no es suya (T-221).
+      expect(cobertura.leerCobertura).toHaveBeenCalledWith('par-1', 'usuario-1');
       expect(cobertura.declararCobertura).toHaveBeenCalledTimes(1);
       expect(cobertura.declararCobertura).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -548,6 +562,74 @@ describe('A12 · Directo, esqueleto', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Salir del directo' }));
 
       expect(await screen.findByText('Calendario')).toBeInTheDocument();
+    });
+
+    it('con el cierre de la cobertura colgado, «Salir del directo» navega antes de 2 s', async () => {
+      api.cargarDirecto.mockResolvedValue(cargado());
+      cobertura.leerCobertura.mockResolvedValue(TODO_EL_EQUIPO);
+      // IndexedDB que no contesta: la promesa no se resuelve nunca.
+      cobertura.cerrarCobertura.mockReturnValue(new Promise(() => undefined));
+      montar();
+
+      await screen.findByText('Sigues: todo el equipo');
+      const alPulsar = Date.now();
+      await userEvent.click(screen.getByRole('button', { name: 'Salir del directo' }));
+
+      expect(await screen.findByText('Calendario', {}, { timeout: 2_000 })).toBeInTheDocument();
+      expect(Date.now() - alPulsar).toBeLessThan(2_000);
+      expect(cobertura.cerrarCobertura).toHaveBeenCalledTimes(1);
+    });
+
+    it('con solo un trabajo de cobertura pendiente, salir no pregunta', async () => {
+      api.cargarDirecto.mockResolvedValue(cargado());
+      // Se abrió sin red: en la cola solo está el alta de la cobertura.
+      sync.contarPendientes.mockImplementation(
+        (_userId: string, opciones?: { sin?: readonly string[] }) =>
+          Promise.resolve(opciones?.sin?.includes('coverage') === true ? 0 : 1),
+      );
+      montar();
+
+      await screen.findByText('Sigues: todo el equipo');
+      await userEvent.click(screen.getByRole('button', { name: 'Salir del directo' }));
+
+      expect(await screen.findByText('Calendario')).toBeInTheDocument();
+      expect(sync.contarPendientes).toHaveBeenCalledWith('usuario-1', { sin: ['coverage'] });
+    });
+
+    it('con `aplicado: false`, pone la que hay y anuncia que no se ha cambiado', async () => {
+      api.cargarDirecto.mockResolvedValue(cargado());
+      cobertura.leerCobertura.mockResolvedValue(TODO_EL_EQUIPO);
+      // Otra pestaña ya la había cambiado a un jugador.
+      cobertura.cambiarCobertura.mockResolvedValue({
+        cobertura: { ...TODO_EL_EQUIPO, id: 'cob-2', alcance: 'single_player', jugador: 'p7' },
+        aplicado: false,
+      });
+      const { anunciar } = montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Cambiar lo que sigues' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Solo goles y tarjetas' }));
+
+      const mensaje = 'No se ha cambiado: este dispositivo ya tenía otra abierta.';
+      expect(await screen.findByText('Sigues: 7 · Juanito')).toBeInTheDocument();
+      expect(anunciar).toHaveBeenCalledWith(mensaje);
+      expect(anunciar).not.toHaveBeenCalledWith(expect.stringMatching(/^Ahora sigues:/));
+      expect(screen.getByText(mensaje)).toBeInTheDocument();
+    });
+
+    it('sin sesión todavía no mira la cobertura; cuando llega, la declara una vez', async () => {
+      api.cargarDirecto.mockResolvedValue(cargado());
+      const { conSesion } = montar(undefined, { sinSesion: true });
+
+      await screen.findByText('Sin empezar');
+
+      expect(cobertura.leerCobertura).not.toHaveBeenCalled();
+      expect(cobertura.declararCobertura).not.toHaveBeenCalled();
+
+      conSesion();
+
+      expect(await screen.findByText('Sigues: todo el equipo')).toBeInTheDocument();
+      expect(cobertura.leerCobertura).toHaveBeenCalledTimes(1);
+      expect(cobertura.declararCobertura).toHaveBeenCalledTimes(1);
     });
 
     it('finalizar el partido cierra la cobertura en el final de la última parte', async () => {
