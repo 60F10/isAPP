@@ -59,11 +59,11 @@
   color: var(--color-text-on-accent);
 }
 
-.primary:hover:not(:disabled) {
+.primary:hover:not(:disabled):not([aria-disabled='true']) {
   background-color: var(--color-accent-hover);
 }
 
-.primary:active:not(:disabled) {
+.primary:active:not(:disabled):not([aria-disabled='true']) {
   background-color: var(--color-accent-active);
 }
 
@@ -73,11 +73,11 @@
   color: var(--color-text);
 }
 
-.secondary:hover:not(:disabled) {
+.secondary:hover:not(:disabled):not([aria-disabled='true']) {
   background-color: var(--color-bg-sunken);
 }
 
-.secondary:active:not(:disabled) {
+.secondary:active:not(:disabled):not([aria-disabled='true']) {
   background-color: var(--color-surface-pressed);
 }
 
@@ -86,11 +86,11 @@
   color: var(--color-accent-ink);
 }
 
-.ghost:hover:not(:disabled) {
+.ghost:hover:not(:disabled):not([aria-disabled='true']) {
   background-color: var(--color-accent-soft);
 }
 
-.ghost:active:not(:disabled) {
+.ghost:active:not(:disabled):not([aria-disabled='true']) {
   background-color: var(--color-surface-pressed);
 }
 

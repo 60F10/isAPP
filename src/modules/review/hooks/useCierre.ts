@@ -127,7 +127,7 @@ export function useGuardarOrigen(partidoId: string) {
       clientEventId: string;
       detalles: Readonly<Record<string, string>>;
       origen: OrigenDeGol;
-    }) => guardarOrigen(cambio.clientEventId, cambio.detalles, cambio.origen),
+    }) => guardarOrigen(cambio.clientEventId, cambio.detalles, cambio.origen, partidoId),
     onSettled: () => queryClient.invalidateQueries({ queryKey: reviewKeys.cierre(partidoId) }),
   });
 }

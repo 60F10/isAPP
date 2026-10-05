@@ -318,18 +318,21 @@ export async function reabrirPartido(
 /**
  * Pone el origen a un gol (DOC 04 §7.5): «se puede rellenar al cerrar». Va
  * directo a la base y no por la cola: la A13 se usa en línea. Conserva el
- * resto de `details`. La RLS pide `event.approve` para tocar un evento
+ * resto de `details`. Lleva también el `match_id`: el evento tiene que ser de
+ * este partido. La RLS pide `event.approve` para tocar un evento
  * aprobado; sin él, cero filas y `SIN_FILAS`.
  */
 export async function guardarOrigen(
   clientEventId: string,
   detalles: Readonly<Record<string, string>>,
   origen: OrigenDeGol,
+  partidoId: string,
 ): Promise<void> {
   const { data, error } = await supabase
     .from('match_events')
     .update({ details: { ...detalles, origen } })
     .eq('client_event_id', clientEventId)
+    .eq('match_id', partidoId)
     .select('id')
     .maybeSingle();
 

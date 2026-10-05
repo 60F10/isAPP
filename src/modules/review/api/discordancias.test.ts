@@ -190,6 +190,27 @@ describe('cambiarMinuto', () => {
   });
 });
 
+describe('las escrituras piden la fila de vuelta', () => {
+  it.each([
+    [
+      'resolverEvento',
+      () =>
+        resolverEvento({ id: 'e1', partidoId: 'p1', de: 'pending', a: 'approved', userId: 'u1' }),
+    ],
+    ['aprobarPendientes', () => aprobarPendientes({ ids: ['e1'], partidoId: 'p1', userId: 'u1' })],
+    ['cambiarMinuto', () => cambiarMinuto({ id: 'e1', partidoId: 'p1', periodo: 1, segundos: 60 })],
+  ])('%s encadena select tras el update', async (_nombre, llamar) => {
+    red.respuesta = { data: [{ id: 'e1' }], error: null };
+
+    await llamar();
+
+    const metodos = ultima().cadena.map((paso) => paso.metodo);
+
+    expect(metodos).toContain('update');
+    expect(metodos.indexOf('select')).toBeGreaterThan(metodos.indexOf('update'));
+  });
+});
+
 describe('fetchAutores', () => {
   it('pide solo id y display_name', async () => {
     red.respuesta = {

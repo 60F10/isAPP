@@ -15,6 +15,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthContext } from '@modules/auth';
 import { AnnounceContext } from '@shared/hooks/announceContext';
 
+import { reviewKeys } from '../api/queryKeys';
+
 import { MisAportacionesPage } from './MisAportacionesPage';
 
 import type {
@@ -130,10 +132,10 @@ function montar(permisos: AppPermission[] = ['match.live.write']) {
     },
   );
 
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
+    <QueryClientProvider client={cliente}>
       <AuthContext value={auth(permisos)}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
@@ -142,7 +144,7 @@ function montar(permisos: AppPermission[] = ['match.live.write']) {
     </QueryClientProvider>,
   );
 
-  return { anunciar };
+  return { anunciar, cliente };
 }
 
 beforeEach(() => {
@@ -321,6 +323,20 @@ describe('MisAportacionesPage', () => {
     await waitFor(() => {
       expect(anunciar).toHaveBeenCalledWith('Evento borrado.');
     });
+  });
+
+  it('con la lista volviéndose a pedir y sin borrado en marcha, el botón dice «Sí, borrar»', async () => {
+    servidor({ partidos: [partido({ id: 'par-1' })], eventos: [evento({ id: 'e1' })] });
+    const { cliente } = montar();
+
+    await pulsar('Borrar: Evento e1');
+
+    // La pantalla vuelve a pedir la lista mientras el borrado sigue sin pedirse.
+    api.fetchAportaciones.mockImplementation(() => new Promise(() => undefined));
+    void cliente.invalidateQueries({ queryKey: reviewKeys.aportaciones() });
+
+    expect(await screen.findByRole('button', { name: 'Sí, borrar' })).toBeDisabled();
+    expect(screen.queryByText('Borrando…')).not.toBeInTheDocument();
   });
 
   it('«Cancelar» en el borrado no borra nada', async () => {

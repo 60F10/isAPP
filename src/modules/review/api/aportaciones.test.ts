@@ -161,6 +161,26 @@ describe('correcciones', () => {
   });
 
   it.each([
+    [
+      'cambiarJugador',
+      () => cambiarJugador({ id: 'e1', partidoId: 'p1', jugador: 'j9' }),
+      'update',
+    ],
+    [
+      'cambiarSegundo',
+      () => cambiarSegundo({ id: 'e1', partidoId: 'p1', segundo: 'j9' }),
+      'update',
+    ],
+    ['borrarEvento', () => borrarEvento({ id: 'e1', partidoId: 'p1' }), 'delete'],
+  ])('%s pide la fila de vuelta con select tras el %s', async (_nombre, llamar, escritura) => {
+    await llamar();
+
+    const metodos = ultima().cadena.map((p) => p.metodo);
+
+    expect(metodos.indexOf('select')).toBeGreaterThan(metodos.indexOf(escritura));
+  });
+
+  it.each([
     ['cambiarJugador', () => cambiarJugador({ id: 'e1', partidoId: 'p1', jugador: 'j9' })],
     ['cambiarSegundo', () => cambiarSegundo({ id: 'e1', partidoId: 'p1', segundo: 'j9' })],
     ['borrarEvento', () => borrarEvento({ id: 'e1', partidoId: 'p1' })],

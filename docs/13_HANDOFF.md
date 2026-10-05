@@ -5,6 +5,34 @@
 
 ---
 
+## Sesión 05/10/2026 — T-224: flecos del cierre, «Mis aportaciones» y el registro de errores: ✅ cerrada
+
+Sesión programada, rama `fix/review-flecos-de-la-revision`. **Sin base de datos.** Los siete
+arreglos del traspaso, con las pruebas escritas antes y comprobadas en rojo. Lint, formato,
+**768 pruebas en 58 archivos** (eran 754) y build, sin `INEFFECTIVE_DYNAMIC_IMPORT`. Inicial
+comprimido: **175,11 kB**, medido recorriendo las importaciones estáticas; no sube, porque nada
+de lo tocado es del paquete inicial.
+
+- **Registro de errores.** Ninguna página se vuelve a pedir sola (`refetchOnWindowFocus` y
+  `refetchOnReconnect` a `false`); el botón «Actualizar» vacía los cursores, invalida las
+  consultas de errores y anuncia el resultado. Si falla «Cargar 50 más», el botón se queda con
+  «Reintentar», el fallo se anuncia y pulsarlo repite esa misma página. Una ruta que sea solo `*`
+  ya no filtra.
+- **Cierre y A14.** `guardarOrigen` lleva el `match_id`; «Borrando…» solo sale con el borrado en
+  marcha; los botones con `aria-disabled` no cambian de fondo al pasar el ratón. `CLAUDE.md` dice
+  ya «`id`, `match_id` y estado» en el párrafo de la T-210b.
+- **Pruebas nuevas.** La fila de vuelta de cada `update` y `delete` de `discordancias` y
+  `aportaciones`, el `gte` de «solo hoy» con la hora fija, el hook `useErrores` (su prueba
+  nueva), «Actualizar», «Reintentar», «Sí, borrar» durante el refresco y el `match_id` del origen.
+- **Una decisión sin nadie delante.** «Actualizar» desmonta las páginas siguientes con
+  `flushSync` antes de invalidar: si no, también se volverían a pedir y no se usarían. Y el
+  anuncio de «Actualizar» se hace una sola vez, al terminar, aunque la lista no haya cambiado.
+- **Deuda.** El registro de errores ya no se pone al día solo: hay que pulsar «Actualizar». Y el
+  `match_id` en el filtro sigue sin impedir tocar un evento de un partido que otro acaba de
+  cerrar (punto 73): eso es del disparador que protege los partidos cerrados, fuera de esta tarea.
+
+---
+
 ## Sesión 05/10/2026 — T-223: flecos del directo entre aparatos: ✅ cerrada
 
 Sesión programada, rama `fix/match-flecos-entre-aparatos`. **Sin base de datos.** Los siete
@@ -835,7 +863,7 @@ Pendiente de hacer:
     T-222). El registro vuelve a pedir la primera página al volver el foco y descoloca las
     siguientes; si falla «Cargar 50 más» no se puede reintentar; una ruta que sea solo `*` filtra
     de más; `guardarOrigen` no lleva el `match_id`; «Borrando…» sale de más; y a las pruebas de
-    las `api/` les falta exigir la fila de vuelta. **Es la T-224.**
+    las `api/` les falta exigir la fila de vuelta. **Cerrado por la T-224 (05/10).**
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
