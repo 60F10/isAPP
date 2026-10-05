@@ -81,7 +81,15 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
       .from('match_periods')
       .select('id, period_number, planned_seconds, actual_seconds, started_at, ended_at')
       .eq('match_id', partidoId),
-    supabase.from('match_events').select(COLUMNAS_EVENTO).eq('match_id', partidoId),
+    // Con orden (T-223): sin él, PostgREST los devuelve como le viene, y tras
+    // revisar eventos en el cierre «Últimos eventos» salía desordenado en un
+    // aparato que carga el partido por primera vez.
+    supabase
+      .from('match_events')
+      .select(COLUMNAS_EVENTO)
+      .eq('match_id', partidoId)
+      .order('created_at')
+      .order('client_event_id'),
     supabase.from('app_settings').select('value').eq('key', CLAVE_DE_VENTANAS).maybeSingle(),
   ]);
 
@@ -148,6 +156,11 @@ export async function descargarPaquete(partidoId: string): Promise<PaqueteDePart
  * al volver a abrir el directo se declararía otra encima de la que sigue
  * abierta en el servidor.
  *
+ * UNA DESCARGA QUE LLEGA TARDE NO PISA A OTRA MÁS NUEVA (T-223). Si lo
+ * guardado se pidió después que lo que llega, no se escribe nada: con mala
+ * cobertura una petición lenta puede acabar detrás de la siguiente. Sin saber
+ * cuándo se pidió alguna de las dos, se escribe como siempre.
+ *
  * @param pedidoEn cuándo se pidió la descarga (T-209b). Se apunta para saber
  *   desde cuándo mirar la cola al fundir este paquete con lo del aparato.
  */
@@ -159,6 +172,11 @@ export async function guardarPaquete(
   await db.transaction('rw', db.matchSnapshots, db.matchEvents, async () => {
     const anterior = await db.matchSnapshots.get(paquete.partido.id);
     const previa = anterior === undefined ? undefined : (anterior.datos as Instantanea);
+
+    if (pedidoEn !== undefined && previa?.pedidoEn !== undefined && previa.pedidoEn > pedidoEn) {
+      return;
+    }
+
     // Las claves que no hay no se escriben: `undefined` no es lo mismo que nada.
     const instantanea: Instantanea = {
       paquete,

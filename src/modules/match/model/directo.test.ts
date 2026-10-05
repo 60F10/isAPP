@@ -249,21 +249,6 @@ describe('reducir', () => {
     ]);
   });
 
-  it('terminar la parte la busca por partido y número, no por su `id`, que puede ser de otro aparato (T-209c)', () => {
-    const descanso = reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 1_000 });
-    const segunda = reducir(descanso.estado, {
-      tipo: 'empezar_parte',
-      ahora: INICIO + 2_000,
-      parteId: 'parte-2',
-    });
-    const { trabajos } = reducir(segunda.estado, { tipo: 'terminar_parte', ahora: INICIO + 3_000 });
-
-    expect(trabajos).toHaveLength(1);
-    expect(trabajos[0]).toMatchObject({ entity: 'match_period', op: 'update', matchId: 'par-1' });
-    // `clave` es `Record<string, string>`: el número va como texto.
-    expect(trabajos[0]?.payload.clave).toEqual({ match_id: 'par-1', period_number: '2' });
-  });
-
   it('la segunda parte no vuelve a poner el partido en juego', () => {
     const descanso = reducir(empezado(), { tipo: 'terminar_parte', ahora: INICIO + 2_400_000 });
     const { trabajos } = reducir(descanso.estado, {
@@ -574,17 +559,22 @@ describe('elegirEstado entre aparatos (T-209c)', () => {
   });
 
   it('terminar la parte adoptada la cierra por partido y número, no por un `id` que la base no tiene', () => {
-    const local = elegirEstado(abiertaAqui(), delServidorCon([]));
+    // El servidor tiene la parte 1 de otro aparato: otro `id`, y abierta cinco
+    // segundos antes que la de este.
+    const local = elegirEstado(abiertaAqui(), delServidorCon([parteDelServidor()]));
+
+    expect(local.partes[0]).toMatchObject({ id: 'parte-A', inicio: INICIO });
 
     const { trabajos } = reducir(local, { tipo: 'terminar_parte', ahora: INICIO + 2_405_000 });
 
+    // Los segundos cuentan desde el arranque adoptado, no desde el de este aparato.
     expect(trabajos).toEqual([
       {
         entity: 'match_period',
         op: 'update',
         matchId: 'par-1',
         payload: {
-          valores: { ended_at: '2026-10-04T11:40:05.000Z', actual_seconds: 2_400 },
+          valores: { ended_at: '2026-10-04T11:40:05.000Z', actual_seconds: 2_405 },
           clave: { match_id: 'par-1', period_number: '1' },
         },
       },

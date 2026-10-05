@@ -5,6 +5,43 @@
 
 ---
 
+## Sesión 05/10/2026 — T-223: flecos del directo entre aparatos: ✅ cerrada
+
+Sesión programada, rama `fix/match-flecos-entre-aparatos`. **Sin base de datos.** Los siete
+arreglos del traspaso, con las pruebas escritas antes. Lint, formato, **754 pruebas en 57
+archivos** (eran 743: trece nuevas y dos repetidas que salen) y build, sin
+`INEFFECTIVE_DYNAMIC_IMPORT`. No se han tocado `reducir`, `conciliarPartes`, `faseConciliada`,
+`elegirEstado` ni `fusionar`, y las tres pruebas de «un refresco nunca se come un toque» siguen
+en verde sin cambios.
+
+- **La pantalla (`LiveMatchPage`).** El último estado vive en un `ref`, `ultimo`, y solo se
+  cambia con `poner`; `intentar` reduce sobre él y el refresco funde sobre él (D06-38, DOC 06
+  §5.4). Si al fundir cambia la fase, se anuncia: «Otro aparato ha empezado la parte N.», «…ha
+  terminado la parte N.» u «…ha finalizado el partido.». Al finalizar desde otro aparato se
+  cierran el flujo y la ficha.
+- **La descarga (`precarga`).** `guardarPaquete` no escribe si lo guardado se pidió después que
+  lo que llega; los eventos se piden por `created_at` y `client_event_id`.
+- **El canal (`tiempoReal`).** `INSERT` y `UPDATE` de las dos tablas con el filtro del partido, y
+  `DELETE` de `match_events` sin filtro.
+- **«Descartado»** en «Últimos eventos», y las pruebas de la tabla del traspaso: dos repetidas
+  fuera, la de la parte adoptada corregida —ahora adopta de verdad y cierra con 2.405 s, los que
+  van desde el arranque del servidor— y el caso nuevo del transporte.
+- **Dos cosas que no cuadraban con el traspaso, decididas sin nadie delante**, por si no gustan:
+  1. **El foco al finalizar.** El traspaso mandaba el foco «a donde ya lo manda la página cuando
+     finaliza este aparato», y la página no lo mandaba a ningún sitio: también caía en `body`.
+     Ahora, en los dos casos, si el foco se ha quedado en `body` va a la nota «El partido ha
+     terminado…»; si está en algo que no se va —«Salir del directo»—, no se le quita. Cambia,
+     por tanto, lo que pasa al finalizar en este aparato, que el traspaso no pedía.
+  2. **`UltimosEventos` no tiene prueba propia.** La palabra se comprueba en
+     `LiveMatchPage.test.tsx`, que es donde se prueba esa lista.
+- **Deuda.** La escucha de borrados está sin probar contra Realtime, que sigue sin publicar
+  (punto 77). Con la publicación aplicada, cualquier borrado de `match_events` de cualquier club
+  avisa a todos los directos abiertos; con un club es nada. Y si otro aparato finaliza, la
+  cobertura de este se queda abierta hasta el cierre del partido (C-03), como ya pasaba.
+- **`CLAUDE.md` no se ha tocado**: el traspaso no lo pedía. La siguiente es la T-224.
+
+---
+
 ## Sesión 05/10/2026 — T-221: arreglos de la revisión en la banda y la cobertura: ✅ cerrada
 
 Sesión programada, rama `fix/match-arreglos-de-la-revision`. **Sin base de datos.** Los diez
@@ -792,6 +829,7 @@ Pendiente de hacer:
     T-209c. **Es la T-223.** Fuera de ella, y solo con la base incoherente: con dos partes
     abiertas en el servidor, `reducir` mira la primera abierta y la fase, la última; y un partido
     `suspended` con la parte abierta queda finalizado con la parte en pausa.
+    **Cerrado por la T-223 el 05/10, salvo esos dos estados raros.**
 
 80. **Flecos del cierre, de «Mis aportaciones» y del registro de errores** (revisión de la
     T-222). El registro vuelve a pedir la primera página al volver el foco y descoloca las

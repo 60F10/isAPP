@@ -11,6 +11,13 @@
 // suscribe y no recibe nada. Por eso el directo no depende de esto, y tiene
 // su refresco de seguridad (`useRefresco`).
 //
+// LOS BORRADOS SE ESCUCHAN SIN FILTRO (T-223). Supabase no filtra los `DELETE`
+// («Delete events are not filterable»): con el filtro del partido, un evento
+// deshecho en otro móvil podía no avisar. Así que avisa cualquier borrado de
+// `match_events`, sea del partido que sea; si no era de este, el refresco no
+// trae nada nuevo, y agrupar los avisos durante 1 s evita la ráfaga. De las
+// partes se escuchan solo las altas y los cambios.
+//
 // SI FALLA, EN SILENCIO. Sin canal se anota igual.
 
 import { supabase } from '@shared/lib/supabase';
@@ -47,19 +54,32 @@ export function escucharPartido(partidoId: string, alCambiar: () => void): () =>
       return;
     }
 
+    const avisar = () => {
+      if (!parado) {
+        alCambiar();
+      }
+    };
     let nuevo = supabase.channel(nombre);
 
     for (const tabla of TABLAS) {
-      nuevo = nuevo.on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: tabla, filter: filtro },
-        () => {
-          if (!parado) {
-            alCambiar();
-          }
-        },
-      );
+      nuevo = nuevo
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: tabla, filter: filtro },
+          avisar,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: tabla, filter: filtro },
+          avisar,
+        );
     }
+
+    nuevo = nuevo.on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'match_events' },
+      avisar,
+    );
 
     canal = nuevo.subscribe();
   };

@@ -34,6 +34,12 @@
 // TOQUE: no coge el cerrojo de guardar, lee la cola después del último
 // guardado y cambia el estado en ese mismo turno. Si no encuentra el hueco,
 // lo deja para el siguiente.
+//
+// DESDE LA T-223, SE REDUCE Y SE FUNDE SOBRE EL ÚLTIMO ESTADO, que vive en un
+// `ref` además de en el de React: un toque que cae entre el refresco y su
+// repintado ya no pierde lo recién fundido. Lo que cambia otro aparato —empezar
+// o terminar una parte, finalizar— se anuncia, y si al finalizar se desmonta
+// lo que tenía el foco, el foco va a la nota del final.
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -139,6 +145,31 @@ function accionDeRegistro(
   };
 }
 
+/**
+ * Lo que se anuncia cuando un refresco trae un cambio de fase (T-223): lo ha
+ * hecho otro aparato, y la pantalla cambia sin que nadie la toque aquí. La
+ * pausa es local y no llega por este camino. `null` si la fase es la misma.
+ */
+function anuncioDeOtroAparato(antes: EstadoDirecto, despues: EstadoDirecto): string | null {
+  if (despues.fase === antes.fase) {
+    return null;
+  }
+
+  const parte = despues.partes[despues.partes.length - 1]?.numero ?? 1;
+
+  switch (despues.fase) {
+    case 'en_juego':
+      return `Otro aparato ha empezado la parte ${parte}.`;
+    case 'descanso':
+      return `Otro aparato ha terminado la parte ${parte}.`;
+    case 'finalizado':
+      return 'Otro aparato ha finalizado el partido.';
+    case 'inactivo':
+    case 'pausado':
+      return null;
+  }
+}
+
 interface ConfirmarProps {
   pregunta: string;
   si: string;
@@ -217,6 +248,16 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const anunciar = useAnnounce();
   const navigate = useNavigate();
   const [estado, setEstado] = useState(cargado.estado);
+  // El último estado, sin esperar al repintado (T-223). `intentar` reduce
+  // sobre él y el refresco funde sobre él: con el `estado` del último pintado,
+  // un toque que cayese entre el `setEstado` de un refresco y su repintado se
+  // llevaba por delante lo recién fundido. El estado se cambia solo con
+  // `poner`, que escribe los dos a la vez.
+  const ultimo = useRef(cargado.estado);
+  const poner = (nuevo: EstadoDirecto) => {
+    ultimo.current = nuevo;
+    setEstado(nuevo);
+  };
   // Si el partido sigue saliendo de lo guardado: hasta el primer refresco que
   // llegue al servidor.
   const [sinRefrescar, setSinRefrescar] = useState(!cargado.refrescado);
@@ -338,6 +379,26 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     }
   }, [pendientesAlSalir]);
 
+  // Al finalizar —aquí o desde otro aparato— se desmonta lo que pudiera tener
+  // el foco: los controles, la botonera, el flujo, la ficha. Si se ha quedado
+  // en `body`, va a la nota que dice que el partido ha terminado (2.4.3,
+  // T-223). Si sigue en algo que no se ha ido, no se le quita a nadie.
+  const notaFinal = useRef<HTMLParagraphElement>(null);
+  const faseAntes = useRef(estado.fase);
+
+  useEffect(() => {
+    const antes = faseAntes.current;
+    faseAntes.current = estado.fase;
+
+    if (
+      estado.fase === 'finalizado' &&
+      antes !== 'finalizado' &&
+      (document.activeElement === null || document.activeElement === document.body)
+    ) {
+      notaFinal.current?.focus();
+    }
+  }, [estado.fase]);
+
   const corriendo = estado.fase === 'en_juego';
   const ahora = useAhora(corriendo);
   const bloqueo = useBloqueoDePantalla(enCurso(estado));
@@ -375,7 +436,8 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     // Antes de reducir: un refresco que haya leído la cola antes de este
     // toque tiene que volver a leerla (T-209b).
     guardados.current += 1;
-    const resultado = reducir(estado, accion);
+    // Sobre el último estado y no sobre el del último pintado (T-223).
+    const resultado = reducir(ultimo.current, accion);
 
     if (resultado.error !== null) {
       return { fallo: 'regla', mensaje: resultado.error };
@@ -386,7 +448,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
 
     try {
       await aplicarTransicion(resultado.estado, resultado.trabajos);
-      setEstado(resultado.estado);
+      poner(resultado.estado);
 
       return { resultado };
     } catch {
@@ -445,7 +507,12 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
    *   al acabar de leerla sigue sin haber ninguno y el contador no se ha
    *   movido. Así, todo evento que esté en pantalla y no en el servidor está
    *   en `altas`, y todo borrado de camino, en `bajas`.
-   * - El estado se cambia en ese mismo turno, sin ningún `await` entre medias.
+   * - El estado se cambia en ese mismo turno, sin ningún `await` entre medias,
+   *   y se funde sobre `ultimo`, no sobre lo pintado (T-223).
+   *
+   * Si al fundir cambia la fase, lo ha hecho otro aparato: se anuncia, y si el
+   * partido ha finalizado se cierran el flujo y la ficha, que ya no se pueden
+   * terminar (T-223). Lo que nace de `hacer` en este aparato no pasa por aquí.
    *
    * El estado fundido no se escribe en la instantánea: el paquete ya está
    * guardado, el siguiente guardado escribe el estado, y al recargar
@@ -464,9 +531,23 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
         }
 
         if (!guardando.current && guardados.current === visto) {
+          const antes = ultimo.current;
+          const fundido = fusionar(antes, refresco.servidor, pendientes);
+          const anuncio = anuncioDeOtroAparato(antes, fundido);
+
           setPaquete(refresco.paquete);
-          setEstado((actual) => fusionar(actual, refresco.servidor, pendientes));
+          poner(fundido);
           setSinRefrescar(false);
+
+          if (fundido.fase === 'finalizado' && antes.fase !== 'finalizado') {
+            setFlujo(null);
+            setFichaDe(null);
+            setErrorDeFlujo(null);
+          }
+
+          if (anuncio !== null) {
+            anunciar(anuncio);
+          }
 
           return;
         }
@@ -912,7 +993,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
         );
       case 'finalizado':
         return (
-          <p className={styles.nota}>
+          <p ref={notaFinal} className={styles.nota} tabIndex={-1}>
             El partido ha terminado. Los datos entran en las estadísticas cuando se cierre.
             {enlaceAlCierre}
           </p>

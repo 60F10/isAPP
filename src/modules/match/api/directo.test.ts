@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { db } from '@shared/lib/db';
 
-import { desdePaquete, reducir } from '../model/directo';
+import { desdePaquete } from '../model/directo';
 import { aplicarTransicion, cargarDirecto, refrescarDirecto, SIN_PRECARGA } from './directo';
 
 import type { EstadoDirecto } from '../model/directo';
@@ -282,62 +282,6 @@ describe('cargarDirecto con la cola', () => {
     sync.pendientesDelPartido.mockResolvedValue({ altas: new Set(), bajas: new Set(['gol-1']) });
 
     expect((await cargarDirecto('par-1')).estado.eventos).toEqual([]);
-  });
-
-  // T-209c: de extremo a extremo, con las partes de otro aparato.
-  it('con el servidor más avanzado, adopta sus partes y conserva lo que este aparato tiene sin enviar', async () => {
-    const [evento] = desdePaquete({ ...PAQUETE, eventos: [GOL] }).eventos;
-    // Este aparato abrió la parte 1 con su `id` y apuntó un gol que no ha salido.
-    const abierta = reducir(desdePaquete(PAQUETE), {
-      tipo: 'empezar_parte',
-      ahora: Date.UTC(2026, 9, 4, 12, 0, 5),
-      parteId: 'B1',
-    }).estado;
-    const local: EstadoDirecto = {
-      ...abierta,
-      eventos: [{ ...evento, clientEventId: 'sin-enviar', propio: true }],
-    };
-    // Otro la abrió cinco segundos antes, con el suyo, y ya la ha cerrado.
-    const delServidor: PaqueteDePartido = {
-      ...PAQUETE,
-      partido: { ...PAQUETE.partido, status: 'live' },
-      partes: [
-        {
-          id: 'A1',
-          periodNumber: 1,
-          plannedSeconds: 2_400,
-          actualSeconds: 2_430,
-          startedAt: '2026-10-04T12:00:00.000Z',
-          endedAt: '2026-10-04T12:40:30.000Z',
-        },
-      ],
-      eventos: [GOL],
-    };
-    precarga.precargarPartido.mockResolvedValue({});
-    precarga.leerInstantanea.mockResolvedValue({
-      paquete: delServidor,
-      descargadoEn: 5,
-      estado: local,
-    });
-    sync.pendientesDelPartido.mockResolvedValue({
-      altas: new Set(['sin-enviar']),
-      bajas: new Set(),
-    });
-
-    const { estado } = await cargarDirecto('par-1');
-
-    expect(estado.fase).toBe('descanso');
-    expect(estado.partes).toEqual([
-      {
-        id: 'A1',
-        numero: 1,
-        inicio: Date.UTC(2026, 9, 4, 12, 0, 0),
-        pausadoMs: 0,
-        pausaDesde: null,
-        segundosReales: 2_430,
-      },
-    ]);
-    expect(estado.eventos.map((e) => e.clientEventId)).toEqual(['sin-enviar', 'gol-1']);
   });
 });
 
