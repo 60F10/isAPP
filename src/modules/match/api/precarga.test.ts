@@ -17,6 +17,7 @@ import type { PaqueteDePartido } from '../model/paquete';
 const red = vi.hoisted(() => ({
   respuestas: {} as Record<string, { data: unknown; error: unknown }>,
   selects: {} as Record<string, string>,
+  ordenes: {} as Record<string, string[]>,
 }));
 
 const almacen = vi.hoisted(() => ({
@@ -32,14 +33,18 @@ vi.mock('@shared/lib/supabase', () => ({
     from: (tabla: string) => ({
       select: (columnas: string) => {
         red.selects[tabla] = columnas;
-        const respuesta = Promise.resolve(red.respuestas[tabla]);
+        // La consulta se puede esperar tal cual, ordenar o pedir de una fila.
+        const consulta = (): object =>
+          Object.assign(Promise.resolve(red.respuestas[tabla]), {
+            maybeSingle: () => Promise.resolve(red.respuestas[tabla]),
+            order: (columna: string) => {
+              red.ordenes[tabla] = [...(red.ordenes[tabla] ?? []), columna];
 
-        return {
-          eq: () =>
-            Object.assign(respuesta, {
-              maybeSingle: () => Promise.resolve(red.respuestas[tabla]),
-            }),
-        };
+              return consulta();
+            },
+          });
+
+        return { eq: consulta };
       },
     }),
   },
@@ -89,6 +94,7 @@ const REGLAMENTO = {
 
 beforeEach(() => {
   red.selects = {};
+  red.ordenes = {};
   red.respuestas = {
     matches: {
       data: {
@@ -215,6 +221,14 @@ describe('descargarPaquete', () => {
     expect(red.selects.app_settings).toBe('value');
   });
 
+  it('pide los eventos por orden de alta, y a igualdad por su `client_event_id` (T-223)', async () => {
+    await descargarPaquete('par-1');
+
+    // Sin orden, PostgREST los devuelve como le viene: tras revisar eventos en
+    // el cierre, «Últimos eventos» salía desordenado en un aparato nuevo.
+    expect(red.ordenes).toEqual({ match_events: ['created_at', 'client_event_id'] });
+  });
+
   it('sin ventanas legibles el paquete sale igual, sin ellas: valen los 30 s', async () => {
     red.respuestas.app_settings = { data: null, error: { code: '42501', message: 'rls' } };
 
@@ -255,6 +269,52 @@ describe('guardarPaquete con la hora de la petición', () => {
 
     expect(almacen.snapshots).toEqual([
       { matchId: 'par-1', updatedAt: 500, datos: { paquete, descargadoEn: 500, pedidoEn: 420 } },
+    ]);
+  });
+});
+
+// T-223: una descarga lenta que acaba después de otra más nueva no la pisa.
+describe('guardarPaquete con una descarga que llega tarde', () => {
+  it('no escribe si lo guardado se pidió después; si se pidió antes, sí', async () => {
+    const paquete: PaqueteDePartido = await descargarPaquete('par-1');
+    almacen.anterior = {
+      matchId: 'par-1',
+      updatedAt: 250,
+      datos: { paquete, descargadoEn: 250, pedidoEn: 200 },
+    };
+
+    await guardarPaquete(paquete, 400, 100);
+
+    expect(almacen.snapshots).toEqual([]);
+    expect(almacen.eventos).toEqual([]);
+
+    await guardarPaquete(paquete, 500, 300);
+
+    expect(almacen.snapshots).toEqual([
+      { matchId: 'par-1', updatedAt: 500, datos: { paquete, descargadoEn: 500, pedidoEn: 300 } },
+    ]);
+    expect(almacen.eventos).toHaveLength(1);
+  });
+
+  it('sin saber cuándo se pidió alguna de las dos, escribe como siempre', async () => {
+    const paquete: PaqueteDePartido = await descargarPaquete('par-1');
+    // Lo guardado lo sabe y lo que llega no.
+    almacen.anterior = {
+      matchId: 'par-1',
+      updatedAt: 250,
+      datos: { paquete, descargadoEn: 250, pedidoEn: 200 },
+    };
+
+    await guardarPaquete(paquete, 400);
+
+    // Lo que llega lo sabe y lo guardado no: una precarga de antes de la T-209b.
+    almacen.anterior = { matchId: 'par-1', updatedAt: 250, datos: { paquete, descargadoEn: 250 } };
+
+    await guardarPaquete(paquete, 500, 100);
+
+    expect(almacen.snapshots).toEqual([
+      { matchId: 'par-1', updatedAt: 400, datos: { paquete, descargadoEn: 400 } },
+      { matchId: 'par-1', updatedAt: 500, datos: { paquete, descargadoEn: 500, pedidoEn: 100 } },
     ]);
   });
 });

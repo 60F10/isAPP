@@ -1,8 +1,9 @@
 // Últimos eventos del directo, con «Deshacer» (T-208, E8-10, DOC 02 §4).
 //
 // Los cinco más recientes que conoce el aparato. Cada uno con su estado en
-// palabras: pendiente, aprobado o rechazado (1.4.1). Solo se deshace lo
-// apuntado en este aparato; lo de otros se corrige en el cierre (T-210).
+// palabras: pendiente, aprobado o descartado (1.4.1), como en el cierre y en
+// el DOC 07 §2.2. Solo se deshace lo apuntado en este aparato; lo de otros se
+// corrige en el cierre (T-210).
 //
 // Desde la T-209b, lo que llega de otros aparatos lo dice, «De otro aparato»,
 // y lo que parece apuntado dos veces también, «Posible repetido». Con
@@ -15,7 +16,7 @@ import styles from './Registro.module.css';
 
 import type { EventoDelDirecto } from '../model/eventos';
 
-const ESTADOS = { pending: 'Pendiente', approved: 'Aprobado', rejected: 'Rechazado' } as const;
+const ESTADOS = { pending: 'Pendiente', approved: 'Aprobado', rejected: 'Descartado' } as const;
 
 interface UltimosProps {
   eventos: readonly EventoDelDirecto[];

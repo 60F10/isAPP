@@ -347,6 +347,8 @@ describe('A12 · Directo, esqueleto', () => {
 
     expect(await screen.findByText(/El partido ha terminado/)).toBeInTheDocument();
     expect(leerPartidoEnCurso(Date.now())).toBeNull();
+    // El botón que tenía el foco se ha ido: va a la nota del final (T-223).
+    expect(screen.getByText(/El partido ha terminado/)).toHaveFocus();
   });
 
   it('sin precarga y sin cobertura lo dice, en vez de una pantalla en blanco', async () => {
@@ -1538,6 +1540,208 @@ describe('A12 · Directo, esqueleto', () => {
 
       await waitFor(() => {
         expect(screen.queryByText(/Sin conexión: el partido sale de lo guardado/)).toBeNull();
+      });
+    });
+
+    it('un evento descartado en el cierre se llama «Descartado», como allí (T-223)', async () => {
+      const eventos = desdePaquete({
+        ...PAQUETE,
+        eventos: [fila('ajeno', { status: 'rejected' })],
+      }).eventos;
+      api.cargarDirecto.mockResolvedValue(enJuego({ eventos }));
+      montar();
+
+      await screen.findByRole('button', { name: 'Córner' });
+
+      expect(ultimos()).toHaveTextContent("Gol · 7 · Juanito · 2' · Descartado · De otro aparato");
+      expect(ultimos()).not.toHaveTextContent('Rechazado');
+    });
+
+    // T-223: lo que cambia otro aparato se funde sobre el último estado, se
+    // dice, y no deja el foco en el aire.
+    describe('lo que cambia otro aparato (T-223)', () => {
+      type Partes = PaqueteDePartido['partes'];
+
+      const ABIERTA: Partes[number] = {
+        id: 'parte-1',
+        periodNumber: 1,
+        plannedSeconds: 2400,
+        actualSeconds: null,
+        startedAt: new Date(INICIO).toISOString(),
+        endedAt: null,
+      };
+      const CERRADA: Partes[number] = {
+        ...ABIERTA,
+        actualSeconds: 2400,
+        endedAt: new Date(INICIO + 2_400_000).toISOString(),
+      };
+      const SEGUNDA: Partes[number] = {
+        ...ABIERTA,
+        id: 'parte-2',
+        periodNumber: 2,
+        startedAt: new Date(INICIO + 3_300_000).toISOString(),
+      };
+
+      /** Lo que devuelve `refrescarDirecto` con esas partes y ese estado del partido. */
+      function refrescoCon(
+        partes: Partes,
+        status: PaqueteDePartido['partido']['status'] = 'live',
+      ): Refresco {
+        const paquete: PaqueteDePartido = {
+          ...PAQUETE,
+          partido: { ...PAQUETE.partido, status },
+          partes,
+          eventos: [],
+        };
+
+        return { paquete, servidor: desdePaquete(paquete), desde: 1 };
+      }
+
+      it('un refresco funde un gol de otro aparato y, sin esperar al repintado, se apunta otro: lo guardado lleva los dos', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        api.refrescarDirecto.mockResolvedValue(refresco([fila('ajeno', { player_id: 'p1' })]));
+        simularCola();
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Gol' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Nuestro' }));
+        await userEvent.click(screen.getByRole('button', { name: '7 · Juanito' }));
+        const ultimoPaso = screen.getByRole('button', { name: 'Sin asistencia' });
+
+        // Todo en el mismo `act`: React no repinta hasta salir, así que el
+        // toque cae con la pantalla de antes del refresco, que ya se ha fundido.
+        await act(async () => {
+          window.dispatchEvent(new Event('online'));
+
+          for (let tic = 0; tic < 10; tic += 1) {
+            await Promise.resolve();
+          }
+
+          ultimoPaso.click();
+          await Promise.resolve();
+        });
+
+        await waitFor(() => {
+          expect(api.aplicarTransicion).toHaveBeenCalledTimes(1);
+        });
+        const [guardado] = api.aplicarTransicion.mock.calls[0] as [EstadoDirecto];
+        expect(guardado.eventos).toHaveLength(2);
+        expect(guardado.eventos[0]?.clientEventId).toBe('ajeno');
+        expect(guardado.eventos[1]).toMatchObject({ tipo: 'goal', jugador: 'p7', propio: true });
+        expect(await screen.findByText('0 – 2')).toBeInTheDocument();
+        expect(ultimos()).toHaveTextContent('De otro aparato');
+      });
+
+      it('un refresco trae la parte 1 cerrada por otro: pasa al descanso y lo anuncia', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        api.refrescarDirecto.mockResolvedValue(refrescoCon([CERRADA]));
+        const { anunciar } = montar();
+
+        await screen.findByRole('button', { name: 'Terminar la 1ª parte' });
+        await llegaUnRefresco();
+
+        expect(await screen.findByText('Descanso')).toBeInTheDocument();
+        expect(anunciar).toHaveBeenCalledWith('Otro aparato ha terminado la parte 1.');
+        expect(anunciar).toHaveBeenCalledTimes(1);
+      });
+
+      it('un refresco trae la parte 2 empezada por otro: vuelve a estar en juego y lo anuncia', async () => {
+        api.cargarDirecto.mockResolvedValue(
+          enJuego({ fase: 'descanso', partes: [{ ...PARTE, segundosReales: 2_400 }] }),
+        );
+        api.refrescarDirecto.mockResolvedValue(refrescoCon([CERRADA, SEGUNDA]));
+        const { anunciar } = montar();
+
+        await screen.findByRole('button', { name: 'Empezar la 2ª parte' });
+        await llegaUnRefresco();
+
+        expect(
+          await screen.findByRole('button', { name: 'Terminar la 2ª parte' }),
+        ).toBeInTheDocument();
+        expect(anunciar).toHaveBeenCalledWith('Otro aparato ha empezado la parte 2.');
+      });
+
+      it('un refresco trae el partido finalizado con el flujo de un gol abierto: lo cierra, lo anuncia y el foco no cae en `body`', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        api.refrescarDirecto.mockResolvedValue(
+          refrescoCon(
+            [
+              CERRADA,
+              {
+                ...SEGUNDA,
+                actualSeconds: 2400,
+                endedAt: new Date(INICIO + 5_700_000).toISOString(),
+              },
+            ],
+            'finished',
+          ),
+        );
+        const { anunciar } = montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Gol' }));
+        expect(screen.getByRole('heading', { level: 2, name: /^Gol:/ })).toHaveFocus();
+
+        await llegaUnRefresco();
+
+        expect(await screen.findByText(/El partido ha terminado/)).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 2, name: /^Gol:/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Nuestro' })).toBeNull();
+        expect(anunciar).toHaveBeenCalledWith('Otro aparato ha finalizado el partido.');
+        expect(document.body).not.toHaveFocus();
+        // Va a donde va cuando finaliza este aparato: a la nota del final.
+        expect(screen.getByText(/El partido ha terminado/)).toHaveFocus();
+      });
+
+      it('lo mismo con la ficha de un jugador abierta: se cierra y el foco no cae en `body`', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        api.refrescarDirecto.mockResolvedValue(refrescoCon([CERRADA], 'finished'));
+        montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Ficha de 7 · Juanito' }));
+        expect(
+          screen.getByRole('heading', { level: 2, name: /Juanito: ¿qué ha hecho/ }),
+        ).toHaveFocus();
+
+        await llegaUnRefresco();
+
+        expect(await screen.findByText(/El partido ha terminado/)).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 2, name: /¿qué ha hecho/ })).toBeNull();
+        expect(document.body).not.toHaveFocus();
+      });
+
+      it('si el foco está en algo que no se va, finalizar desde otro aparato no se lo quita', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        api.refrescarDirecto.mockResolvedValue(refrescoCon([CERRADA], 'finished'));
+        montar();
+
+        const salir = await screen.findByRole('button', { name: 'Salir del directo' });
+        act(() => {
+          salir.focus();
+        });
+
+        await llegaUnRefresco();
+
+        expect(await screen.findByText(/El partido ha terminado/)).toBeInTheDocument();
+        expect(salir).toHaveFocus();
+      });
+
+      it('terminar la parte desde este aparato no dice «Otro aparato…», tampoco cuando el servidor lo confirma', async () => {
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        simularCola();
+        const { anunciar } = montar();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Terminar la 1ª parte' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Sí, terminar la parte' }));
+        expect(await screen.findByText('Descanso')).toBeInTheDocument();
+
+        api.refrescarDirecto.mockResolvedValue(refrescoCon([CERRADA]));
+        await llegaUnRefresco();
+        await waitFor(() => {
+          expect(sync.pendientesDelPartido).toHaveBeenCalledTimes(1);
+        });
+
+        expect(anunciar).toHaveBeenCalledWith('1ª parte terminada');
+        expect(anunciar).not.toHaveBeenCalledWith(expect.stringContaining('Otro aparato'));
       });
     });
   });

@@ -115,6 +115,32 @@ describe('enviar', () => {
     expect(resultado).toMatchObject({ ok: false, code: 'SIN_FILAS' });
   });
 
+  it('un update por partido y número de parte llega con esa misma clave (T-209c)', async () => {
+    red.respuesta = { data: [{ id: 'la-del-servidor' }], error: null, status: 200 };
+
+    const resultado = await enviar(
+      trabajo({
+        entity: 'match_period',
+        op: 'update',
+        matchId: 'par-1',
+        payload: {
+          valores: { ended_at: 'x', actual_seconds: 2_400 },
+          clave: { match_id: 'par-1', period_number: '2' },
+        },
+      }),
+    );
+
+    expect(red.llamadas).toEqual([
+      {
+        tabla: 'match_periods',
+        op: 'update',
+        valores: { ended_at: 'x', actual_seconds: 2_400 },
+        clave: { match_id: 'par-1', period_number: '2' },
+      },
+    ]);
+    expect(resultado.ok).toBe(true);
+  });
+
   it('un delete que no toca ninguna fila es éxito: ya no está', async () => {
     red.respuesta = { data: [], error: null, status: 200 };
 

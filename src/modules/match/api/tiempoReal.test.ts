@@ -1,6 +1,7 @@
-// El aviso por Realtime (T-209b). Lo que se vigila: un canal por partido con
-// una suscripción por tabla y el filtro del partido, que del mensaje no se
-// pasa nada, que se quita al dejar de escuchar y que un fallo no sale de aquí.
+// El aviso por Realtime (T-209b). Lo que se vigila: un canal por partido que
+// escucha las altas y los cambios de cada tabla con el filtro del partido y
+// los borrados de eventos sin filtro (T-223), que del mensaje no se pasa
+// nada, que se quita al dejar de escuchar y que un fallo no sale de aquí.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -61,32 +62,43 @@ beforeEach(() => {
 });
 
 describe('escucharPartido', () => {
-  it('abre el canal del partido, con una suscripción por tabla y el filtro del partido', () => {
+  it('abre el canal del partido: altas y cambios con su filtro, y los borrados de eventos sin filtro (T-223)', () => {
     escucharPartido('par-1', () => undefined);
+
+    const conFiltro = (event: string, table: string) => ({
+      tipo: 'postgres_changes',
+      filtro: { event, schema: 'public', table, filter: 'match_id=eq.par-1' },
+    });
 
     expect(red.canales).toHaveLength(1);
     expect(red.canales[0]?.topic).toBe('realtime:directo:par-1');
     expect(red.canales[0]?.suscrito).toBe(true);
     expect(red.canales[0]?.suscripciones.map(({ tipo, filtro }) => ({ tipo, filtro }))).toEqual([
+      conFiltro('INSERT', 'match_events'),
+      conFiltro('UPDATE', 'match_events'),
+      conFiltro('INSERT', 'match_periods'),
+      conFiltro('UPDATE', 'match_periods'),
+      // Supabase no filtra los borrados: con filtro, un evento deshecho en
+      // otro móvil podría no avisar.
       {
         tipo: 'postgres_changes',
-        filtro: {
-          event: '*',
-          schema: 'public',
-          table: 'match_events',
-          filter: 'match_id=eq.par-1',
-        },
-      },
-      {
-        tipo: 'postgres_changes',
-        filtro: {
-          event: '*',
-          schema: 'public',
-          table: 'match_periods',
-          filter: 'match_id=eq.par-1',
-        },
+        filtro: { event: 'DELETE', schema: 'public', table: 'match_events' },
       },
     ]);
+  });
+
+  it('cualquiera de las cinco escuchas avisa', () => {
+    const alCambiar = vi.fn();
+    escucharPartido('par-1', alCambiar);
+
+    const suscripciones = red.canales[0]?.suscripciones ?? [];
+    expect(suscripciones).toHaveLength(5);
+
+    for (const suscripcion of suscripciones) {
+      suscripcion.avisar({});
+    }
+
+    expect(alCambiar).toHaveBeenCalledTimes(5);
   });
 
   it('avisa sin pasar nada de lo que trae el mensaje', () => {
