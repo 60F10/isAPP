@@ -38,6 +38,12 @@ export interface Instante {
 export interface CoberturaLocal {
   /** El `id` de `coverage_declarations`. Lo genera el aparato. */
   id: string;
+  /**
+   * De quién es (T-221). El aparato puede cambiar de cuenta con una abierta:
+   * la de otra persona no se toma por propia ni se cierra desde aquí. Las
+   * guardadas antes de la T-221 no lo traen, y se dan por propias.
+   */
+  userId?: string;
   alcance: Alcance;
   /** Solo con `single_player`. */
   jugador: string | null;
@@ -153,7 +159,15 @@ export function declarar(datos: Declaracion): CambioDeCobertura | null {
   };
 
   return {
-    cobertura: { id: datos.id, alcance, jugador, tipos, desde, abierta: true },
+    cobertura: {
+      id: datos.id,
+      userId: datos.userId,
+      alcance,
+      jugador,
+      tipos,
+      desde,
+      abierta: true,
+    },
     trabajo: {
       entity: 'coverage',
       op: 'insert',

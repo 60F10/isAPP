@@ -2,7 +2,7 @@
 // rechazados, y se calla en el resto. IndexedDB y la red se sustituyen en la
 // frontera de los hooks y de `api/`.
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,7 +17,9 @@ const estado = vi.hoisted(() => ({
   cola: { pendientes: 0, fallidos: 0, ultimoError: null, rechazados: [] } as EstadoDeCola,
 }));
 const sincronizarAhora = vi.hoisted(() => vi.fn(() => Promise.resolve()));
-const descartarRechazado = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
+const descartarRechazado = vi.hoisted(() =>
+  vi.fn<(id: string, userId: string) => Promise<boolean>>(() => Promise.resolve(true)),
+);
 
 vi.mock('../hooks/useEstadoDeSync', () => ({
   useEnLinea: () => estado.enLinea,
@@ -37,11 +39,29 @@ function montar() {
   return { anunciar, ...resultado };
 }
 
+/** La banda dentro de una pantalla con su `h1`, como la deja `Pantalla`. */
+function enPantalla(anunciar: (texto: string) => void) {
+  return (
+    <AnnounceContext value={{ anunciar }}>
+      <BandaDeSincronizacion userId="u1" />
+      <h1 tabIndex={-1}>Calendario</h1>
+    </AnnounceContext>
+  );
+}
+
+// El nombre de cada «Descartar» empieza por lo que se lee en el botón (2.5.3)
+// y sigue con el nombre y la hora de su elemento (T-221).
+const DESCARTAR = /^Descartar: /;
+const DESCARTAR_ANOTACION = /^Descartar: Anotación · /;
+const DESCARTAR_ESTADO = /^Descartar: Estado del partido · /;
+const PREGUNTA = '¿Descartar? No se puede recuperar.';
+
 beforeEach(() => {
   estado.enLinea = true;
   estado.cola = { pendientes: 0, fallidos: 0, ultimoError: null, rechazados: [] };
   sincronizarAhora.mockClear();
-  descartarRechazado.mockClear();
+  descartarRechazado.mockReset();
+  descartarRechazado.mockResolvedValue(true);
 });
 
 function cola2(): EstadoDeCola {
@@ -133,14 +153,14 @@ describe('C04 · Banda de sincronización', () => {
     montar();
 
     await userEvent.click(screen.getByText('Qué dijo el servidor'));
-    await userEvent.click(screen.getAllByRole('button', { name: 'Descartar' })[0]);
+    await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ANOTACION }));
 
-    expect(screen.getByText('¿Descartar? No se puede recuperar.')).toBeInTheDocument();
+    expect(screen.getByText(PREGUNTA)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'No' }));
 
     expect(descartarRechazado).not.toHaveBeenCalled();
-    expect(screen.queryByText('¿Descartar? No se puede recuperar.')).toBeNull();
+    expect(screen.queryByText(PREGUNTA)).toBeNull();
   });
 
   it('«Sí, descartar» borra ese trabajo y lo anuncia', async () => {
@@ -148,10 +168,200 @@ describe('C04 · Banda de sincronización', () => {
     const { anunciar } = montar();
 
     await userEvent.click(screen.getByText('Qué dijo el servidor'));
-    await userEvent.click(screen.getAllByRole('button', { name: 'Descartar' })[1]);
+    await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ESTADO }));
     await userEvent.click(screen.getByRole('button', { name: 'Sí, descartar' }));
 
     expect(descartarRechazado).toHaveBeenCalledWith('r2', 'u1');
-    expect(anunciar).toHaveBeenCalledWith('Anotación descartada');
+    // Por el nombre de su entidad: la cola no sabe si era un gol (DOC 06 §4.2).
+    expect(anunciar).toHaveBeenCalledWith('Descartado: Estado del partido');
+    expect(anunciar).not.toHaveBeenCalledWith('Anotación descartada');
+  });
+
+  // T-221: lo que salió de revisar la T-219 (DOC 13, punto 74).
+  describe('nombres y foco al descartar (T-221)', () => {
+    async function abrir() {
+      const montado = montar();
+      await userEvent.click(screen.getByText('Qué dijo el servidor'));
+
+      return montado;
+    }
+
+    it('cada «Descartar» tiene un nombre accesible distinto', async () => {
+      estado.cola = cola2();
+      await abrir();
+
+      const nombres = screen
+        .getAllByRole('button', { name: DESCARTAR })
+        .map((boton) => boton.getAttribute('aria-label'));
+
+      expect(nombres).toHaveLength(2);
+      expect(new Set(nombres).size).toBe(2);
+      expect(screen.getByRole('button', { name: DESCARTAR_ANOTACION })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: DESCARTAR_ESTADO })).toBeInTheDocument();
+    });
+
+    it('dos anotaciones rechazadas en el mismo minuto no comparten nombre', async () => {
+      const minuto = Date.UTC(2026, 9, 4, 11, 5, 0);
+      estado.cola = {
+        pendientes: 0,
+        fallidos: 2,
+        ultimoError: null,
+        rechazados: [
+          {
+            id: 'r1',
+            entity: 'match_event',
+            op: 'insert',
+            createdAt: minuto + 40_000,
+            lastError: null,
+          },
+          {
+            id: 'r2',
+            entity: 'match_event',
+            op: 'insert',
+            createdAt: minuto + 5_000,
+            lastError: null,
+          },
+        ],
+      };
+      await abrir();
+
+      const nombres = screen
+        .getAllByRole('button', { name: DESCARTAR_ANOTACION })
+        .map((boton) => boton.getAttribute('aria-label'));
+
+      expect(new Set(nombres).size).toBe(2);
+    });
+
+    it('la confirmación es un grupo con el nombre de su elemento', async () => {
+      estado.cola = cola2();
+      await abrir();
+
+      const nombre = screen
+        .getByRole('button', { name: DESCARTAR_ESTADO })
+        .getAttribute('aria-label');
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ESTADO }));
+
+      const grupo = screen.getByRole('group', { name: nombre ?? '' });
+      expect(within(grupo).getByRole('button', { name: 'Sí, descartar' })).toBeInTheDocument();
+      expect(within(grupo).getByRole('button', { name: 'No' })).toBeInTheDocument();
+    });
+
+    it('tras «Descartar», el foco está en la pregunta', async () => {
+      estado.cola = cola2();
+      await abrir();
+
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ANOTACION }));
+
+      expect(screen.getByText(PREGUNTA)).toHaveFocus();
+    });
+
+    it('tras «No», el foco vuelve al «Descartar» de ese elemento', async () => {
+      estado.cola = cola2();
+      await abrir();
+
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ESTADO }));
+      await userEvent.click(screen.getByRole('button', { name: 'No' }));
+
+      expect(screen.getByRole('button', { name: DESCARTAR_ESTADO })).toHaveFocus();
+    });
+
+    it('tras descartar el primero de dos, el foco va al «Descartar» del otro', async () => {
+      estado.cola = cola2();
+      await abrir();
+
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ANOTACION }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, descartar' }));
+
+      expect(descartarRechazado).toHaveBeenCalledWith('r1', 'u1');
+      expect(screen.getByRole('button', { name: DESCARTAR_ESTADO })).toHaveFocus();
+    });
+
+    it('tras descartar el último, el foco va al «Descartar» del anterior', async () => {
+      estado.cola = cola2();
+      await abrir();
+
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ESTADO }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, descartar' }));
+
+      expect(screen.getByRole('button', { name: DESCARTAR_ANOTACION })).toHaveFocus();
+    });
+
+    it('tras descartar el único, con la banda todavía ahí, el foco va a su titular', async () => {
+      const unico = cola2().rechazados.slice(0, 1);
+      estado.enLinea = false;
+      estado.cola = { pendientes: 0, fallidos: 1, ultimoError: null, rechazados: unico };
+      await abrir();
+
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ANOTACION }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, descartar' }));
+
+      expect(screen.getByText('Sin conexión').closest('p')).toHaveFocus();
+    });
+
+    it('si la banda desaparece al descartar el único, el foco va al `h1` de la pantalla', async () => {
+      const unico = cola2().rechazados.slice(0, 1);
+      estado.cola = { pendientes: 0, fallidos: 1, ultimoError: null, rechazados: unico };
+      const anunciar = vi.fn();
+      const { rerender } = render(enPantalla(anunciar));
+
+      await userEvent.click(screen.getByText('Qué dijo el servidor'));
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ANOTACION }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, descartar' }));
+
+      // Dexie avisa del borrado y la cola se queda vacía: la banda se va.
+      estado.cola = { pendientes: 0, fallidos: 0, ultimoError: null, rechazados: [] };
+      rerender(enPantalla(anunciar));
+
+      expect(screen.queryByText('Qué dijo el servidor')).toBeNull();
+      expect(screen.getByRole('heading', { level: 1, name: 'Calendario' })).toHaveFocus();
+    });
+
+    it('si la banda se va sin que nadie haya descartado nada, no roba el foco', () => {
+      estado.cola = { pendientes: 1, fallidos: 0, ultimoError: null, rechazados: [] };
+      const anunciar = vi.fn();
+      const { rerender } = render(enPantalla(anunciar));
+
+      estado.cola = { pendientes: 0, fallidos: 0, ultimoError: null, rechazados: [] };
+      rerender(enPantalla(anunciar));
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Calendario' })).not.toHaveFocus();
+    });
+
+    it('si `descartarRechazado` lanza, se anuncia el fallo y la confirmación sigue abierta', async () => {
+      estado.cola = cola2();
+      descartarRechazado.mockRejectedValue(new Error('QuotaExceededError'));
+      const { anunciar } = await abrir();
+
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ANOTACION }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, descartar' }));
+
+      const mensaje = 'No se ha podido descartar. Vuelve a intentarlo.';
+      expect(anunciar).toHaveBeenCalledWith(mensaje);
+      expect(anunciar).not.toHaveBeenCalledWith('Descartado: Anotación');
+      // La confirmación sigue abierta, con el fallo a la vista y el botón listo.
+      expect(screen.getByText(PREGUNTA)).toBeInTheDocument();
+      expect(screen.getByText(mensaje)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Sí, descartar' })).toBeEnabled();
+
+      // Y al reintentar, sale.
+      descartarRechazado.mockResolvedValue(true);
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, descartar' }));
+
+      expect(anunciar).toHaveBeenCalledWith('Descartado: Anotación');
+      expect(screen.queryByText(PREGUNTA)).toBeNull();
+    });
+
+    it('si ya no estaba en la cola, lo dice y cierra la confirmación', async () => {
+      estado.cola = cola2();
+      descartarRechazado.mockResolvedValue(false);
+      const { anunciar } = await abrir();
+
+      await userEvent.click(screen.getByRole('button', { name: DESCARTAR_ANOTACION }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, descartar' }));
+
+      expect(anunciar).toHaveBeenCalledWith('Eso ya no estaba en la lista.');
+      expect(anunciar).not.toHaveBeenCalledWith('Descartado: Anotación');
+      expect(screen.queryByText(PREGUNTA)).toBeNull();
+    });
   });
 });

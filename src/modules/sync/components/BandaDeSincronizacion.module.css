@@ -45,6 +45,15 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* El titular y la pregunta reciben el foco por programa (T-221): cuando se
+   desmonta el botón que lo tenía, va a ellos y no a `body`. Se ve, como en
+   cualquier control. */
+.titular:focus-visible,
+.pregunta:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
 .fallo {
   font-weight: var(--font-weight-semibold);
 }
@@ -87,10 +96,21 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Un `fieldset`, por el grupo con nombre: sin el marco ni el ancho mínimo que
+   le pone el navegador, que a 320 px sacaría la banda de la pantalla. */
 .confirmacion {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pregunta {
+  font-weight: var(--font-weight-semibold);
 }
 
 .acciones {

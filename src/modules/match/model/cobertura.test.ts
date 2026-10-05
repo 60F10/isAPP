@@ -114,6 +114,8 @@ describe('declarar', () => {
     expect(declarar(BASE)).toEqual({
       cobertura: {
         id: 'cob-1',
+        // De quién es (T-221): otra cuenta en este aparato no la toma por suya.
+        userId: 'usuario-1',
         alcance: 'full_team',
         jugador: null,
         tipos: ACTIVOS,
@@ -200,6 +202,15 @@ describe('cerrar', () => {
     desde: { periodo: 1, segundos: 0 },
     abierta: true,
   };
+
+  it('conserva de quién es al cerrarla', () => {
+    const propia = { ...ABIERTA, userId: 'usuario-1' };
+
+    expect(cerrar('par-1', propia, { periodo: 2, segundos: 1200 }).cobertura).toEqual({
+      ...propia,
+      abierta: false,
+    });
+  });
 
   it('da un `update` con la clave del `id` y el instante', () => {
     expect(cerrar('par-1', ABIERTA, { periodo: 2, segundos: 1200 })).toEqual({

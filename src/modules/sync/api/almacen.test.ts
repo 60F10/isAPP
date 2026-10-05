@@ -6,7 +6,7 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { descartarRechazado, encolarTrabajosJunto, pendientesDelPartido } from './almacen';
+import { encolarTrabajosJunto, pendientesDelPartido } from './almacen';
 
 import type { Trabajo } from '@shared/lib/db';
 
@@ -33,7 +33,6 @@ vi.mock('@shared/lib/db', () => ({
   db: {
     tables: [],
     outbox: {
-      get: (id: string) => Promise.resolve(estado.guardados.get(id)),
       where: (indice: 'matchId') => ({
         equals: (valor: string) => ({
           toArray: () =>
@@ -42,10 +41,6 @@ vi.mock('@shared/lib/db', () => ({
             ),
         }),
       }),
-      delete: (id: string) => {
-        estado.guardados.delete(id);
-        return Promise.resolve();
-      },
       bulkAdd: (trabajos: Trabajo[]) => {
         estado.dentro.push(estado.enTransaccion ? 'cola' : 'cola-fuera');
         estado.añadidos.push(...trabajos);
@@ -111,21 +106,46 @@ describe('encolarTrabajosJunto', () => {
   });
 });
 
+/**
+ * Dexie de verdad, sobre `fake-indexeddb`, y `almacen` cargado contra él. Para
+ * lo que solo Dexie sabe decir: qué rechaza una transacción y cuánto borra un
+ * `delete()`.
+ */
+async function cargarDeVerdad() {
+  vi.resetModules();
+  vi.doUnmock('@shared/lib/db');
+
+  const { db } = await import('@shared/lib/db');
+  const almacen = await import('./almacen');
+  await Promise.all(db.tables.map((tabla) => tabla.clear()));
+
+  return { db, almacen, encolar: almacen.encolarTrabajosJunto };
+}
+
+/** Un trabajo entero, como los guarda la cola. */
+function trabajoDe(id: string, cambios: Partial<Trabajo> = {}): Trabajo {
+  return {
+    id,
+    userId: 'u1',
+    entity: 'match_event',
+    op: 'insert',
+    payload: { valores: { client_event_id: id } },
+    clientEventId: id,
+    matchId: 'm1',
+    createdAt: 1,
+    attempts: 0,
+    nextAttemptAt: 0,
+    status: 'pending',
+    lastError: null,
+    sentAt: null,
+    ...cambios,
+  };
+}
+
 // T-216: la transacción se abre solo sobre la cola y las tablas que se le
 // pasan. Aquí hace falta Dexie de verdad, sobre `fake-indexeddb`: es Dexie
 // quien rechaza una escritura en una tabla que no está en la transacción.
 describe('encolarTrabajosJunto con tablas', () => {
-  async function cargarDeVerdad() {
-    vi.resetModules();
-    vi.doUnmock('@shared/lib/db');
-
-    const { db } = await import('@shared/lib/db');
-    const almacen = await import('./almacen');
-    await Promise.all(db.tables.map((tabla) => tabla.clear()));
-
-    return { db, encolar: almacen.encolarTrabajosJunto };
-  }
-
   it('escribir en una tabla que no está en la lista rechaza y la cola queda vacía', async () => {
     const { db, encolar } = await cargarDeVerdad();
 
@@ -174,34 +194,99 @@ describe('encolarTrabajosJunto con tablas', () => {
   });
 });
 
+// T-221: el borrado es una sola operación de Dexie, que mira el estado y el
+// dueño dentro del propio `delete()`. Sobre Dexie de verdad: es él quien dice
+// cuántos ha borrado.
 describe('descartarRechazado', () => {
-  function guardar(id: string, status: Trabajo['status'], userId: string) {
-    estado.guardados.set(id, { id, status, userId } as Trabajo);
+  it('borra un rechazado propio y devuelve `true`', async () => {
+    const { db, almacen } = await cargarDeVerdad();
+    await db.outbox.bulkAdd([
+      trabajoDe('a', { status: 'failed' }),
+      trabajoDe('b', { status: 'failed' }),
+    ]);
+
+    await expect(almacen.descartarRechazado('a', 'u1')).resolves.toBe(true);
+    expect(await db.outbox.get('a')).toBeUndefined();
+    // Solo ese: el otro rechazado sigue en la banda.
+    expect(await db.outbox.get('b')).toBeDefined();
+  });
+
+  it.each(['pending', 'sending', 'sent'] as const)(
+    'no borra uno en `%s` y devuelve `false`',
+    async (status) => {
+      const { db, almacen } = await cargarDeVerdad();
+      await db.outbox.add(trabajoDe('a', { status }));
+
+      await expect(almacen.descartarRechazado('a', 'u1')).resolves.toBe(false);
+      expect(await db.outbox.get('a')).toBeDefined();
+    },
+  );
+
+  it('no borra un rechazado de otra cuenta y devuelve `false`', async () => {
+    const { db, almacen } = await cargarDeVerdad();
+    await db.outbox.add(trabajoDe('a', { status: 'failed', userId: 'otra' }));
+
+    await expect(almacen.descartarRechazado('a', 'u1')).resolves.toBe(false);
+    expect(await db.outbox.get('a')).toBeDefined();
+  });
+
+  it('sin existir, no borra nada y devuelve `false`', async () => {
+    const { db, almacen } = await cargarDeVerdad();
+    await db.outbox.add(trabajoDe('a', { status: 'failed' }));
+
+    await expect(almacen.descartarRechazado('no-esta', 'u1')).resolves.toBe(false);
+    expect(await db.outbox.count()).toBe(1);
+  });
+
+  it('es una sola operación: no lee el trabajo antes de borrarlo', async () => {
+    const { db, almacen } = await cargarDeVerdad();
+    await db.outbox.add(trabajoDe('a', { status: 'failed' }));
+    const leer = vi.spyOn(db.outbox, 'get');
+
+    await almacen.descartarRechazado('a', 'u1');
+
+    expect(leer).not.toHaveBeenCalled();
+  });
+});
+
+// T-221: al salir del directo no se pregunta por lo que nadie ha apuntado. El
+// alta de la cobertura se encola sola al abrir, y sin red se queda en la cola.
+describe('contarPendientes', () => {
+  async function conCola() {
+    const { db, almacen } = await cargarDeVerdad();
+
+    await db.outbox.bulkAdd([
+      trabajoDe('gol'),
+      trabajoDe('parte', { entity: 'match_period', status: 'sending' }),
+      trabajoDe('alta', { entity: 'coverage' }),
+      trabajoDe('cierre', { entity: 'coverage', op: 'update', status: 'sending' }),
+      // Lo que no cuenta nunca: lo enviado, lo rechazado y lo de otra cuenta.
+      trabajoDe('enviado', { status: 'sent', sentAt: 1 }),
+      trabajoDe('rechazado', { status: 'failed' }),
+      trabajoDe('ajeno', { userId: 'otra' }),
+    ]);
+
+    return almacen.contarPendientes;
   }
 
-  beforeEach(() => {
-    estado.guardados.clear();
+  it('sin el segundo argumento cuenta también los trabajos de cobertura', async () => {
+    const contarPendientes = await conCola();
+
+    await expect(contarPendientes('u1')).resolves.toBe(4);
   });
 
-  it('borra un rechazado propio', async () => {
-    guardar('a', 'failed', 'u1');
+  it('con `sin: [coverage]` no cuenta los trabajos de cobertura', async () => {
+    const contarPendientes = await conCola();
 
-    await expect(descartarRechazado('a', 'u1')).resolves.toBe(true);
-    expect(estado.guardados.has('a')).toBe(false);
+    await expect(contarPendientes('u1', { sin: ['coverage'] })).resolves.toBe(2);
   });
 
-  it('no borra uno pendiente', async () => {
-    guardar('a', 'pending', 'u1');
+  it('con solo trabajos de cobertura y `sin: [coverage]`, no queda nada que avisar', async () => {
+    const { db, almacen } = await cargarDeVerdad();
+    await db.outbox.add(trabajoDe('alta', { entity: 'coverage' }));
 
-    await expect(descartarRechazado('a', 'u1')).resolves.toBe(false);
-    expect(estado.guardados.has('a')).toBe(true);
-  });
-
-  it('no borra un rechazado de otra cuenta', async () => {
-    guardar('a', 'failed', 'otra');
-
-    await expect(descartarRechazado('a', 'u1')).resolves.toBe(false);
-    expect(estado.guardados.has('a')).toBe(true);
+    await expect(almacen.contarPendientes('u1', { sin: ['coverage'] })).resolves.toBe(0);
+    await expect(almacen.contarPendientes('u1')).resolves.toBe(1);
   });
 });
 
