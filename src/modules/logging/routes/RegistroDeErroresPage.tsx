@@ -14,6 +14,7 @@
 /* oxlint-disable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role */
 
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 import { useAnnounce } from '@shared/hooks/announceContext';
 import { Button } from '@shared/ui/Button';
@@ -21,7 +22,12 @@ import { Card } from '@shared/ui/Card';
 import { Field } from '@shared/ui/Field';
 import { Pantalla } from '@shared/ui/Pantalla';
 
-import { useErrores, useEsAdministrador, useRecuento } from '../hooks/useErrores';
+import {
+  useActualizarErrores,
+  useErrores,
+  useEsAdministrador,
+  useRecuento,
+} from '../hooks/useErrores';
 import {
   NOMBRES_DE_ORIGEN,
   ORIGENES,
@@ -152,6 +158,10 @@ export function RegistroDeErroresPage() {
   const ultima = useErrores(filtros, cursores.at(-1) ?? null, esAdministrador);
   const ultimas24 = useRecuento(24, esAdministrador);
   const ultimos7 = useRecuento(24 * 7, esAdministrador);
+  const actualizarErrores = useActualizarErrores();
+  /** Sube con cada «Actualizar»: anuncia el resultado aunque la lista no haya cambiado. */
+  const [actualizaciones, setActualizaciones] = useState(0);
+  const actualizando = useRef(false);
 
   // Cambiar un filtro vuelve a la primera página.
   const setFiltros = (nuevos: FiltrosDeErrores) => {
@@ -168,10 +178,31 @@ export function RegistroDeErroresPage() {
     }
   };
 
+  const actualizar = async () => {
+    actualizando.current = true;
+    // Las páginas siguientes se desmontan ANTES de invalidar: si siguieran
+    // montadas, se volverían a pedir también y no se usarían.
+    flushSync(() => {
+      setCursores([]);
+    });
+
+    try {
+      await actualizarErrores();
+    } finally {
+      actualizando.current = false;
+      setActualizaciones((n) => n + 1);
+    }
+  };
+
   // Lo que da filtrar se anuncia: nadie ve la lista cambiar si no mira.
   const { data: datosDePrimera, isError: falloDePrimera } = primera;
 
   useEffect(() => {
+    // Mientras se actualiza, lo anuncia `actualizar` al terminar, una sola vez.
+    if (actualizando.current) {
+      return;
+    }
+
     if (falloDePrimera) {
       anunciar('No se pudieron cargar los errores. Vuelve a intentarlo.');
     } else if (datosDePrimera !== undefined) {
@@ -183,9 +214,28 @@ export function RegistroDeErroresPage() {
           : `${plural(datosDePrimera.filas.length)}${datosDePrimera.hayMas ? ' o más' : ''}`,
       );
     }
-  }, [datosDePrimera, falloDePrimera, hayFiltros, anunciar]);
+  }, [datosDePrimera, falloDePrimera, hayFiltros, anunciar, actualizaciones]);
+
+  // El fallo de una página con cursor se anuncia: el botón sigue en su sitio y
+  // quien lo usa no ve que nada ha llegado.
+  const falloDeMas = cursores.length > 0 && ultima.isError;
+
+  useEffect(() => {
+    if (falloDeMas) {
+      anunciar('No se pudieron cargar más errores. Vuelve a intentarlo.');
+    }
+  }, [falloDeMas, anunciar]);
 
   const cargarMas = () => {
+    // Reintentar vuelve a pedir esa misma página, sin añadir otro cursor.
+    if (falloDeMas) {
+      if (!ultima.isFetching) {
+        void ultima.refetch();
+      }
+
+      return;
+    }
+
     const filas = ultima.data?.filas;
     const ultimaFila = filas === undefined ? undefined : filas.at(-1);
 
@@ -266,6 +316,16 @@ export function RegistroDeErroresPage() {
               />
               <span>Solo de hoy</span>
             </label>
+            <div>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  void actualizar();
+                }}
+              >
+                Actualizar
+              </Button>
+            </div>
           </form>
         </Card>
 
@@ -320,7 +380,8 @@ export function RegistroDeErroresPage() {
           </div>
         ) : null}
 
-        {ultima.data?.hayMas === true || (cursores.length > 0 && ultima.isPending) ? (
+        {ultima.data?.hayMas === true ||
+        (cursores.length > 0 && (ultima.isPending || falloDeMas)) ? (
           <div>
             <Button
               variant="secondary"
@@ -329,7 +390,9 @@ export function RegistroDeErroresPage() {
             >
               {ultima.isFetching || ultima.isPending
                 ? 'Cargando…'
-                : `Cargar ${TAMANO_DE_PAGINA} más`}
+                : falloDeMas
+                  ? 'Reintentar'
+                  : `Cargar ${TAMANO_DE_PAGINA} más`}
             </Button>
           </div>
         ) : null}

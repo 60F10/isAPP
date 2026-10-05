@@ -154,10 +154,12 @@ export async function fetchErrores(
     consulta = consulta.like('message', `[${filtros.origen}]%`);
   }
 
-  const ruta = filtros.ruta.trim();
+  // El vacío se mira después de escapar: una ruta que fuera solo `*` se
+  // quedaría en `%%` y dejaría fuera las filas sin ruta.
+  const ruta = escaparComodines(filtros.ruta.trim());
 
   if (ruta !== '') {
-    consulta = consulta.ilike('route', `%${escaparComodines(ruta)}%`);
+    consulta = consulta.ilike('route', `%${ruta}%`);
   }
 
   if (filtros.soloHoy) {

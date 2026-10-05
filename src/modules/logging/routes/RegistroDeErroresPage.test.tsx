@@ -139,6 +139,76 @@ describe('RegistroDeErroresPage', () => {
     });
   });
 
+  it('«Actualizar» vuelve a pedir la primera página sin cursor, quita las siguientes y anuncia cuántos hay', async () => {
+    let vuelta = 0;
+
+    api.fetchErrores.mockImplementation((_filtros, desde) => {
+      if (desde !== null) {
+        return Promise.resolve({ filas: [error(2)], hayMas: false });
+      }
+
+      vuelta += 1;
+
+      return Promise.resolve(
+        vuelta === 1
+          ? { filas: [error(1)], hayMas: true }
+          : { filas: [error(1), error(9)], hayMas: false },
+      );
+    });
+    montar();
+    await screen.findByText('Fallo número 1');
+    await userEvent.click(screen.getByRole('button', { name: 'Cargar 50 más' }));
+    await screen.findByText('Fallo número 2');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
+
+    await screen.findByText('Fallo número 9');
+    expect(screen.queryByText('Fallo número 2')).not.toBeInTheDocument();
+    expect(api.fetchErrores).toHaveBeenLastCalledWith(expect.anything(), null);
+    await vi.waitFor(() => {
+      expect(api.anunciar).toHaveBeenCalledWith('2 errores');
+    });
+  });
+
+  it('si falla la segunda página, lo anuncia, el botón dice «Reintentar», conserva el foco y pide con el mismo cursor', async () => {
+    const cursor = { createdAt: '2026-10-03T10:30:00Z', id: 'e1' };
+    let intentos = 0;
+
+    api.fetchErrores.mockImplementation((_filtros, desde) => {
+      if (desde === null) {
+        return Promise.resolve({ filas: [error(1)], hayMas: true });
+      }
+
+      intentos += 1;
+
+      return intentos === 1
+        ? Promise.reject(new Error('sin red'))
+        : Promise.resolve({ filas: [error(2)], hayMas: false });
+    });
+    montar();
+    await screen.findByText('Fallo número 1');
+
+    const cargar = screen.getByRole('button', { name: 'Cargar 50 más' });
+
+    await userEvent.click(cargar);
+
+    const reintentar = await screen.findByRole('button', { name: 'Reintentar' });
+
+    expect(reintentar).toHaveFocus();
+    expect(api.anunciar).toHaveBeenCalledWith(
+      'No se pudieron cargar más errores. Vuelve a intentarlo.',
+    );
+
+    await userEvent.click(reintentar);
+
+    expect(await screen.findByText('Fallo número 2')).toBeInTheDocument();
+
+    const conCursor = api.fetchErrores.mock.calls.filter(([, desde]) => desde !== null);
+
+    expect(conCursor).toHaveLength(2);
+    expect(conCursor.every(([, desde]) => desde?.id === cursor.id)).toBe(true);
+  });
+
   it('cambiar un filtro anuncia cuántos errores hay', async () => {
     api.fetchErrores.mockImplementation((filtros) =>
       Promise.resolve(

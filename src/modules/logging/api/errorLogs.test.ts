@@ -1,7 +1,7 @@
 // Acceso a datos de la C02 (T-222). Se dobla el cliente de Supabase y se
 // apuntan las llamadas encadenadas: filtros, orden y cursor.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SIN_FILTROS } from '../model/consulta';
 
@@ -81,6 +81,10 @@ beforeEach(() => {
   red.respuestas.length = 0;
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('escaparComodines', () => {
   it('escapa %, _ y la barra, y quita el *', () => {
     expect(escaparComodines('50%')).toBe('50\\%');
@@ -123,6 +127,24 @@ describe('fetchErrores', () => {
     expect(cadena.find((p) => p.metodo === 'like')?.args).toEqual(['message', '[sync]%']);
     expect(cadena.find((p) => p.metodo === 'ilike')?.args).toEqual(['route', '%partidos%']);
     expect(cadena.find((p) => p.metodo === 'gte')?.args[0]).toBe('created_at');
+  });
+
+  it('una ruta que es solo un comodín no filtra por ruta', async () => {
+    await fetchErrores({ origen: 'todos', ruta: '*', soloHoy: false }, null);
+
+    expect(consultaDeErrores().some((p) => p.metodo === 'ilike')).toBe(false);
+  });
+
+  it('«solo hoy» manda el principio del día en el gte', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 5, 15, 30, 12));
+
+    await fetchErrores({ origen: 'todos', ruta: '', soloHoy: true }, null);
+
+    expect(consultaDeErrores().find((p) => p.metodo === 'gte')?.args).toEqual([
+      'created_at',
+      new Date(2026, 9, 5).toISOString(),
+    ]);
   });
 
   it('sin filtros no añade ninguno', async () => {

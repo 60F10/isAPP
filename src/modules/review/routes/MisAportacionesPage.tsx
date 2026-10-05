@@ -191,6 +191,8 @@ function ElegirJugador({
 interface ConfirmarBorradoProps {
   descripcion: string;
   ocupado: boolean;
+  /** Solo mientras la mutación de borrar está en marcha, no mientras se vuelve a pedir la lista. */
+  borrando: boolean;
   alConfirmar: () => void;
   alCancelar: () => void;
 }
@@ -199,6 +201,7 @@ interface ConfirmarBorradoProps {
 function ConfirmarBorrado({
   descripcion,
   ocupado,
+  borrando,
   alConfirmar,
   alCancelar,
 }: ConfirmarBorradoProps) {
@@ -216,7 +219,7 @@ function ConfirmarBorrado({
       </p>
       <div className={styles.acciones}>
         <Button variant="primary" disabled={ocupado} onClick={alConfirmar}>
-          {ocupado ? 'Borrando…' : 'Sí, borrar'}
+          {borrando ? 'Borrando…' : 'Sí, borrar'}
         </Button>
         <Button variant="secondary" disabled={ocupado} onClick={alCancelar}>
           Cancelar
@@ -345,6 +348,7 @@ function Lista({ grupos }: ListaProps) {
         <ConfirmarBorrado
           descripcion={descripcion}
           ocupado={ocupado}
+          borrando={corregir.isPending}
           alConfirmar={() => {
             guardar({ ...base, campo: 'borrar' }, 'Evento borrado.', descripcion);
           }}

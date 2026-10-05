@@ -1,6 +1,6 @@
 // Hooks de la C02, registro de errores (T-303).
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { contarErroresDesde, fetchErrores, fetchEsAdministrador } from '../api/errorLogs';
 import type { CursorDeErrores, FiltrosDeErrores } from '../model/consulta';
@@ -28,8 +28,10 @@ export function useEsAdministrador() {
  * no se usa `useInfiniteQuery` porque arrastra al paquete inicial el trozo
  * común de TanStack Query, y la C02 es perezosa.
  *
- * Las páginas con cursor no se vuelven a pedir solas: con una fila nueva por
- * delante, pedirlas otra vez movería sus límites.
+ * Ninguna página se vuelve a pedir sola —ni al volver el foco a la ventana ni
+ * al volver la red—: con una fila nueva por delante, pedirlas otra vez movería
+ * sus límites y la lista repetiría o se saltaría una fila. Se pone al día con
+ * «Actualizar» (`useActualizarErrores`).
  */
 export function useErrores(
   filtros: FiltrosDeErrores,
@@ -42,8 +44,19 @@ export function useErrores(
     enabled: activo,
     // Varios componentes leen la misma página: sin esto, cada montaje la pide otra vez.
     staleTime: cursor === null ? 30_000 : Infinity,
-    refetchOnWindowFocus: cursor === null,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
+}
+
+/**
+ * Invalida todas las páginas de errores, de cualquier filtro. Resuelve cuando
+ * las que están en pantalla han vuelto a llegar.
+ */
+export function useActualizarErrores() {
+  const queryClient = useQueryClient();
+
+  return () => queryClient.invalidateQueries({ queryKey: [...clavesDeLogging.all, 'errores'] });
 }
 
 /** Cuántos errores hay en las últimas `horas` horas. */

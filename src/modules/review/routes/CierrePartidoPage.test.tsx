@@ -248,6 +248,23 @@ describe('A13 · Cierre del partido', () => {
     );
   });
 
+  it('guardar el origen de un gol manda el match_id del partido', async () => {
+    servidor([evento({ id: 'id-1', estado: 'approved', detalles: { minuto: '10' } })]);
+    api.guardarOrigen.mockResolvedValue(undefined);
+    montar();
+
+    await userEvent.selectOptions(await screen.findByLabelText(/^Origen · /), 'Penalti');
+
+    await waitFor(() => {
+      expect(api.guardarOrigen).toHaveBeenCalledWith(
+        'cliente-id-1',
+        { minuto: '10' },
+        'penalti',
+        'par-1',
+      );
+    });
+  });
+
   it('con el acta vacía no se cierra ni se pregunta', async () => {
     api.fetchCierre.mockResolvedValue(datos());
     montar();
