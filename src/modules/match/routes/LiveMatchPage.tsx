@@ -49,6 +49,7 @@ import { useAuth, useHasPermission } from '@modules/auth';
 import { NOMBRES_DE_EVENTO } from '@modules/rules';
 import { contarPendientes, pendientesDelPartido } from '@modules/sync';
 import { useAnnounce } from '@shared/hooks/announceContext';
+import { useAhora } from '@shared/hooks/useAhora';
 import { marcarPartidoEnCurso, quitarPartidoEnCurso } from '@shared/lib/partidoEnCurso';
 import { Button } from '@shared/ui/Button';
 import { Pantalla } from '@shared/ui/Pantalla';
@@ -61,7 +62,6 @@ import {
   leerCobertura,
 } from '../api/cobertura';
 import { aplicarTransicion, cargarDirecto, refrescarDirecto, SIN_PRECARGA } from '../api/directo';
-import { useAhora } from '../hooks/useAhora';
 import { Botonera } from '../components/Botonera';
 import { Cobertura } from '../components/Cobertura';
 import { FlujoDeRegistro } from '../components/FlujoDeRegistro';
@@ -404,9 +404,24 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const bloqueo = useBloqueoDePantalla(enCurso(estado));
 
   // La marca que calla el aviso de versión nueva mientras dure el partido.
+  // Lleva el reloj de la parte abierta, para la banda «Partido en directo» del
+  // resto de pantallas (T-225): sin parte abierta, `null`, y la banda dice
+  // «Descanso». Solo escribe si el reloj ha cambiado.
   useEffect(() => {
     if (enCurso(estado)) {
-      marcarPartidoEnCurso(estado.partidoId, Date.now());
+      const abierta = estado.partes.find((parte) => parte.segundosReales === null);
+
+      marcarPartidoEnCurso(
+        estado.partidoId,
+        Date.now(),
+        abierta === undefined
+          ? null
+          : {
+              inicio: abierta.inicio,
+              pausadoMs: abierta.pausadoMs,
+              pausaDesde: abierta.pausaDesde,
+            },
+      );
     } else {
       quitarPartidoEnCurso(estado.partidoId);
     }

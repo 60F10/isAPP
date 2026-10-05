@@ -31,11 +31,32 @@
    de 85 px a 234 px medidos, y cualquier reserva escrita a ojo se queda corta
    justo ahí. Medirla en JavaScript era la otra salida, y añade un observador
    para sostener algo que la propia maqueta ya garantiza. */
-.contenido {
+.columna {
   /* En el DOM la navegación va antes que el contenido, para que se alcance en
      la primera tabulación. Aquí solo se invierte lo que se ve: la barra abajo,
      en la zona del pulgar (DOC 02 §5.2). */
   order: 1;
+  flex: 1 1 auto;
+  /* Sin esto no baja de la altura de su contenido, el marco crece por encima
+     de la ventana y la barra se va fuera: mismo motivo que `.ruta` en
+     `App.module.css`. El ancho, por lo mismo, al lado del rail. */
+  min-block-size: 0;
+  min-inline-size: 0;
+  /* Lo normal es que no desplace nunca: banda y contenido caben justos y
+     quien desplaza es el contenido. Pero el contenido no baja de su propio
+     relleno, y a 320 px con el texto al 200 % la banda y la barra se llevan
+     casi toda la ventana: sin esto, ahí el contenido se metía por debajo de
+     la barra. Con esto, desplaza la columna entera. */
+  overflow-y: auto;
+
+  /* La banda «Partido en directo» (T-225) arriba, con la fila que necesite, y
+     el contenido debajo con el resto. Es el mismo reparto que el del marco,
+     un piso más abajo: nada se superpone (criterio 2.4.11). */
+  display: flex;
+  flex-direction: column;
+}
+
+.contenido {
   flex: 1 1 auto;
   overflow-y: auto;
 
@@ -207,8 +228,11 @@
     text-align: start;
   }
 
-  .contenido {
+  .columna {
     order: 2;
+  }
+
+  .contenido {
     /* El rail ya ocupa su columna: aquí solo hace falta aire, no una reserva
        del ancho del rail. */
     padding-inline-start: var(--space-5);

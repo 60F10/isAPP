@@ -1,0 +1,73 @@
+/* Banda «Partido en directo» (DOC 02 §3.1, T-225).
+
+   NO LLEVA `position: fixed` NI `sticky`. Mismo motivo y misma salida que la
+   barra de navegación y el aviso de versión nueva (criterio 2.4.11, foco no
+   oscurecido): es una fila más de la columna de `AppLayout`, que reparte la
+   altura, y el contenido desplaza por dentro con lo que sobra. Se queda
+   arriba igual de quieta que si estuviera fija, y no tapa nada.
+
+   Solo tokens semánticos: con el alto contraste de Ajustes el fondo pasa a
+   blanco, la tinta a negro y el borde a negro, y se sigue leyendo. */
+
+.banda {
+  /* Nunca se encoge: quien cede sitio es el contenido, no la banda. */
+  flex: 0 0 auto;
+
+  display: flex;
+  /* A 320 px con el texto al 200 % el enlace baja a su propia línea antes que
+     provocar desplazamiento horizontal (criterio 1.4.10). */
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tap-gap);
+
+  padding: var(--space-2) var(--space-4);
+
+  background-color: var(--color-accent-soft);
+  border-block-end: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.texto {
+  /* Que el texto parta antes de desbordar. */
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  /* Cifras de ancho fijo: sin esto el texto baila cada vez que cambia el
+     segundo, y el enlace con él. */
+  font-variant-numeric: tabular-nums;
+}
+
+.volver {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Objetivo táctil mínimo de todo control (DOC 02 §5.1). */
+  min-block-size: var(--tap-min);
+  min-inline-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  /* Subrayado: es un enlace, y el color no puede ser lo único que lo diga
+     (criterio 1.4.1). */
+  text-decoration: underline;
+  touch-action: manipulation;
+}
+
+.volver:hover {
+  background-color: var(--color-accent-soft);
+}
+
+.volver:active {
+  background-color: var(--color-surface-pressed);
+}

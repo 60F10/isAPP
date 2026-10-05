@@ -8,7 +8,14 @@
 // Lo que se guarda son segundos dentro de la parte; el minuto «34'» o
 // «40+2'» se calcula para enseñarlo y nunca se guarda (DOC 04 §5.1).
 
+import { formatoReloj, segundosDesde } from '@shared/lib/reloj';
+
 import type { ParteLocal } from './directo';
+
+// La cuenta y el formato viven en `shared/lib/reloj.ts` desde la T-225, para
+// que la banda del marco marque lo mismo sin importar de `match` (D06-40).
+// Se siguen exportando desde aquí: para el directo, el reloj es este archivo.
+export { formatoReloj };
 
 /** Segundos jugados de una parte. Cerrada, su duración real. */
 export function segundosDeParte(parte: ParteLocal, ahora: number): number {
@@ -16,22 +23,7 @@ export function segundosDeParte(parte: ParteLocal, ahora: number): number {
     return parte.segundosReales;
   }
 
-  // En pausa, el reloj se queda en el instante en que se paró.
-  const hasta = parte.pausaDesde ?? ahora;
-  const jugados = hasta - parte.inicio - parte.pausadoMs;
-
-  // El reloj de pared de un móvil puede ir un poco por detrás del de quien
-  // abrió la parte. Mejor 00:00 que un reloj negativo.
-  return Math.max(0, Math.floor(jugados / 1000));
-}
-
-function dosCifras(numero: number): string {
-  return String(numero).padStart(2, '0');
-}
-
-/** `34:12`. Los minutos siguen contando pasados los sesenta: `62:05`. */
-export function formatoReloj(segundos: number): string {
-  return `${dosCifras(Math.floor(segundos / 60))}:${dosCifras(segundos % 60)}`;
+  return segundosDesde(parte, ahora);
 }
 
 /**

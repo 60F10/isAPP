@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthContext } from '@modules/auth';
 import { AnnounceContext } from '@shared/hooks/announceContext';
-import { leerPartidoEnCurso } from '@shared/lib/partidoEnCurso';
+import { leerMarcaEnCurso, leerPartidoEnCurso } from '@shared/lib/partidoEnCurso';
 
 import { desdePaquete } from '../model/directo';
 import { LiveMatchPage } from './LiveMatchPage';
@@ -349,6 +349,46 @@ describe('A12 · Directo, esqueleto', () => {
     expect(leerPartidoEnCurso(Date.now())).toBeNull();
     // El botón que tenía el foco se ha ido: va a la nota del final (T-223).
     expect(screen.getByText(/El partido ha terminado/)).toHaveFocus();
+  });
+
+  it('la marca lleva el reloj de la parte abierta, `null` al terminarla, y se va al finalizar (T-225)', async () => {
+    const inicio = Date.now() - 60_000;
+    api.cargarDirecto.mockResolvedValue(
+      cargado({
+        fase: 'en_juego',
+        partes: [
+          { id: 'a', numero: 1, inicio: 0, pausadoMs: 0, pausaDesde: null, segundosReales: 2_400 },
+          { id: 'b', numero: 2, inicio, pausadoMs: 0, pausaDesde: null, segundosReales: null },
+        ],
+      }),
+    );
+    montar();
+
+    // En juego: el reloj de la segunda parte, que es la abierta.
+    await screen.findByRole('button', { name: 'Terminar la 2ª parte' });
+    expect(leerMarcaEnCurso(Date.now())).toEqual({
+      partidoId: 'par-1',
+      reloj: { inicio, pausadoMs: 0, pausaDesde: null },
+    });
+
+    // En pausa: el mismo arranque, con el instante en que se paró.
+    await userEvent.click(screen.getByRole('button', { name: 'Pausar el reloj' }));
+    await waitFor(() => {
+      expect(leerMarcaEnCurso(Date.now())?.reloj?.pausaDesde).toEqual(expect.any(Number));
+    });
+    expect(leerMarcaEnCurso(Date.now())?.reloj?.inicio).toBe(inicio);
+
+    // Terminada la parte ya no hay reloj que enseñar, pero el partido sigue.
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar la 2ª parte' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, terminar la parte' }));
+    await screen.findByRole('button', { name: 'Finalizar el partido' });
+    expect(leerMarcaEnCurso(Date.now())).toEqual({ partidoId: 'par-1', reloj: null });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Finalizar el partido' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, finalizar' }));
+
+    expect(await screen.findByText(/El partido ha terminado/)).toBeInTheDocument();
+    expect(leerMarcaEnCurso(Date.now())).toBeNull();
   });
 
   it('sin precarga y sin cobertura lo dice, en vez de una pantalla en blanco', async () => {

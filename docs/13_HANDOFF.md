@@ -5,6 +5,44 @@
 
 ---
 
+## Sesión 05/10/2026, noche — T-225: la banda «Partido en directo» en el resto de pantallas: ✅ cerrada
+
+Sesión programada, rama `feat/match-banda-partido-en-curso`. **Sin base de datos.** Hecho tal
+cual el traspaso, con las pruebas escritas antes y comprobadas en rojo. Lint, formato, **792
+pruebas en 60 archivos** (eran 768 en 58) y build, sin `INEFFECTIVE_DYNAMIC_IMPORT`. Inicial
+comprimido: **176,15 kB**, recorriendo las importaciones estáticas desde `index.html` y
+`App-*.js`; con el mismo recorrido `main` daba 175,53: **+0,62 kB**, que es la banda.
+
+- **Qué hay.** Con un partido en curso en el aparato, cualquier pantalla de `AppLayout` enseña
+  arriba «Partido en directo · 34:12» y el enlace «Volver» al directo. En pausa añade «· En
+  pausa» y el reloj no corre; sin parte abierta dice «Descanso». Al finalizar o al caducar la
+  marca, se va sola.
+- **De dónde sale el reloj (D06-40).** De la marca de `localStorage`, que ahora lleva `reloj`:
+  el ancla de la parte abierta o `null`. La escribe la A12 en el efecto de siempre, y solo si ha
+  cambiado. La cuenta es una sola, `segundosDesde` en `shared/lib/reloj.ts`; `match/model/reloj.ts`
+  la usa y exporta lo mismo que antes. `useAhora` está en `shared/hooks/`. Ni el reductor ni el
+  refresco de la A12 se han tocado.
+- **Decisiones sin nadie delante.** (1) En `AppLayout` la banda y el `main` van dentro de una
+  columna nueva, `.columna`, que es quien lleva ahora el `order`: era la forma de ponerla encima
+  del contenido también con el rail de escritorio sin `fixed` ni `sticky`. En el DOM queda tras
+  la navegación: con el tabulador, «Volver» llega después de los cinco destinos, y «Saltar al
+  contenido» se la salta. (2) Con el reloj parado nada repinta la banda, así que vuelve a mirar
+  la caducidad una vez por minuto. (3) Sin tercer argumento, `marcarPartidoEnCurso` marca sin
+  reloj, y un reloj estropeado en la marca se lee como `null` en vez de perder la marca entera.
+- **Visto en Chromium, no en un móvil.** A 320, 360 y 1024 px, y a 320 px con el texto al 200 %:
+  sin desplazamiento horizontal, «Volver» de 48 px de alto y nada tapado. A 320 px y 200 % la
+  banda y la barra se llevan casi toda la ventana, y ahí desplaza la columna entera. El alto
+  contraste va por tokens semánticos y no se ha mirado en pantalla. Se suma al punto 42.
+- **Flecos.** «Descanso» sale también con todas las partes jugadas y el partido sin finalizar.
+  Y la caducidad sigue contando desde la primera vez que se marcó (así desde la T-207): un
+  partido que se retome más de cuatro horas después de empezar se queda sin banda y deja de
+  callar el aviso de versión nueva.
+- **Deuda.** La marca no dice de quién es: si entra otra persona en ese aparato antes de cuatro
+  horas, ve la banda, y es el directo quien decide si la deja pasar. Y la banda solo sale en el
+  aparato que tiene el directo abierto o lo tuvo, no en el de quien solo mira.
+
+---
+
 ## Sesión 05/10/2026, noche — tanda siguiente: la T-225 y la T-226: ✅ cerrada
 
 Sesión con Raúl. **Sin base de datos y sin código**: dos traspasos y su programación.
@@ -677,7 +715,7 @@ Pendiente de hacer:
     diferido.
 41. **Falta la banda «Partido en directo · mm:ss · Volver»** en el resto de pantallas (DOC 02
     §3.1). La marca de `shared/lib/partidoEnCurso.ts` ya dice qué partido está en curso; falta la
-    banda. **Es la T-225.**
+    banda. **Es la T-225.** **Cerrado por la T-225** (05/10): la banda sale en `AppLayout`.
 42. **Sin comprobar en el navegador**: ni el reloj a 7:1 al sol, ni el bloqueo de pantalla en un
     móvil de verdad. Los colores salen de los tokens del directo del DOC 07.
 43. **Corregir el minuto de un evento** (E8-09) es hoy deshacerlo y volver a apuntarlo. La
