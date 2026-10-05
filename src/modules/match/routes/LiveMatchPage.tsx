@@ -40,6 +40,12 @@
 // repintado ya no pierde lo recién fundido. Lo que cambia otro aparato —empezar
 // o terminar una parte, finalizar— se anuncia, y si al finalizar se desmonta
 // lo que tenía el foco, el foco va a la nota del final.
+//
+// DESDE LA T-226, SUSPENDER (DOC 04 §8.1, D06-41). «Suspender el partido» va
+// al final de la pantalla, lejos del pulgar, y solo con el partido en curso y
+// sin diferido. Pregunta en su sitio, diciendo el minuto, porque no se deshace.
+// Es una transición más del reductor y va por `hacer`; al salir bien se cierra
+// la cobertura, como al finalizar, y la nota del final dice dónde se suspendió.
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -163,11 +169,19 @@ function anuncioDeOtroAparato(antes: EstadoDirecto, despues: EstadoDirecto): str
     case 'descanso':
       return `Otro aparato ha terminado la parte ${parte}.`;
     case 'finalizado':
-      return 'Otro aparato ha finalizado el partido.';
+      // Con suspensión, no ha llegado al final: lo han suspendido (T-226).
+      return despues.suspension === null
+        ? 'Otro aparato ha finalizado el partido.'
+        : 'Otro aparato ha suspendido el partido.';
     case 'inactivo':
     case 'pausado':
       return null;
   }
+}
+
+/** «la 1.ª parte», como se escribe en las frases de la suspensión. */
+function parteEscrita(numero: number): string {
+  return `la ${numero}.ª parte`;
 }
 
 interface ConfirmarProps {
@@ -263,6 +277,9 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   const [sinRefrescar, setSinRefrescar] = useState(!cargado.refrescado);
   const [aviso, setAviso] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<'terminar' | 'finalizar' | null>(null);
+  // La confirmación de suspender va aparte (T-226): sale en el sitio de su
+  // botón, al final de la pantalla, y no en el de los controles.
+  const [suspendiendo, setSuspendiendo] = useState(false);
   const [pendientesAlSalir, setPendientesAlSalir] = useState<number | null>(null);
   const [flujo, setFlujo] = useState<Flujo | null>(null);
   const [fichaDe, setFichaDe] = useState<string | null>(null);
@@ -369,6 +386,19 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     }
   }, [confirmando]);
 
+  // Lo mismo con la de suspender: al decir que no, el foco vuelve a su botón.
+  const zonaSuspender = useRef<HTMLDivElement>(null);
+  const suspendiaAntes = useRef(false);
+
+  useEffect(() => {
+    if (suspendiendo) {
+      suspendiaAntes.current = true;
+    } else if (suspendiaAntes.current) {
+      suspendiaAntes.current = false;
+      zonaSuspender.current?.querySelector('button')?.focus();
+    }
+  }, [suspendiendo]);
+
   useEffect(() => {
     if (pendientesAlSalir !== null) {
       avisoAntes.current = true;
@@ -379,10 +409,11 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
     }
   }, [pendientesAlSalir]);
 
-  // Al finalizar —aquí o desde otro aparato— se desmonta lo que pudiera tener
-  // el foco: los controles, la botonera, el flujo, la ficha. Si se ha quedado
-  // en `body`, va a la nota que dice que el partido ha terminado (2.4.3,
-  // T-223). Si sigue en algo que no se ha ido, no se le quita a nadie.
+  // Al finalizar o suspender —aquí o desde otro aparato— se desmonta lo que
+  // pudiera tener el foco: los controles, la botonera, el flujo, la ficha, el
+  // botón de suspender. Si se ha quedado en `body`, va a la nota que dice que
+  // el partido ha terminado o dónde se suspendió (2.4.3, T-223). Si sigue en
+  // algo que no se ha ido, no se le quita a nadie.
   const notaFinal = useRef<HTMLParagraphElement>(null);
   const faseAntes = useRef(estado.fase);
 
@@ -526,8 +557,9 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
    *   y se funde sobre `ultimo`, no sobre lo pintado (T-223).
    *
    * Si al fundir cambia la fase, lo ha hecho otro aparato: se anuncia, y si el
-   * partido ha finalizado se cierran el flujo y la ficha, que ya no se pueden
-   * terminar (T-223). Lo que nace de `hacer` en este aparato no pasa por aquí.
+   * partido ha finalizado o lo han suspendido se cierran el flujo, la ficha y
+   * la confirmación de suspender, que ya no se pueden terminar (T-223, T-226).
+   * Lo que nace de `hacer` en este aparato no pasa por aquí.
    *
    * El estado fundido no se escribe en la instantánea: el paquete ya está
    * guardado, el siguiente guardado escribe el estado, y al recargar
@@ -558,6 +590,7 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
             setFlujo(null);
             setFichaDe(null);
             setErrorDeFlujo(null);
+            setSuspendiendo(false);
           }
 
           if (anuncio !== null) {
@@ -859,6 +892,18 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
   };
 
   /**
+   * Suspende el partido donde está (T-226) y, si sale bien, deja de seguir,
+   * como al finalizar. No se deshace: por eso se pregunta antes.
+   */
+  const suspender = async (ahora: number) => {
+    const resultado = await hacer({ tipo: 'suspender', ahora }, 'Partido suspendido');
+
+    if (resultado !== null) {
+      await terminarCobertura(resultado.estado, ahora);
+    }
+  };
+
+  /**
    * Salir de verdad: se cierra la cobertura y se va al calendario. Al cierre
    * se le espera lo justo (T-221): «Salir» sale aunque IndexedDB no conteste.
    */
@@ -1009,12 +1054,22 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
       case 'finalizado':
         return (
           <p ref={notaFinal} className={styles.nota} tabIndex={-1}>
-            El partido ha terminado. Los datos entran en las estadísticas cuando se cierre.
+            {estado.suspension === null
+              ? 'El partido ha terminado. Los datos entran en las estadísticas cuando se cierre.'
+              : `Partido suspendido en el ${formatoReloj(estado.suspension.segundos)} de ${parteEscrita(estado.suspension.parte)}. Queda marcado como incompleto.`}
             {enlaceAlCierre}
           </p>
         );
     }
   };
+
+  // Suspender (T-226): solo con el partido en curso —en juego, en pausa o en
+  // el descanso— y sin diferido, que se termina desde el cierre.
+  const puedeSuspender = enCurso(estado) && !estado.diferido;
+  const dondeSeSuspende =
+    estado.fase === 'descanso'
+      ? `en el descanso, tras ${parteEscrita(ultima?.numero ?? 1)}`
+      : `en el ${formatoReloj(segundos)} de ${parteEscrita(ultima?.numero ?? 1)}`;
 
   return (
     <Pantalla id="A12" titulo={titulo}>
@@ -1281,6 +1336,35 @@ function Panel({ cargado, nuestro }: { cargado: DirectoCargado; nuestro: string 
           )}
         </section>
       </div>
+
+      {/* Al final de la pantalla, lejos del pulgar, y de 48 px y no de 72: no
+          se deshace, y conviene que no se roce sin querer (T-226). */}
+      {puedeSuspender ? (
+        <div ref={zonaSuspender} className={styles.suspender}>
+          {suspendiendo ? (
+            <Confirmar
+              pregunta={`¿Suspender el partido ${dondeSeSuspende}? No se puede reanudar: después solo queda cerrarlo.`}
+              si="Sí, suspender el partido"
+              alConfirmar={() => {
+                setSuspendiendo(false);
+                void suspender(Date.now());
+              }}
+              alCancelar={() => {
+                setSuspendiendo(false);
+              }}
+            />
+          ) : (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSuspendiendo(true);
+              }}
+            >
+              Suspender el partido
+            </Button>
+          )}
+        </div>
+      ) : null}
     </Pantalla>
   );
 }

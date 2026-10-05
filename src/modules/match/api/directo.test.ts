@@ -149,6 +149,23 @@ describe('cargarDirecto', () => {
     expect((await cargarDirecto('par-1')).estado).toEqual(desdePaquete(PAQUETE));
   });
 
+  it('un estado guardado antes de la T-226, sin `suspension`, se carga con ella a `null` y no se descarta', async () => {
+    const deAntes: Record<string, unknown> = { ...EN_PAUSA };
+    delete deAntes.suspension;
+    precarga.precargarPartido.mockResolvedValue({});
+    precarga.leerInstantanea.mockResolvedValue({
+      paquete: PAQUETE,
+      descargadoEn: 5,
+      estado: deAntes,
+    });
+
+    const { estado } = await cargarDirecto('par-1');
+
+    // Sigue en pausa, con su parte: es el del aparato y no el del servidor.
+    expect(estado).toMatchObject({ fase: 'pausado', partes: EN_PAUSA.partes });
+    expect(estado.suspension).toBeNull();
+  });
+
   it('suma los eventos del servidor que el estado del aparato no conocía', async () => {
     const local = EN_PAUSA;
     const conGol = {

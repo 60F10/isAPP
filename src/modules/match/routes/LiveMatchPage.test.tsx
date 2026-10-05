@@ -1212,6 +1212,205 @@ describe('A12 · Directo, esqueleto', () => {
     });
   });
 
+  describe('suspender el partido (T-226)', () => {
+    /** La parte 1 abierta, con el reloj en el 23:10 al montar la pantalla. */
+    const parteAbierta = () => ({
+      id: 'parte-1',
+      numero: 1,
+      inicio: Date.now() - 1_390_000,
+      pausadoMs: 0,
+      pausaDesde: null,
+      segundosReales: null,
+    });
+    const enJuego = () => cargado({ fase: 'en_juego', partes: [parteAbierta()] });
+    // El reloj corre de verdad: entre montar y tocar puede pasar algún segundo.
+    const PREGUNTA =
+      /^¿Suspender el partido en el 23:1\d de la 1\.ª parte\? No se puede reanudar: después solo queda cerrarlo\.$/;
+    const NOTA =
+      /Partido suspendido en el 23:1\d de la 1\.ª parte\. Queda marcado como incompleto\./;
+
+    it('en juego, «Suspender el partido» pregunta con el minuto; decir que no no encola nada y devuelve el foco al botón', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Suspender el partido' }));
+
+      expect(screen.getByText(PREGUNTA)).toHaveFocus();
+      expect(screen.queryByRole('button', { name: 'Suspender el partido' })).toBeNull();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Seguir jugando' }));
+
+      expect(api.aplicarTransicion).not.toHaveBeenCalled();
+      expect(screen.queryByText(PREGUNTA)).toBeNull();
+      expect(screen.getByRole('button', { name: 'Suspender el partido' })).toHaveFocus();
+      // El partido sigue como estaba.
+      expect(screen.getByRole('button', { name: 'Terminar la 1ª parte' })).toBeInTheDocument();
+    });
+
+    it('al confirmar: guarda la parte y el partido, lo anuncia, la nota dice dónde, ya no se apunta y la cobertura se cierra', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      cobertura.leerCobertura.mockResolvedValue(TODO_EL_EQUIPO);
+      const { anunciar } = montar(['match.live.write', 'match.close']);
+
+      await screen.findByText('Sigues: todo el equipo');
+      expect(screen.getByRole('list', { name: 'Apuntar' })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Suspender el partido' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, suspender el partido' }));
+
+      const nota = await screen.findByText(NOTA);
+      const [estado, trabajos] = api.aplicarTransicion.mock.calls[0] as [
+        EstadoDirecto,
+        { entity: string; payload: { valores: Record<string, unknown> } }[],
+      ];
+
+      expect(api.aplicarTransicion).toHaveBeenCalledTimes(1);
+      expect(estado.fase).toBe('finalizado');
+      expect(estado.suspension).toMatchObject({ parte: 1 });
+      expect(trabajos.map((trabajo) => trabajo.entity)).toEqual(['match_period', 'match']);
+      expect(trabajos[1]?.payload.valores).toEqual({
+        status: 'suspended',
+        suspended_period: 1,
+        suspended_seconds: estado.suspension?.segundos,
+      });
+      expect(anunciar).toHaveBeenCalledWith('Partido suspendido');
+      // Ya no se apunta nada, ni se puede volver a suspender.
+      expect(screen.queryByRole('list', { name: 'Apuntar' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Ficha de/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Suspender el partido' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Terminar la 1ª parte' })).toBeNull();
+      // El mismo enlace al cierre que al finalizar.
+      expect(screen.getByRole('link', { name: 'Ir al cierre del partido' })).toHaveAttribute(
+        'href',
+        '/partidos/par-1/cierre',
+      );
+      // Lo que tenía el foco se ha ido: va a la nota, como al finalizar (T-223).
+      expect(nota).toHaveFocus();
+      expect(leerPartidoEnCurso(Date.now())).toBeNull();
+      await waitFor(() => {
+        expect(cobertura.cerrarCobertura).toHaveBeenCalledWith('par-1', TODO_EL_EQUIPO, {
+          periodo: 1,
+          segundos: estado.suspension?.segundos,
+        });
+      });
+      expect(screen.queryByText(/^Sigues:/)).toBeNull();
+    });
+
+    it('en pausa, la pregunta y la nota dicen el minuto en que se paró el reloj', async () => {
+      const inicio = Date.now() - 3_000_000;
+      api.cargarDirecto.mockResolvedValue(
+        cargado({
+          fase: 'pausado',
+          partes: [{ ...parteAbierta(), inicio, pausaDesde: inicio + 1_390_000 }],
+        }),
+      );
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Suspender el partido' }));
+
+      expect(
+        screen.getByText(
+          '¿Suspender el partido en el 23:10 de la 1.ª parte? No se puede reanudar: después solo queda cerrarlo.',
+        ),
+      ).toHaveFocus();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, suspender el partido' }));
+
+      expect(
+        await screen.findByText(
+          'Partido suspendido en el 23:10 de la 1.ª parte. Queda marcado como incompleto.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('en el descanso pregunta por el descanso, y solo encola el partido', async () => {
+      api.cargarDirecto.mockResolvedValue(
+        cargado({
+          fase: 'descanso',
+          partes: [{ ...parteAbierta(), inicio: 0, segundosReales: 2_490 }],
+        }),
+      );
+      montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Suspender el partido' }));
+
+      expect(
+        screen.getByText(
+          '¿Suspender el partido en el descanso, tras la 1.ª parte? No se puede reanudar: después solo queda cerrarlo.',
+        ),
+      ).toHaveFocus();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, suspender el partido' }));
+
+      expect(
+        await screen.findByText(
+          'Partido suspendido en el 41:30 de la 1.ª parte. Queda marcado como incompleto.',
+        ),
+      ).toBeInTheDocument();
+      const [, trabajos] = api.aplicarTransicion.mock.calls[0] as [
+        EstadoDirecto,
+        { entity: string }[],
+      ];
+      expect(trabajos.map((trabajo) => trabajo.entity)).toEqual(['match']);
+    });
+
+    it('si no se puede guardar, no se suspende y lo dice', async () => {
+      api.cargarDirecto.mockResolvedValue(enJuego());
+      api.aplicarTransicion.mockRejectedValue(new Error('QuotaExceededError'));
+      const { anunciar } = montar();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Suspender el partido' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, suspender el partido' }));
+
+      expect(
+        await screen.findByText(/No se ha podido guardar en este dispositivo/),
+      ).toBeInTheDocument();
+      expect(anunciar).not.toHaveBeenCalledWith('Partido suspendido');
+      expect(screen.getByRole('button', { name: 'Suspender el partido' })).toBeInTheDocument();
+      expect(cobertura.cerrarCobertura).not.toHaveBeenCalled();
+    });
+
+    it('con el partido sin empezar, el botón no está', async () => {
+      api.cargarDirecto.mockResolvedValue(cargado());
+      montar();
+
+      await screen.findByText('Sin empezar');
+
+      expect(screen.queryByRole('button', { name: 'Suspender el partido' })).toBeNull();
+    });
+
+    it('en diferido, el botón no está', async () => {
+      api.cargarDirecto.mockResolvedValue({
+        ...cargado({ diferido: true }),
+        paquete: { ...PAQUETE, partido: { ...PAQUETE.partido, isRetroactive: true } },
+      });
+      montar();
+
+      await screen.findByText(/Partido en diferido/);
+
+      expect(screen.queryByRole('button', { name: 'Suspender el partido' })).toBeNull();
+    });
+
+    it('un partido que ya llega suspendido dice dónde y no ofrece suspender', async () => {
+      api.cargarDirecto.mockResolvedValue(
+        cargado({
+          fase: 'finalizado',
+          partes: [{ ...parteAbierta(), inicio: 0, segundosReales: 1_390 }],
+          suspension: { parte: 1, segundos: 1_390 },
+        }),
+      );
+      montar();
+
+      expect(
+        await screen.findByText(
+          'Partido suspendido en el 23:10 de la 1.ª parte. Queda marcado como incompleto.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/El partido ha terminado/)).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Suspender el partido' })).toBeNull();
+    });
+  });
+
   describe('lo que apuntan los demás (T-209b)', () => {
     const INICIO = Date.now() - 60_000;
     const PARTE = {
@@ -1763,6 +1962,46 @@ describe('A12 · Directo, esqueleto', () => {
 
         expect(await screen.findByText(/El partido ha terminado/)).toBeInTheDocument();
         expect(salir).toHaveFocus();
+      });
+
+      it('un refresco trae el partido suspendido por otro: lo anuncia como suspendido, dice dónde y ya no ofrece suspender (T-226)', async () => {
+        const base = refrescoCon(
+          [
+            {
+              ...ABIERTA,
+              actualSeconds: 1_390,
+              endedAt: new Date(INICIO + 1_390_000).toISOString(),
+            },
+          ],
+          'suspended',
+        );
+        const paquete: PaqueteDePartido = {
+          ...base.paquete,
+          partido: { ...base.paquete.partido, suspendedPeriod: 1, suspendedSeconds: 1_390 },
+        };
+        api.cargarDirecto.mockResolvedValue(enJuego());
+        api.refrescarDirecto.mockResolvedValue({
+          paquete,
+          servidor: desdePaquete(paquete),
+          desde: 1,
+        });
+        const { anunciar } = montar();
+
+        // La confirmación abierta se va con el partido, y el foco no cae en `body`.
+        await userEvent.click(await screen.findByRole('button', { name: 'Suspender el partido' }));
+        await llegaUnRefresco();
+
+        expect(
+          await screen.findByText(
+            'Partido suspendido en el 23:10 de la 1.ª parte. Queda marcado como incompleto.',
+          ),
+        ).toHaveFocus();
+        expect(anunciar).toHaveBeenCalledWith('Otro aparato ha suspendido el partido.');
+        expect(anunciar).not.toHaveBeenCalledWith('Otro aparato ha finalizado el partido.');
+        expect(screen.queryByRole('button', { name: 'Suspender el partido' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Sí, suspender el partido' })).toBeNull();
+        expect(screen.queryByRole('list', { name: 'Apuntar' })).toBeNull();
+        expect(api.aplicarTransicion).not.toHaveBeenCalled();
       });
 
       it('terminar la parte desde este aparato no dice «Otro aparato…», tampoco cuando el servidor lo confirma', async () => {

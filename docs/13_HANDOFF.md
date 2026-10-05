@@ -5,6 +5,52 @@
 
 ---
 
+## Sesión 05/10/2026, noche — T-226: suspender el partido desde el directo: ✅ cerrada
+
+Sesión programada, rama `feat/match-suspender-partido`. **Sin base de datos.** Hecho tal cual el
+traspaso, con las pruebas escritas antes y comprobadas en rojo. Lint, formato, **816 pruebas en
+60 archivos** (eran 792) y build, sin `INEFFECTIVE_DYNAMIC_IMPORT`. El paquete inicial no se ha
+vuelto a medir: todo lo tocado está en el trozo perezoso del directo.
+
+- **Qué hay.** Con el partido en juego, en pausa o en el descanso, al final de la A12 sale
+  «Suspender el partido». Pregunta en su sitio, diciendo el minuto —«¿Suspender el partido en el
+  23:10 de la 1.ª parte? No se puede reanudar: después solo queda cerrarlo.»—, y al confirmar
+  cierra la parte abierta, deja el partido en `suspended` con su parte y su segundo, anuncia
+  «Partido suspendido» y cierra la cobertura. La nota del final dice «Partido suspendido en el
+  23:10 de la 1.ª parte. Queda marcado como incompleto.», con el enlace al cierre. Ya no se
+  apunta nada. Los demás aparatos lo ven en el siguiente refresco, con «Otro aparato ha
+  suspendido el partido.».
+- **Cómo (D06-41).** `suspender` es una acción más del reductor y va por `hacer`. La parte se
+  cierra con `cerrarParte`, sacada de `terminar_parte` sin cambiar lo que hace; después va el
+  `update` de `match` con `status`, `suspended_period` y `suspended_seconds`. La fase local es
+  `finalizado` y lo que distingue al suspendido es `suspension` en el estado. El paquete pide
+  las dos columnas, y un paquete o un estado guardados de antes se leen con `null`. De
+  `elegirEstado` solo cambia eso: la suspensión del aparato, y si no la del servidor. `guardados`,
+  `guardando`, `ultimo` y `poner` están como estaban, y las pruebas de las demás transiciones
+  pasan sin tocarlas.
+- **Decisiones sin nadie delante.** (1) El «No» de la confirmación es el «Seguir jugando» de
+  `Confirmar`, que no se ha tocado. (2) El botón va al final del todo, debajo de las listas del
+  campo y el banquillo, separado por una línea. (3) Con el partido ya terminado manda ese
+  mensaje, aunque sea en diferido. (4) En el descanso con todas las partes jugadas también se
+  ofrece, junto a «Finalizar el partido», y pregunta «en el descanso, tras la 2.ª parte». (5)
+  Pruebas de más sobre las del traspaso: en pausa, en el descanso, si falla el guardado y un
+  partido que ya llega suspendido.
+- **Flecos.** Bajo el reloj, un partido suspendido sigue diciendo «Partido terminado»: el
+  traspaso solo pedía la nota. Y si el guardado falla, el aviso sale arriba, bajo el marcador,
+  lejos del botón: se anuncia, pero quien mira el final de la pantalla no lo ve sin subir.
+- **Deuda.** En diferido no se puede suspender desde la aplicación. Una suspensión no se
+  deshace, ni desde el directo ni reabriendo desde el cierre, que lo devuelve a `suspended`. Y
+  está **sin probar contra la base de verdad y en un móvil**: que la base acepte pasar de `live`
+  a `suspended` con `match.live.write` sale del traspaso, no de haberlo visto. Se suma al
+  punto 42.
+- **Para probarlo, Raúl:** en un partido **de prueba**, empezar la primera parte, bajar al
+  final, suspender y mirar que el cierre dice dónde se suspendió. En uno de verdad no: no se
+  deshace.
+- **Lo siguiente** es la T-301a, con Raúl delante. En la tabla de «Siguiente», la T-225 y la
+  T-226 ya están hechas.
+
+---
+
 ## Sesión 05/10/2026, noche — T-225: la banda «Partido en directo» en el resto de pantallas: ✅ cerrada
 
 Sesión programada, rama `feat/match-banda-partido-en-curso`. **Sin base de datos.** Hecho tal
@@ -712,7 +758,7 @@ Pendiente de hacer:
     T-210a la A13 cierra y reabre partidos suspendidos y dice dónde se suspendieron. Pero la A12
     solo lleva a `finished`: suspender es una acción de su reductor, con su transición en la cola
     y `suspended_period` y `suspended_seconds` (la base exige los dos). **Es la T-226**, sin el
-    diferido.
+    diferido. **Cerrado por la T-226** (05/10, D06-41), salvo el diferido.
 41. **Falta la banda «Partido en directo · mm:ss · Volver»** en el resto de pantallas (DOC 02
     §3.1). La marca de `shared/lib/partidoEnCurso.ts` ya dice qué partido está en curso; falta la
     banda. **Es la T-225.** **Cerrado por la T-225** (05/10): la banda sale en `AppLayout`.
