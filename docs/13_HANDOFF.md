@@ -5,6 +5,40 @@
 
 ---
 
+## Sesión 07/10/2026 — T-301a: migración de personas: ✅ cerrada
+
+Sesión con Raúl delante del ordenador, rama `feat/db-personas-y-solicitudes`. **Toca la base de
+producción**: la migración del DOC 05 §14.8, aplicada sin cambiar el SQL. Sin código de aplicación.
+
+- **El ensayo pasó contra Supabase**: `ENSAYO_CORRECTO: 18 pruebas, nada aplicado`, y no dejó ni
+  columna, ni tabla, ni usuario de prueba.
+- **Aplicada** como `20261007184030_personas_y_solicitudes`, ya en `supabase/migrations/`. Las
+  comprobaciones del traspaso salen todas: 13 equipos fuera de la lista, 0 solicitudes, las doce
+  funciones sin permiso para `anon`, una sola política en `access_requests` y `authenticated` sin
+  lectura de `full_name` ni de su consentimiento (tabla en el DOC 05 §14.8).
+- **Cómo se aplicó, que no es como decía el traspaso (punto 81).** La herramienta de Supabase
+  canceló el ensayo sin enseñar la confirmación, también con Raúl en el ordenador. El ensayo y la
+  migración los pegó él en el SQL Editor; la migración, en un solo bloque `do` que además la
+  apunta en el historial de migraciones.
+- **Informe de seguridad:** los avisos 0029 pasan de 12 a 22, las diez funciones que
+  `authenticated` llama. Siguen el de `btree_gist` y el de contraseñas filtradas. Ninguno nuevo de
+  otro tipo.
+- **Tipos** regenerados con la herramienta de Supabase y comparados con los de antes: solo añaden
+  lo nuevo. Lint, formato, **816 pruebas en 60 archivos** y build, en verde.
+- **Prueba de humo en pre:** hecha por Raúl el 07/10. La plantilla, la convocatoria y el cierre del
+  primer partido se ven bien.
+- **Deuda.** `supabase/pruebas/aislamiento_clubes.sql` no cubre `access_requests`. Nada impide que
+  el último con `members.manage` se lo quite, y hoy solo lo tiene Raúl (punto 4). No hay lista de
+  bloqueados (punto 69). La escritura de `full_name` por la API sigue abierta a quien tiene
+  `roster.manage`. `anon` conserva el permiso de `SELECT` sobre `access_requests` que dan los
+  permisos por defecto: sin política para él, no lee ninguna fila. Y el código guardado de las
+  doce funciones lleva saltos CRLF, por pegarse desde Windows: no cambia lo que hacen.
+- **`supabase/pendientes/` no desaparece**: sigue `realtime_del_directo.sql` (punto 77).
+- **Lo siguiente** es la T-301b y, tras ella, la T-301c: ninguna necesita ya a Raúl. En
+  «Siguiente», el punto 2 se queda en la línea de Realtime y el cambio repetido (punto 65).
+
+---
+
 ## Sesión 05/10/2026, noche — T-226: suspender el partido desde el directo: ✅ cerrada
 
 Sesión programada, rama `feat/match-suspender-partido`. **Sin base de datos.** Hecho tal cual el
@@ -653,6 +687,7 @@ Pendiente de hacer:
     Es la T-301, partida en tres: la migración (T-301a, DOC 05 §14.8, **sin aplicar**), la A07
     (T-301b) y la entrada (T-301c). Raúl no ha dicho nada de que los equipos nazcan fuera de la
     lista: es como está escrito, y se cambia con una casilla.
+    **La T-301a está aplicada desde el 07/10**: quedan la A07 y la entrada.
 15. **A01b no está en el inventario del DOC 02.** O entra como parada técnica, o se le da otro sitio.
 16. **El contrato de `AuthState` mezcla idiomas**: `cargando`, `permisos` y `reintentarContexto`
     junto a `profile` y `activeTeamId`. Decidir y unificar con el DOC 06 §5.5.
@@ -890,6 +925,7 @@ Pendiente de hacer:
     nada. La T-301a lo cierra con permisos de columna (DOC 05 §14.8). **Hasta que se aplique, que
     nadie rellene `full_name`.** Tampoco está cerrada la escritura: quien tiene `roster.manage`
     puede escribirlo por la API.
+    **La lectura quedó cerrada el 07/10 con la T-301a.** La escritura sigue abierta.
 
 69. **Sin lista de bloqueados.** A quien se le quita de seguidor puede volver a seguir mientras el
     equipo esté en la lista. Para cerrarle el paso hay que sacar al equipo de ella. Se asume para
@@ -910,6 +946,7 @@ Pendiente de hacer:
     temporal de la sesión, sin tocar el repositorio: tres roles, un esquema `auth` mínimo, las ocho
     migraciones, `seed.sql` y dos jugadores. Si se quiere repetible, pide una dependencia de
     desarrollo y un script; no se ha añadido.
+    **Cerrado el 07/10**: el ensayo pasó contra Supabase antes de aplicar.
 
 73. **Lo de un partido cerrado se puede cambiar con una pantalla vieja.** El panel del cierre
     (T-210b) y «Mis aportaciones» (T-211) solo esconden las acciones si el partido está cerrado;
@@ -968,6 +1005,14 @@ Pendiente de hacer:
     siguientes; si falla «Cargar 50 más» no se puede reintentar; una ruta que sea solo `*` filtra
     de más; `guardarOrigen` no lleva el `match_id`; «Borrando…» sale de más; y a las pruebas de
     las `api/` les falta exigir la fila de vuelta. **Cerrado por la T-224 (05/10).**
+
+81. **La herramienta de Supabase cancela lo que cambia la base sin enseñar la confirmación.**
+    Pasó el 04/10 con Raúl en el móvil y el 07/10 con él en el ordenador: la llamada vuelve
+    `cancelled` y a Raúl no le sale nada. Leer sí funciona. Lo que escribe en la base lo pega
+    Raúl en el SQL Editor, con el SQL preparado en un archivo y la sesión comprobando después.
+    Vale para la línea de Realtime (punto 77) y para el cambio repetido (punto 65). Una
+    migración así se apunta a mano en `supabase_migrations.schema_migrations`, dentro del mismo
+    bloque.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;

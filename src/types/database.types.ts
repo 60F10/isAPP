@@ -14,6 +14,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          message: string | null
+          status: Database["public"]["Enums"]["access_request_status"]
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          message?: string | null
+          status?: Database["public"]["Enums"]["access_request_status"]
+          team_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          message?: string | null
+          status?: Database["public"]["Enums"]["access_request_status"]
+          team_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           key: string
@@ -362,7 +420,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["team_role"]
           status?: Database["public"]["Enums"]["invitation_status"]
           team_id: string
-          token: string
+          token?: string
         }
         Update: {
           as_follower?: boolean
@@ -1283,6 +1341,7 @@ export type Database = {
       }
       teams: {
         Row: {
+          accepts_requests: boolean
           category: string | null
           club_id: string
           created_at: string
@@ -1295,6 +1354,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accepts_requests?: boolean
           category?: string | null
           club_id: string
           created_at?: string
@@ -1307,6 +1367,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accepts_requests?: boolean
           category?: string | null
           club_id?: string
           created_at?: string
@@ -1678,8 +1739,21 @@ export type Database = {
       }
     }
     Functions: {
+      aceptar_invitacion: { Args: { p_invitation_id: string }; Returns: string }
       can_read_club: { Args: { p_club_id: string }; Returns: boolean }
       can_read_team: { Args: { p_team_id: string }; Returns: boolean }
+      cancelar_solicitud: { Args: { p_request_id: string }; Returns: undefined }
+      correo_actual: { Args: never; Returns: string }
+      dejar_de_seguir: { Args: { p_team_id: string }; Returns: undefined }
+      equipos_que_admiten_solicitudes: {
+        Args: never
+        Returns: {
+          category: string
+          club_name: string
+          team_id: string
+          team_name: string
+        }[]
+      }
       flag_duplicate_candidates: {
         Args: { p_match_id: string }
         Returns: number
@@ -1711,6 +1785,19 @@ export type Database = {
         }
         Returns: number
       }
+      mis_invitaciones: {
+        Args: never
+        Returns: {
+          as_follower: boolean
+          club_name: string
+          expires_at: string
+          id: string
+          invited_by_name: string
+          role: Database["public"]["Enums"]["team_role"]
+          team_id: string
+          team_name: string
+        }[]
+      }
       player_metric_reliability: {
         Args: {
           p_event_type: Database["public"]["Enums"]["event_type"]
@@ -1720,9 +1807,42 @@ export type Database = {
         Returns: number
       }
       rebuild_match_stints: { Args: { p_match_id: string }; Returns: Json }
+      resolver_solicitud: {
+        Args: {
+          p_aprobar: boolean
+          p_permissions?: Database["public"]["Enums"]["app_permission"][]
+          p_request_id: string
+          p_role?: Database["public"]["Enums"]["team_role"]
+        }
+        Returns: undefined
+      }
+      seguidores_del_equipo: {
+        Args: { p_team_id: string }
+        Returns: {
+          created_at: string
+          display_name: string
+          user_id: string
+        }[]
+      }
+      seguir_equipo: { Args: { p_team_id: string }; Returns: undefined }
+      solicitar_acceso: {
+        Args: { p_message?: string; p_team_id: string }
+        Returns: string
+      }
+      solicitudes_del_equipo: {
+        Args: { p_team_id: string }
+        Returns: {
+          created_at: string
+          display_name: string
+          id: string
+          message: string
+          user_id: string
+        }[]
+      }
       team_of_match: { Args: { p_match_id: string }; Returns: string }
     }
     Enums: {
+      access_request_status: "pending" | "approved" | "rejected" | "cancelled"
       app_permission:
         | "team.manage"
         | "roster.manage"
@@ -1912,6 +2032,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      access_request_status: ["pending", "approved", "rejected", "cancelled"],
       app_permission: [
         "team.manage",
         "roster.manage",
