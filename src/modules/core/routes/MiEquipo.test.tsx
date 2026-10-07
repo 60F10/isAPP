@@ -5,10 +5,12 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthContext } from '@modules/auth';
+import { AnnounceContext } from '@shared/hooks/announceContext';
 
 import { MiEquipoPage } from './MiEquipoPage';
 
@@ -72,19 +74,29 @@ function autenticacion(permisos: string[], cambios: Partial<AuthState> = {}): Au
 }
 
 function montar(auth: AuthState) {
+  const anunciar = vi.fn();
   const router = createMemoryRouter([{ path: '/equipo', element: <MiEquipoPage /> }], {
     initialEntries: ['/equipo'],
   });
-
-  render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
-      <AuthContext value={auth}>
-        <RouterProvider router={router} />
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const arbol = (estado: AuthState) => (
+    <QueryClientProvider client={cliente}>
+      <AuthContext value={estado}>
+        <AnnounceContext value={{ anunciar }}>
+          <RouterProvider router={router} />
+        </AnnounceContext>
       </AuthContext>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+
+  const { rerender } = render(arbol(auth));
+
+  return {
+    anunciar,
+    cambiarAcceso: (estado: AuthState) => {
+      rerender(arbol(estado));
+    },
+  };
 }
 
 beforeEach(() => {
@@ -217,6 +229,70 @@ describe('MiEquipoPage', () => {
     await screen.findByRole('table');
 
     expect(screen.queryByText('Cadete')).not.toBeInTheDocument();
+  });
+});
+
+describe('MiEquipoPage con el contexto de acceso fallado (T-305)', () => {
+  const FALLADO: Partial<AuthState> = {
+    permisos: null,
+    teams: null,
+    activeTeamId: null,
+    activeSeasonId: null,
+    errorContexto: new Error('sin red'),
+  };
+
+  it('con teams nulo y errorContexto: sale el mensaje, y «Reintentar» llama a reintentarContexto', async () => {
+    const reintentarContexto = vi.fn();
+    const { anunciar } = montar(autenticacion([], { ...FALLADO, reintentarContexto }));
+
+    expect(screen.getByText('No se pudo cargar tu acceso.')).toBeInTheDocument();
+    expect(screen.queryByText('Cargando…')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(reintentarContexto).toHaveBeenCalledTimes(1);
+    expect(anunciar).toHaveBeenCalledWith('Reintentando');
+    expect(api.fetchPlantillaDeLectura).not.toHaveBeenCalled();
+  });
+
+  it('con teams nulo y sin error sigue diciendo «Cargando…»', () => {
+    montar(autenticacion([], { ...FALLADO, errorContexto: null }));
+
+    expect(screen.getByText('Cargando…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+  });
+
+  it('cuando el reintento trae el acceso, el foco pasa al nombre del equipo', async () => {
+    const { cambiarAcceso } = montar(autenticacion([], FALLADO));
+
+    screen.getByRole('button', { name: 'Reintentar' }).focus();
+    cambiarAcceso(autenticacion([]));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Cadete A' })).toHaveFocus();
+  });
+});
+
+describe('MiEquipoPage sin dorsal o sin posición (T-305)', () => {
+  it('sin dorsal: la celda tiene el texto «Sin dorsal», y la raya no se lee', async () => {
+    montar(autenticacion([]));
+
+    const tabla = await screen.findByRole('table', { name: /plantilla/i });
+    const [dorsal, posicion] = within(within(tabla).getAllByRole('row')[3]).getAllByRole('cell');
+
+    expect(dorsal).toHaveTextContent('Sin dorsal');
+    expect(posicion).toHaveTextContent('Sin posición');
+    expect(within(dorsal).getByText('—')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(posicion).getByText('—')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('con dorsal y posición no hay texto de relleno', async () => {
+    montar(autenticacion([]));
+
+    const tabla = await screen.findByRole('table', { name: /plantilla/i });
+    const fila = within(tabla).getAllByRole('row')[1];
+
+    expect(fila).not.toHaveTextContent('Sin dorsal');
+    expect(fila).not.toHaveTextContent('Sin posición');
   });
 });
 

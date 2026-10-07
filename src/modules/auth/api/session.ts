@@ -40,7 +40,8 @@ const COLUMNAS_EQUIPO = 'id, club_id, name, category, crest_url, primary_color';
  * LOS EQUIPOS SEGUIDOS SON MEMBRESÍAS SIN PERMISOS (T-301c, DOC 04 §15.3).
  * `team_followers` no tiene `is_active`: se sigue o no se sigue. La política
  * de la tabla deja leer también los seguidores de un equipo a quien tiene
- * `members.manage`, y por eso se filtra por `user_id`.
+ * `members.manage`, y por eso se filtra por `user_id`. Si esa lectura falla,
+ * el contexto vuelve sin seguidos en vez de caer entero (T-305).
  *
  * La RLS decide qué vuelve. Aquí no se filtra por seguridad, se filtra por
  * pertinencia: `is_active` deja fuera a quien está dado de baja sin perder su
@@ -65,11 +66,16 @@ export async function fetchContextoDeAcceso(userId: string): Promise<ContextoDeA
     throw miembros.error;
   }
 
-  if (seguidos.error) {
-    throw seguidos.error;
-  }
+  // UN FALLO AL LEER LOS SEGUIDOS NO TUMBA EL CONTEXTO (T-305): se sigue con
+  // la lista vacía. Seguir no da ningún permiso, y un miembro que no sigue a
+  // nadie se quedaría sin equipos por una consulta que no necesita. Perfil y
+  // equipos sí lanzan: sin ellos no hay nada que enseñar.
+  //
+  // No llega a `error_logs`: `auth` no puede importar `logging` por ruta
+  // directa, y por el barril arrastraría su pantalla al arranque.
+  const filasDeSeguidos = seguidos.error ? [] : (seguidos.data ?? []);
 
-  const memberships = construirMembresias(miembros.data ?? [], seguidos.data ?? []);
+  const memberships = construirMembresias(miembros.data ?? [], filasDeSeguidos);
 
   return {
     profile: perfil.data,

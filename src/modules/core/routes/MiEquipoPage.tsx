@@ -11,6 +11,10 @@
 // `availability`, que esta pantalla no enseña.
 //
 // De los jugadores, solo apodo, dorsal y posición.
+//
+// SI EL CONTEXTO DE ACCESO FALLA, LO DICE ESTA PANTALLA (T-305). Al no tener
+// guardia, `RequirePermission` no le pinta el fallo, y `core` no importa de
+// `app/`: el aviso y su «Reintentar» se escriben aquí.
 
 /* oxlint-disable jsx-a11y/no-redundant-roles, jsx-a11y/no-interactive-element-to-noninteractive-role */
 // Los `role` de la tabla son redundantes a propósito: con `display: block` en
@@ -20,6 +24,8 @@
 import { Link } from 'react-router';
 
 import { useAuth, useHasPermission } from '@modules/auth';
+import { useAnnounce } from '@shared/hooks/announceContext';
+import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Pantalla } from '@shared/ui/Pantalla';
 
@@ -32,6 +38,19 @@ import styles from './MiEquipoPage.module.css';
 import type { LecturaDePlantilla } from '../model/plantilla';
 
 const SIN_DATO = '—';
+
+/**
+ * Dato que falta: la raya para quien mira y el texto para quien escucha
+ * (T-305). Un lector lee la raya «raya» o no la lee, y la celda quedaba vacía.
+ */
+function SinDato({ texto }: { texto: string }) {
+  return (
+    <>
+      <span aria-hidden="true">{SIN_DATO}</span>
+      <span className={styles.oculto}>{texto}</span>
+    </>
+  );
+}
 
 function Tabla({
   nombreDelEquipo,
@@ -63,13 +82,17 @@ function Tabla({
         {plantilla.map((jugador) => (
           <tr key={jugador.playerId} role="row" className={styles.fila}>
             <td role="cell" data-etiqueta="Dorsal">
-              {jugador.shirtNumber === null ? SIN_DATO : jugador.shirtNumber}
+              {jugador.shirtNumber === null ? <SinDato texto="Sin dorsal" /> : jugador.shirtNumber}
             </td>
             <th scope="row" role="rowheader" data-etiqueta="Apodo">
               {jugador.nickname}
             </th>
             <td role="cell" data-etiqueta="Posición">
-              {jugador.defaultPosition === null ? SIN_DATO : POSICIONES[jugador.defaultPosition]}
+              {jugador.defaultPosition === null ? (
+                <SinDato texto="Sin posición" />
+              ) : (
+                POSICIONES[jugador.defaultPosition]
+              )}
             </td>
           </tr>
         ))}
@@ -79,7 +102,8 @@ function Tabla({
 }
 
 export function MiEquipoPage() {
-  const { teams, activeTeamId, activeSeasonId } = useAuth();
+  const { teams, activeTeamId, activeSeasonId, errorContexto, reintentarContexto } = useAuth();
+  const anunciar = useAnnounce();
   const puedeEditarPlantilla = useHasPermission('roster.manage');
   const puedeGestionarPersonas = useHasPermission('members.manage');
   const puedeGestionarClub = useHasPermission('team.manage');
@@ -89,6 +113,30 @@ export function MiEquipoPage() {
   const equipo = membresia === undefined ? null : membresia.team;
 
   const plantilla = usePlantillaDeLectura(equipo === null ? null : equipo.id, activeSeasonId);
+
+  if (teams === null && errorContexto !== null) {
+    return (
+      // La `key` hace que `Pantalla` se monte de nuevo al entrar y al salir del
+      // fallo. Cuando el reintento sale bien, el botón desaparece con el foco
+      // puesto (2.4.3): así pasa al título, que ya es el nombre del equipo.
+      <Pantalla key="sin-acceso" id="A02b" titulo="Mi equipo">
+        <div className={styles.fallo}>
+          <p>No se pudo cargar tu acceso.</p>
+          <div>
+            <Button
+              variant="primary"
+              onClick={() => {
+                anunciar('Reintentando');
+                reintentarContexto();
+              }}
+            >
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      </Pantalla>
+    );
+  }
 
   if (teams === null) {
     return (

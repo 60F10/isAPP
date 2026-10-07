@@ -219,3 +219,36 @@ describe('construirMembresias con equipos seguidos (T-301c)', () => {
     expect(construirMembresias([], [{ teams: null }])).toEqual([]);
   });
 });
+
+describe('elegirEquipoActivo con equipos seguidos (T-305)', () => {
+  const seguido = (idEquipo: string, nombre: string) => ({
+    teams: filaDe(idEquipo, nombre, []).teams,
+  });
+
+  it('recordado de seguidor y otra membresía con función: gana la de función', () => {
+    const membresias = construirMembresias(
+      [filaDe('eq-a', 'Cadete A', ['match.live.write'])],
+      [seguido('eq-b', 'Cadete B')],
+    );
+
+    expect(elegirEquipoActivo(membresias, 'eq-b')).toBe('eq-a');
+  });
+
+  it('recordado de seguidor y ninguna con función: gana el recordado', () => {
+    const membresias = construirMembresias(
+      [],
+      [seguido('eq-a', 'Alevín A'), seguido('eq-b', 'Cadete B')],
+    );
+
+    expect(elegirEquipoActivo(membresias, 'eq-b')).toBe('eq-b');
+  });
+
+  it('recordado con función entre varias con función: gana el recordado', () => {
+    const membresias = construirMembresias(
+      [filaDe('eq-a', 'Cadete A', []), filaDe('eq-b', 'Cadete B', [])],
+      [seguido('eq-c', 'Alevín A')],
+    );
+
+    expect(elegirEquipoActivo(membresias, 'eq-b')).toBe('eq-b');
+  });
+});

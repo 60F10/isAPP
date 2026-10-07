@@ -46,6 +46,13 @@
   color: var(--color-text-secondary);
 }
 
+/* Fallo del contexto de acceso en «Equipos que sigues» (T-305). */
+.sinAcceso {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* Un correo largo parte en vez de desbordar a 320 px (criterio 1.4.10). */
 .cuenta {
   overflow-wrap: anywhere;

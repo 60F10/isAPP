@@ -246,4 +246,29 @@ describe('AjustesPage', () => {
     });
     expect(anunciar).toHaveBeenCalledWith('Has dejado de seguir a Cadete A');
   });
+
+  it('con teams nulo y errorContexto: la tarjeta no dice «Cargando…» y ofrece «Reintentar»', async () => {
+    const reintentarContexto = vi.fn();
+    const { anunciar } = montar(true, false, {
+      permisos: null,
+      teams: null,
+      errorContexto: new Error('sin red'),
+      reintentarContexto,
+    });
+
+    expect(screen.queryByText('Cargando…')).not.toBeInTheDocument();
+    expect(screen.getByText('No se pudo cargar tu acceso.')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(reintentarContexto).toHaveBeenCalledTimes(1);
+    expect(anunciar).toHaveBeenCalledWith('Reintentando');
+  });
+
+  it('con teams nulo y sin error, la tarjeta sigue diciendo «Cargando…»', () => {
+    montar(true, false, { permisos: null, teams: null });
+
+    expect(screen.getByText('Cargando…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+  });
 });

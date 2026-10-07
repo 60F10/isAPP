@@ -5,6 +5,47 @@
 
 ---
 
+## Sesión 07/10/2026, noche — T-305: arreglos del contexto de acceso: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `fix/auth-arreglos-del-contexto`. Nació de
+`docs/docs-revision-del-07-10`, y a media sesión esa rama entró en `main` por la PR #91: la de la
+tarea se rehízo encima y lleva un solo commit. Sin migración ni SQL.
+
+- **El equipo recordado solo manda si se tiene función en él, o si no se tiene en ninguno**
+  (`elegirEquipoActivo`). Quien sigue al B y después entra como miembro en el A pasa al A, y el A
+  queda recordado. Con varios equipos con función, el recordado sigue mandando.
+- **Un fallo al leer `team_followers` ya no tumba el contexto** (`fetchContextoDeAcceso`): se
+  sigue sin seguidos. Los de `profiles` y `team_members` siguen lanzando.
+- **«Mi equipo» y la tarjeta «Equipos que sigues» de Ajustes** dicen «No se pudo cargar tu
+  acceso.» con su «Reintentar» cuando `teams` es nulo y hay `errorContexto`. Sin error, «Cargando…»
+  como antes. Las dos anuncian «Reintentando», como `ErrorDeAcceso`.
+- **El foco, que el traspaso no nombraba.** Cuando el reintento sale bien, el botón desaparece: en
+  «Mi equipo» la `Pantalla` del fallo lleva `key` y el foco pasa al título, y en Ajustes pasa al
+  título de la tarjeta al pulsar, como en «Dejar de seguir».
+- **La tabla de «Mi equipo»:** la etiqueta del `::before` lleva texto alternativo vacío
+  (`content: attr(data-etiqueta) ': ' / ''`), y la raya va con `aria-hidden` y «Sin dorsal» o
+  «Sin posición» al lado. Comprobado en Chromium a 320 px con un HTML suelto: el árbol de
+  accesibilidad da «Sin dorsal», «Pipo», «Delantero», sin etiquetas.
+- **Una línea de más en ese CSS, que el traspaso no pedía:** delante va el `content` de antes,
+  sin barra. Un Safari anterior a 17.4 o un Firefox anterior a 128 descartan la declaración con
+  barra, y sin el recambio la tarjeta saldría sin etiquetas. El build conserva las dos.
+- Lint, formato, **914 pruebas en 70 archivos** (eran 900 en 69) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. Las seis pruebas que tenían que fallar fallaban antes del cambio.
+- **Paquete inicial: 179,12 kB comprimidos, +0,03 sobre `main`** (179,09), con el mismo recorrido
+  de la T-304. Margen sobre 200 kB: 20,88.
+- **Deuda.** El fallo al leer los seguidos no llega a `error_logs`, y quien solo sigue a un equipo
+  lee «Todavía no tienes equipo» hasta que el contexto se vuelva a pedir, que son quince minutos
+  de caché. Inicio, «Más» y «Unirse a un equipo» no se han mirado con el contexto fallado. Sigue
+  sin haber dónde elegir el equipo activo, y el día que lo haya, quien tenga función en un equipo
+  no podrá poner de activo uno que solo sigue: habrá que revisar la regla. La clase de texto
+  solo para lector está copiada de `PlantillaPage.module.css`; no hay una común en `shared`. En
+  un navegador que no entiende la barra de `content`, el lector sigue oyendo la etiqueta dos
+  veces. El registro de errores (C02) tiene el mismo `::before` sin arreglar.
+- **Sin probar contra la base de verdad ni en un móvil.** Ningún aparato tiene hoy el caso del
+  punto 82: con un solo equipo en la lista no se puede dar.
+
+---
+
 ## Sesión 07/10/2026, noche — revisión de la T-301b, la T-301c y la T-304, y tanda siguiente: ✅ cerrada
 
 Misma sesión de la T-301a, con Raúl. **Sin código de aplicación y sin base.**
@@ -1163,6 +1204,7 @@ Pendiente de hacer:
     lista no se puede dar. Además, un fallo al leer `team_followers` tumba el contexto entero,
     y «Mi equipo» y la tarjeta de Ajustes se quedan en «Cargando…» si el contexto falla. **Es
     la T-305.**
+    **Cerrado el 07/10 con la T-305.**
 
 83. **Flecos de la A07, las invitaciones y «Unirse a un equipo»** (revisión de la T-301b y la
     T-301c). «Guardar» calcula los cambios contra los permisos de ahora y no contra los de

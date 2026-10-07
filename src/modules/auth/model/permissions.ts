@@ -152,13 +152,24 @@ export function construirMembresias(
 }
 
 /**
- * Equipo activo: el recordado si sigue siendo suyo, si no el primero, y
- * `null` cuando no pertenece a ninguno.
+ * Equipo activo, o `null` cuando no pertenece a ninguno ni sigue a ninguno.
  *
- * Validar lo recordado contra la lista evita el caso feo: a quien le dan de
- * baja de un equipo le queda el identificador viejo en `localStorage`, y sin
- * esta comprobación se quedaría con la sesión apuntando a un equipo que ya no
- * es suyo y sin un solo permiso, sin entender por qué.
+ * EL RECORDADO SOLO MANDA SI TIENE FUNCIÓN EN ÉL, O SI NO LA TIENE EN NINGUNO
+ * (T-305). En cualquier otro caso, la primera de la lista, que ya trae delante
+ * las de función (`construirMembresias`).
+ *
+ * Son dos casos feos y los dos acaban igual, con la sesión apuntando a un
+ * equipo donde no tiene un solo permiso y las rutas guardadas en `/403`:
+ *
+ * - A quien le dan de baja de un equipo le queda el identificador viejo en
+ *   `localStorage`. Por eso lo recordado se valida contra la lista.
+ * - Quien sigue a un equipo y después entra como miembro en otro se quedaría
+ *   con el seguido de activo. Nadie cambia de equipo desde la aplicación, así
+ *   que no tendría salida. Por eso un equipo que solo se sigue no le gana a
+ *   uno donde se trabaja.
+ *
+ * El día que haya dónde elegir el equipo activo, quien tenga función en uno
+ * no podrá poner de activo uno que solo sigue: habrá que revisar esta regla.
  */
 export function elegirEquipoActivo(
   membresias: readonly Membership[],
@@ -168,8 +179,17 @@ export function elegirEquipoActivo(
     return null;
   }
 
-  if (recordado !== null && membresias.some((membresia) => membresia.team.id === recordado)) {
-    return recordado;
+  const recordada =
+    recordado === null
+      ? undefined
+      : membresias.find((membresia) => membresia.team.id === recordado);
+
+  if (recordada !== undefined) {
+    const tieneFuncion = recordada.seguidor !== true;
+
+    if (tieneFuncion || membresias.every((membresia) => membresia.seguidor === true)) {
+      return recordada.team.id;
+    }
   }
 
   return membresias[0].team.id;
