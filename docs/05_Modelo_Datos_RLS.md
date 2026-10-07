@@ -1,6 +1,6 @@
 # DOC 05 — Modelo de datos y políticas RLS
 
-> **Versión:** 1.13 — 04/10/2026 (§14.9: Realtime para el directo, dos tablas en la publicación, escrito y sin aplicar) · 1.12 — 04/10/2026 (§14.8: seguir no se aprueba, el nombre real deja de salir por la API, ensayo pasado en local) · 1.11 — 04/10/2026 (§14.8: personas, invitaciones y solicitudes, escrita y sin aplicar) · 1.10 — 26/09/2026 (§14: los puntos del DOC 13 citados son de su día; §14.4 conectada en la T-203b) · 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
+> **Versión:** 1.14 — 07/10/2026 (§14.8 aplicada: el ensayo pasa contra Supabase y la migración entra sin cambiar el SQL, desde el SQL Editor) · 1.13 — 04/10/2026 (§14.9: Realtime para el directo, dos tablas en la publicación, escrito y sin aplicar) · 1.12 — 04/10/2026 (§14.8: seguir no se aprueba, el nombre real deja de salir por la API, ensayo pasado en local) · 1.11 — 04/10/2026 (§14.8: personas, invitaciones y solicitudes, escrita y sin aplicar) · 1.10 — 26/09/2026 (§14: los puntos del DOC 13 citados son de su día; §14.4 conectada en la T-203b) · 1.9 — 26/09/2026 (§14.4, §14.5 y §14.6 aplicadas en una sesión de Cowork; §14.7) · 1.8 — 26/09/2026 (§14.6: el estado del evento lo pone la base, hallazgo de la T-208) · 1.7 — 26/09/2026 (§14.5: lo que deja pendiente la T-205) · 1.6 — 26/09/2026 (§14.4: la próxima migración, para Cowork) · 1.5 — 26/09/2026 (§7.1: categoría y unicidad de `competitions`, hallazgos de la T-203) · 1.4 — 26/09/2026 (§12: `teams_insert` pide menos que la tabla, hallazgo de la T-201) · 1.3 — 19/09/2026 (endurecimiento de permisos sobre funciones) · 1.2 — 12/09/2026 (T-100b: migración de correcciones aplicada) · 1.1 el mismo día · 1.0 — 11/09/2026
 > **Depende de:** DOC 04 (reglas de negocio), DOC 03 (decisiones)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 08 (tareas), DOC 09 (observabilidad), DOC 10 (entornos)
 > **Anexo:** `supabase/migrations/` — ocho archivos. El guion de creación es `20260911213846_initial_schema.sql`; el resto son correcciones y endurecimiento. Ver §14
@@ -897,14 +897,27 @@ Con esto queda comprobado lo que el §14.5 dejaba en el aire: **un `upsert` disp
 
 ---
 
-### 14.8 Personas: invitaciones, seguir y solicitudes de permisos — SIN APLICAR
+### 14.8 Personas: invitaciones, seguir y solicitudes de permisos — aplicada el 07/10/2026
 
-Decisión I1 del DOC 03, cerrada por Raúl el 04/10/2026: **seguir a un equipo no necesita aprobación**. La aplica la T-301a. **El SQL no se ha ejecutado contra la base de Supabase**, pero el ensayo sí ha pasado en un PostgreSQL local (PGlite) con las ocho migraciones del repositorio y una siembra mínima: termina en `ENSAYO_CORRECTO: 18 pruebas, nada aplicado` y no deja nada. Quitarle a la migración la comprobación de la lista o el cierre del nombre real hace fallar el ensayo, así que las pruebas muerden. Lo que el local no tiene es lo propio de Supabase: su esquema `auth` de verdad y sus permisos por defecto.
+Decisión I1 del DOC 03, cerrada por Raúl el 04/10/2026: **seguir a un equipo no necesita aprobación**. La aplica la T-301a. **Aplicada el 07/10/2026, sin cambiar una línea del SQL.** Antes pasó el ensayo contra la base de Supabase, con su esquema `auth` de verdad y sus permisos por defecto: terminó en `ENSAYO_CORRECTO: 18 pruebas, nada aplicado` y no dejó nada. El 04/10 había pasado en un PostgreSQL local (PGlite). Quitarle a la migración la comprobación de la lista o el cierre del nombre real hace fallar el ensayo, así que las pruebas muerden.
 
-| Archivo                                          | Qué es                                                                                                       |
-| :----------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
-| `supabase/pendientes/personas_y_solicitudes.sql` | La migración. Al aplicarla se mueve a `supabase/migrations/` con su marca de tiempo                          |
-| `supabase/pruebas/personas_ensayo.sql`           | La misma migración más 18 comprobaciones, dentro de un bloque que termina en error a propósito: no deja nada |
+**Cómo se aplicó.** La herramienta de Supabase canceló el ensayo sin enseñar ninguna confirmación, así que el ensayo y la migración los lanzó Raúl desde el SQL Editor. La migración fue dentro de un solo bloque `do`, la misma forma que prueba el ensayo, con una última sentencia que la apunta en `supabase_migrations.schema_migrations` como `20261007184030`: o entraba todo o nada. Al ir pegada desde Windows, el código guardado de las doce funciones lleva saltos de línea CRLF; no cambia lo que hacen.
+
+| Comprobación tras aplicar                  | Resultado                                                                                                                |
+| :----------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `teams.accepts_requests`                   | `false` en los 13 equipos                                                                                                |
+| Filas en `access_requests`                 | 0                                                                                                                        |
+| Las doce funciones                         | Existen, todas `SECURITY DEFINER`; `anon` no ejecuta ninguna                                                             |
+| `correo_actual` e `invitations_normalizar` | Tampoco las ejecuta `authenticated`                                                                                      |
+| Políticas de `access_requests`             | Una, de `SELECT`, para `authenticated`                                                                                   |
+| `authenticated` sobre `players`            | Lee `nickname`; no lee `full_name` ni las dos del consentimiento                                                         |
+| Informe de seguridad                       | Los avisos 0029 pasan de 12 a 22: las diez funciones que `authenticated` llama, a propósito. Ninguno de otro tipo        |
+| Tipos                                      | Regenerados con la herramienta de Supabase: solo añaden lo nuevo, y `token` pasa a opcional al insertar en `invitations` |
+
+| Archivo                                                         | Qué es                                                                                                       |
+| :-------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
+| `supabase/migrations/20261007184030_personas_y_solicitudes.sql` | La migración, aplicada                                                                                       |
+| `supabase/pruebas/personas_ensayo.sql`                          | La misma migración más 18 comprobaciones, dentro de un bloque que termina en error a propósito: no deja nada |
 
 **Tres maneras de llegar a un equipo.**
 
