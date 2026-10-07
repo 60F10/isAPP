@@ -435,8 +435,8 @@ export function PlantillaPage() {
   return (
     <Pantalla id="A05" titulo={titulo}>
       <p>
-        <Link className={styles.volver} to="/equipos">
-          Volver a Equipos
+        <Link className={styles.volver} to="/equipo">
+          Volver al equipo
         </Link>
       </p>
       {contenido()}

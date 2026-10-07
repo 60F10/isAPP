@@ -10,6 +10,9 @@ export const coreKeys = {
   plantillaDe: (equipoId: string) => [...coreKeys.all, 'plantilla', equipoId] as const,
   plantilla: (equipoId: string, temporadaId: string) =>
     [...coreKeys.plantillaDe(equipoId), temporadaId] as const,
+  /** La plantilla de solo lectura de «Mi equipo» (T-304). */
+  plantillaDeLectura: (equipoId: string, temporadaId: string) =>
+    [...coreKeys.plantillaDe(equipoId), temporadaId, 'lectura'] as const,
   bajas: (equipoId: string, temporadaId: string) =>
     [...coreKeys.plantillaDe(equipoId), temporadaId, 'bajas'] as const,
   delClubSinInscribir: (equipoId: string, temporadaId: string) =>

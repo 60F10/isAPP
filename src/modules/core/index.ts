@@ -1,9 +1,10 @@
-// Contrato público del módulo `core` (DOC 06 §3.2). Pantallas A02 a A06.
+// Contrato público del módulo `core` (DOC 06 §3.2). Pantallas A02 a A06 y «Mi equipo».
 
 export { ClubPage } from './routes/ClubPage';
 export { EquiposPage } from './routes/EquiposPage';
 export { FichaJugadorPage } from './routes/FichaJugadorPage';
 export { HomePage } from './routes/HomePage';
+export { MiEquipoPage } from './routes/MiEquipoPage';
 export { PlantillaPage } from './routes/PlantillaPage';
 
 // Para `agenda`, que elige rival entre los equipos de referencia del club y

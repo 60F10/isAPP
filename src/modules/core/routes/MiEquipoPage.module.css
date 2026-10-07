@@ -1,0 +1,124 @@
+.categoria {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.enlace {
+  display: inline-flex;
+  align-items: center;
+
+  min-block-size: var(--tap-min);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  touch-action: manipulation;
+}
+
+/* Tabla de verdad con `caption` y `th` con `scope` (DOC 02 §5). Por debajo de
+   600 px cada fila se compone como una tarjeta con la etiqueta delante de cada
+   dato: tres columnas no caben a 320 px con el texto al 200 % (criterio
+   1.4.10), y partir las palabras por la mitad no se lee. */
+.tabla {
+  inline-size: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.caption {
+  margin-block-end: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  text-align: start;
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--space-2);
+  border-block-end: 1px solid var(--color-border-subtle);
+  vertical-align: top;
+  text-align: start;
+  overflow-wrap: break-word;
+}
+
+.tabla thead th {
+  border-block-end-color: var(--color-border);
+}
+
+/* El nombre de la fila no hereda el peso de un encabezado de columna. */
+.tabla tbody th {
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 599px) {
+  .tabla,
+  .tabla tbody,
+  .tabla tr,
+  .tabla th,
+  .tabla td {
+    display: block;
+  }
+
+  /* Los encabezados de columna salen de la vista pero siguen para el lector. */
+  .tabla thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .fila {
+    margin-block-end: var(--space-2);
+    padding: var(--space-1);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+  }
+
+  .tabla th,
+  .tabla td {
+    padding: var(--space-1) var(--space-2);
+    border-block-end: none;
+  }
+
+  .tabla td[data-etiqueta]::before,
+  .tabla th[data-etiqueta]::before {
+    content: attr(data-etiqueta) ': ';
+    font-weight: var(--font-weight-regular, 400);
+    color: var(--color-text-secondary);
+  }
+}
+
+.enlaces {
+  display: flex;
+  flex-direction: column;
+  /* Separación obligatoria entre objetivos táctiles (DOC 02 §5.1). */
+  gap: var(--tap-gap);
+
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Enlace con pinta de control: borde y peso, no solo color (criterio 1.4.1).
+   Mismo patrón que los accesos de Inicio. */
+.acceso {
+  display: flex;
+  align-items: center;
+
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.acceso:hover {
+  background-color: var(--color-accent-soft);
+}
+
+.acceso:active {
+  background-color: var(--color-surface-pressed);
+}

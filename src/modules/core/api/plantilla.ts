@@ -16,7 +16,7 @@ import { supabase } from '@shared/lib/supabase';
 
 import { SIN_FILAS } from '../model/clubYEquipos';
 
-import type { Disponibilidad, Inscripcion, Posicion } from '../model/plantilla';
+import type { Disponibilidad, Inscripcion, LecturaDePlantilla, Posicion } from '../model/plantilla';
 
 const COLUMNAS_INSCRIPCION =
   'id, player_id, shirt_number, default_position, availability, players(nickname)';
@@ -60,6 +60,33 @@ export async function fetchPlantilla(
   }
 
   return data.map(aInscripcion);
+}
+
+/**
+ * La plantilla para quien solo la lee (T-304, «Mi equipo»): apodo, dorsal y
+ * posición. No pide `availability`, que esta pantalla no enseña.
+ */
+export async function fetchPlantillaDeLectura(
+  equipoId: string,
+  temporadaId: string,
+): Promise<LecturaDePlantilla[]> {
+  const { data, error } = await supabase
+    .from('squad_memberships')
+    .select('player_id, shirt_number, default_position, players(nickname)')
+    .eq('team_id', equipoId)
+    .eq('season_id', temporadaId)
+    .is('left_on', null);
+
+  if (error) {
+    throw error;
+  }
+
+  return data.map((fila) => ({
+    playerId: fila.player_id,
+    nickname: fila.players === null ? '—' : fila.players.nickname,
+    shirtNumber: fila.shirt_number,
+    defaultPosition: fila.default_position,
+  }));
 }
 
 /** Las bajas del equipo en la temporada: inscripciones con `left_on` (PR #51). */
