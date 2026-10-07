@@ -2,7 +2,8 @@
 //
 // Tres cosas: alto contraste, movimiento reducido y cerrar sesión. Desde la
 // T-301c, también los equipos que se siguen: una línea por equipo con «Dejar
-// de seguir», y el enlace a «Unirse a un equipo».
+// de seguir», y el enlace a «Unirse a un equipo». Si el contexto de acceso
+// falla, esa tarjeta lo dice y ofrece reintentar (T-305).
 //
 // Vive en `app/` y no en un módulo porque es del ámbito `platform`, que no
 // tiene carpeta en `modules/` (DOC 06 §3.3). Entra en perezoso desde el
@@ -71,7 +72,10 @@ function Opcion({ etiqueta, ayuda, marcada, alCambiar }: OpcionProps) {
 }
 
 export function AjustesPage() {
-  const { session, profile, teams, reintentarContexto } = useAuth();
+  const { session, profile, teams, errorContexto, reintentarContexto } = useAuth();
+  // Con el contexto de acceso fallado no se sabe a quién sigue: se dice y se
+  // ofrece reintentar, en vez de un «Cargando…» sin salida (T-305).
+  const sinAcceso = teams === null && errorContexto !== null;
   const dejarDeSeguir = useDejarDeSeguir();
   const [falloAlDejar, setFalloAlDejar] = useState<string | null>(null);
   // La línea del equipo desaparece al dejar de seguirlo, y el foco con ella
@@ -188,7 +192,25 @@ export function AjustesPage() {
       </Card>
 
       <Card title="Equipos que sigues" headingLevel={2} headingRef={tituloDeEquipos}>
-        {seguidos.length === 0 ? (
+        {sinAcceso ? (
+          <div className={styles.sinAcceso}>
+            <p className={styles.nota}>No se pudo cargar tu acceso.</p>
+            <div>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  // Si el reintento sale bien, el botón desaparece con el foco
+                  // puesto (2.4.3): pasa antes al título de la tarjeta.
+                  tituloDeEquipos.current?.focus();
+                  anunciar('Reintentando');
+                  reintentarContexto();
+                }}
+              >
+                Reintentar
+              </Button>
+            </div>
+          </div>
+        ) : seguidos.length === 0 ? (
           <p className={styles.nota}>
             {teams === null
               ? 'Cargando…'

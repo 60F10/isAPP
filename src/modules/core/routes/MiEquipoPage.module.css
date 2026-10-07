@@ -3,6 +3,29 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Fallo del contexto de acceso: el aviso y su «Reintentar» (T-305). */
+.fallo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  max-inline-size: 60ch;
+}
+
+/* Solo para lectores de pantalla: «Sin dorsal» al lado de la raya. La misma
+   de `PlantillaPage.module.css`; no hay una común en `shared`. */
+.oculto {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .enlace {
   display: inline-flex;
   align-items: center;
@@ -78,9 +101,16 @@
     border-block-end: none;
   }
 
+  /* La etiqueta es para quien mira. Quien escucha ya la tiene en el encabezado
+     de la columna, y con ella aquí la oía dos veces: el texto alternativo
+     vacío, detrás de la barra, la saca del árbol de accesibilidad (T-305).
+     La primera línea es para el navegador que no entiende la barra (Safari
+     anterior a 17.4, Firefox anterior a 128): descarta la segunda y se queda
+     con la etiqueta de siempre, en vez de quedarse sin ninguna. */
   .tabla td[data-etiqueta]::before,
   .tabla th[data-etiqueta]::before {
     content: attr(data-etiqueta) ': ';
+    content: attr(data-etiqueta) ': ' / '';
     font-weight: var(--font-weight-regular, 400);
     color: var(--color-text-secondary);
   }
