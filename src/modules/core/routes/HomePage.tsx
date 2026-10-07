@@ -39,7 +39,7 @@ interface Acceso {
 
 const ACCESOS: readonly Acceso[] = [
   { to: '/calendario', texto: 'Ver el calendario' },
-  { to: '/equipos', texto: 'Ver el equipo' },
+  { to: '/equipo', texto: 'Ver el equipo' },
   { to: '/mis-aportaciones', texto: 'Mis aportaciones' },
 ];
 

@@ -13,6 +13,7 @@ import {
   fetchEquipoDePlantilla,
   fetchInscripcion,
   fetchPlantilla,
+  fetchPlantillaDeLectura,
   inscribirDelClub,
 } from '../api/plantilla';
 import { coreKeys } from '../api/queryKeys';
@@ -39,6 +40,26 @@ export function usePlantilla(equipoId: string, temporadaId: string | null) {
       return fetchPlantilla(equipoId, temporadaId);
     },
     enabled: temporadaId !== null,
+    select: ordenarPlantilla,
+  });
+}
+
+/**
+ * La plantilla en solo lectura (T-304). Con equipo o temporada nulos la
+ * consulta se queda parada: «Mi equipo» llama al hook antes de saber si hay
+ * equipo activo.
+ */
+export function usePlantillaDeLectura(equipoId: string | null, temporadaId: string | null) {
+  return useQuery({
+    queryKey: coreKeys.plantillaDeLectura(equipoId ?? '', temporadaId ?? ''),
+    queryFn: () => {
+      if (equipoId === null || temporadaId === null) {
+        throw new Error('Sin equipo o sin temporada en curso.');
+      }
+
+      return fetchPlantillaDeLectura(equipoId, temporadaId);
+    },
+    enabled: equipoId !== null && temporadaId !== null,
     select: ordenarPlantilla,
   });
 }

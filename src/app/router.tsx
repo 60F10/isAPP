@@ -280,6 +280,24 @@ export const router = createBrowserRouter([
                 lazy: async () => ({ Component: (await import('@modules/auth')).UnirsePage }),
               },
 
+              // --- Mi equipo (T-304). Sin permiso A PROPÓSITO: la ve quien
+              // pertenece al equipo activo o lo sigue. Perezosa por el barril
+              // de `core`. Quien puede gestionar encuentra ahí los enlaces a
+              // las rutas guardadas de arriba, que siguen donde estaban.
+              {
+                path: 'equipo',
+                lazy: async () => ({ Component: (await import('@modules/core')).MiEquipoPage }),
+              },
+
+              // --- Más (T-304). Un índice: Mis aportaciones, Ajustes y el
+              // registro de errores, cada enlace según su permiso. -----------
+              {
+                path: 'mas',
+                lazy: async () => ({
+                  Component: (await import('@app/routes/MasPage')).MasPage,
+                }),
+              },
+
               // --- Ajustes. Sin permiso: son los del propio usuario. --------
               // Perezosa por ruta directa: `platform` no tiene barril (DOC 06
               // §3.3) y nada más la importa, así que sale en su propio trozo.

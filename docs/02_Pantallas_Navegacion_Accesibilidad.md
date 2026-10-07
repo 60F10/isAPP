@@ -1,6 +1,6 @@
 # DOC 02 — Pantallas, navegación y accesibilidad
 
-> **Versión:** 1.4 — 07/10/2026 (T-301c: «Unirse a un equipo», A01b, entra en el inventario) · 1.3 — 07/10/2026 (T-301b: la invitación se acepta en Inicio) · 1.2 — 25/09/2026 (§3.1: la decisión de los destinos, tras la T-107) · 1.1 — 19/09/2026 (columna «Fase» al día con el recorte del DOC 08 §7) · 1.0 — 08/09/2026
+> **Versión:** 1.5 — 07/10/2026 (T-304: «Mi equipo» y «Más» entran en el inventario y la barra deja de apuntar a la primera pantalla de cada rama) · 1.4 — 07/10/2026 (T-301c: «Unirse a un equipo», A01b, entra en el inventario) · 1.3 — 07/10/2026 (T-301b: la invitación se acepta en Inicio) · 1.2 — 25/09/2026 (§3.1: la decisión de los destinos, tras la T-107) · 1.1 — 19/09/2026 (columna «Fase» al día con el recorte del DOC 08 §7) · 1.0 — 08/09/2026
 > **Depende de:** DOC 01 (backlog)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 07 (sistema de diseño), DOC 08 (tareas)
 
@@ -25,6 +25,7 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
 | **A01**  | Acceso                     | `/login`                                   | Todos                    | MVP       | E1-01           |
 | **A01b** | Unirse a un equipo         | `/unirse`                                  | Todos                    | MVP       | E1-04→08        |
 | **A02**  | Inicio                     | `/`                                        | Todos                    | MVP       | E4-04           |
+| **A02b** | Mi equipo                  | `/equipo`                                  | Todos                    | MVP       | —               |
 | **A03**  | Club                       | `/club`                                    | Entrenador, Admin        | MVP       | E2-01           |
 | **A04**  | Equipos                    | `/equipos`                                 | Entrenador, Admin        | MVP       | E2-02           |
 | **A05**  | Plantilla                  | `/equipos/:id/plantilla`                   | Entrenador, Delegado     | MVP       | E2-03, E2-04    |
@@ -60,8 +61,9 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
 | **C03** | Error de aplicación | — (Error Boundary)  | Todos       | MVP  | E12-02                |
 | **C04** | Sin conexión        | — (estado, no ruta) | Todos       | MVP  | E9-07, E8-14          |
 | **C05** | Sin permiso         | `/403`              | Todos       | MVP  | E1-07                 |
+| **C06** | Más                 | `/mas`              | Todos       | MVP  | —                     |
 
-**Total MVP: 20 pantallas**, con la A01b, que entra el 07/10 con la T-301c. De ellas, una sola concentra el riesgo: **A12, el partido en directo**.
+**Total MVP: 22 pantallas**, con la A01b, que entra el 07/10 con la T-301c, y con «Mi equipo» (A02b) y «Más» (C06), que entran el 07/10 con la T-304. De ellas, una sola concentra el riesgo: **A12, el partido en directo**.
 
 **Eran 21 hasta el 12/09**, cuando el DOC 08 §7 sacó del MVP el entrenamiento en directo (A15) y la disciplina (A16). Esta tabla se quedó desfasada aquel día y se corrige ahora. El Bloque B nunca contó en esos 21 —era «MVP tardío»— y también pasa a post-liga: el principio del §1 manda, y sin dos partidos reales metidos de extremo a extremo un panel esconde fallos en vez de enseñarlos.
 
@@ -78,6 +80,7 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
      │   Próximo evento · accesos rápidos · avisos pendientes
      │
      ├─ EQUIPO
+     │   ├─ /equipo               (el equipo activo y su plantilla en solo lectura)
      │   ├─ /club
      │   ├─ /equipos ─ /equipos/:id
      │   │              ├─ /plantilla ─ /jugadores/:id/editar
@@ -101,6 +104,7 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
      │   └─ /estadisticas/comparar
      │
      └─ MÁS
+         ├─ /mas                  (índice)
          ├─ /mis-aportaciones
          ├─ /ajustes ─ /unirse     (seguir a un equipo y pedir permisos; también desde Inicio y la C05)
          └─ /admin/logs           (solo Admin)
@@ -115,11 +119,19 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
 | **Partido en directo**                   | Toma la pantalla completa y **oculta la barra inferior**. Salir requiere una acción explícita, para evitar abandonos accidentales con el móvil en la mano |
 | **Partido en curso desde otra pantalla** | Banda superior persistente «Partido en directo · 34:12 · Volver». Un toque devuelve al panel                                                              |
 
-**Pendiente de decidir: EQUIPO, DATOS y MÁS son grupos sin pantalla de aterrizaje.** El árbol de arriba los dibuja como agrupaciones, pero un destino de la barra tiene que llevar a algún sitio. Desde la T-104 cada uno apunta a la primera pantalla de su rama —Equipo a `/equipos`, Agenda a `/calendario`, Datos a `/estadisticas`, Más a `/ajustes`—, que es reversible y no añade pantallas al inventario. La alternativa son pantallas índice de sección para EQUIPO y MÁS: la navegación se correspondería con este árbol, a cambio de dos pantallas más y un toque más en cada rama.
+**A dónde lleva cada destino (T-304, decidido por Raúl el 07/10).**
 
-**Se decide en la T-107**, con Ajustes delante, que es cuando se ve de verdad si «Más» abriendo Ajustes molesta o no (Raúl, 19/09/2026).
+| Destino | Lleva a                                                                         | Qué más lo marca                           |
+| :------ | :------------------------------------------------------------------------------ | :----------------------------------------- |
+| Inicio  | `/`                                                                             | Solo la raíz                               |
+| Equipo  | `/equipo`, el equipo activo con su plantilla en solo lectura, sin guardia       | `/equipos`, `/club` y `/jugadores`         |
+| Agenda  | `/calendario`                                                                   | Su propia ruta                             |
+| Datos   | `/estadisticas`, que sigue pidiendo `stats.view`                                | Su propia ruta                             |
+| Más     | `/mas`, un índice: Mis aportaciones, Ajustes y Registro de errores, sin guardia | `/ajustes`, `/mis-aportaciones` y `/admin` |
 
-**La T-107 ya está hecha y la decisión sigue siendo de Raúl.** La C01 existe y «Más» sigue abriéndola, como desde la T-104. Las salidas, con lo que cuesta cada una, están en el DOC 13 (punto 1).
+Qué destino se marca en cada ruta lo dice `src/app/layouts/destinos.ts` (`esDestinoActual`): la ruta es el prefijo exacto o sigue con `/`, así que `/equipaje` no marca «Equipo». Las pantallas de dentro marcan el destino al que pertenecen, y el destino marcado lleva `aria-current="page"` además del subrayado.
+
+**Pendiente: «Datos» sigue mandando a `/403` a quien no tiene `stats.view`**, y con varios equipos no hay dónde elegir el activo.
 
 ### 3.2 Flujo del día de partido
 

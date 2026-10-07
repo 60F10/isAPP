@@ -5,6 +5,40 @@
 
 ---
 
+## Sesión 07/10/2026, noche — T-304: los destinos de la barra: ✅ cerrada
+
+Sesión lanzada por Raúl desde el traspaso, en la nube, rama `feat/platform-destinos-de-la-barra`.
+Sin migración ni SQL.
+
+- **«Equipo» abre `/equipo`** (A02b, `modules/core`, perezosa por el barril, sin guardia): nombre y
+  categoría del equipo activo, que salen de `useAuth()`, y su plantilla en una tabla con dorsal,
+  apodo y posición. La consulta nueva (`fetchPlantillaDeLectura`) no pide `availability`. La
+  tarjeta «Gestión» solo sale con algún permiso, y el seguidor lee que puede verlo pero no
+  cambiarlo. Por debajo de 600 px cada fila se compone como una tarjeta, como en el registro de
+  errores, porque tres columnas no caben a 320 px con el texto al 200 %.
+- **«Más» abre `/mas`** (C06, `app/routes/MasPage.tsx`, perezosa por ruta directa, sin guardia).
+- **La barra** vive en `app/components/BarraDeDestinos.tsx` y `DESTINOS` en
+  `app/layouts/destinos.ts`, con `esDestinoActual`. «Ver el equipo» de Inicio y el enlace de volver
+  de la A05 apuntan a `/equipo`; el de `PartidoPage` a `/equipos` se queda.
+- Lint, formato, **900 pruebas en 69 archivos** (eran 870 en 65) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. Mirado en Chromium a 320 px, 1024 px y 320 px con el texto al
+  200 %: sin desplazamiento horizontal y enlaces de 48 px o más.
+- **Paquete inicial: +0,98 kB sobre `main`, por encima del medio kB del traspaso.** Con el mismo
+  recorrido, 178,11 → 179,09 kB comprimidos. La barra sola suma 0,13; el resto es que Rolldown saca
+  un trozo común nuevo (`Pantalla-*.js`, con React y `Pantalla`) en cuanto existe la ruta perezosa
+  `/mas`. Con `MasPage` en el arranque serían +0,28, pero se aparta de «perezosa, como Ajustes»
+  (D06-29). **Raúl eligió mantenerla perezosa.**
+- **Deuda.** «Datos» sigue pidiendo `stats.view` y manda a `/403` a un seguidor; con varios equipos
+  no hay dónde elegir el activo; `/club` y `/equipos` marcan «Equipo» aunque no se llegue a ellos
+  desde la barra; y la disponibilidad de cada jugador se puede seguir leyendo por la API con solo
+  seguir al equipo, aunque esta pantalla no la pida.
+- **Sin probar contra la base de verdad ni en un móvil.** La prueba es la de la PR: con la cuenta de
+  Raúl, «Equipo» enseña el Cadete A con su plantilla y «Gestión»; con una cuenta que solo anota, la
+  misma pantalla sin «Gestión» y ningún `/403` al recorrer la barra, salvo «Datos» sin `stats.view`.
+- **Lo siguiente** es la T-302, la prueba de campo del sábado 17.
+
+---
+
 ## Sesión 07/10/2026, noche — T-301c: entrar sin equipo, seguir y pedir permisos: ✅ cerrada
 
 Sesión lanzada por Raúl desde el traspaso, en la nube, rama `feat/auth-entrada-sin-equipo`. Sin
@@ -724,6 +758,7 @@ Pendiente de decidir, que no lo decide el código:
    plantilla en solo lectura para quien pertenece al equipo o lo sigue; la lista de equipos queda
    para quien gestiona el club. La B sola dejaba el `/403` de «Equipo». «Datos» no se toca. Es
    la **T-304**, con traspaso en `docs/traspasos/`.
+   **Cerrado el 07/10 con la T-304.**
 
 2. **`clock` y `plus` haciendo de casa y calendario.** El inventario de 21 iconos del DOC 07 §8.2
    no tiene ninguno de los dos. Decidir si entran dos iconos nuevos.

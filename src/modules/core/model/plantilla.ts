@@ -21,6 +21,18 @@ export interface Inscripcion {
   availability: Disponibilidad;
 }
 
+/**
+ * Un jugador tal como lo ve quien solo lee la plantilla (T-304): apodo, dorsal
+ * y posición. Sin disponibilidad ni identificadores de la inscripción: lo que
+ * no se enseña no se descarga. `ordenarPlantilla` lo admite tal cual.
+ */
+export interface LecturaDePlantilla {
+  playerId: string;
+  nickname: string;
+  shirtNumber: number | null;
+  defaultPosition: Posicion | null;
+}
+
 /** Largo de interfaz: el esquema no lo limita. Cabe en una ficha del directo. */
 export const LARGO_APODO = 30;
 
