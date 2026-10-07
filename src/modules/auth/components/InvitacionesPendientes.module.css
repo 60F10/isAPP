@@ -1,0 +1,37 @@
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fila {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:first-child {
+  padding-block-start: 0;
+}
+
+.fila:last-child {
+  padding-block-end: 0;
+  border-block-end: 0;
+}
+
+.frase {
+  max-inline-size: 60ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* El mensaje lleva el texto; el color solo lo subraya (1.4.1). */
+.fallo {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}

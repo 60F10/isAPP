@@ -14,6 +14,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
+import { useAuth, useHasPermission } from '@modules/auth';
 import { useAnnounce } from '@shared/hooks/announceContext';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
@@ -172,6 +173,15 @@ interface FilaEquipoProps {
 function FilaEquipo({ clubId, equipo, equipos }: FilaEquipoProps) {
   const anunciar = useAnnounce();
   const actualizar = useActualizarEquipo(clubId);
+  // «Personas» sale solo si se puede usar: la guardia de la ruta mira
+  // `members.manage` en el equipo activo, y la base, en el equipo de la fila.
+  // Hacen falta los dos para que el enlace no lleve a un «no puedes».
+  const { teams } = useAuth();
+  const gestionaElActivo = useHasPermission('members.manage') === true;
+  const gestionaEste =
+    teams?.some(
+      (membresia) => membresia.team.id === equipo.id && membresia.permissions.has('members.manage'),
+    ) === true;
   const idNombre = useId();
   const idEditar = useId();
   const [editando, setEditando] = useState(false);
@@ -216,6 +226,15 @@ function FilaEquipo({ clubId, equipo, equipos }: FilaEquipoProps) {
               aria-label={`Plantilla de ${equipo.name}`}
             >
               Plantilla
+            </Link>
+          ) : null}
+          {equipo.kind === 'managed' && gestionaElActivo && gestionaEste ? (
+            <Link
+              className={styles.enlace}
+              to={`/equipos/${equipo.id}/personas`}
+              aria-label={`Personas de ${equipo.name}`}
+            >
+              Personas
             </Link>
           ) : null}
           <Button

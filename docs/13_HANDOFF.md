@@ -5,6 +5,39 @@
 
 ---
 
+## Sesión 07/10/2026, noche — T-301b: personas y permisos (A07), e invitaciones en Inicio: ✅ cerrada
+
+Sesión lanzada por Raúl desde el traspaso, en la nube, rama `feat/auth-personas-permisos`. Sin
+migración ni SQL: todo lo que usa estaba en la base desde la T-301a.
+
+- **La A07 existe** (`modules/auth`, perezosa por el barril): miembros con su rol y cuántos
+  permisos tienen, edición en su sitio con las doce casillas y «Poner los permisos de su rol», baja
+  con confirmación y «Reactivar», invitar a un correo y «Revocar». Nadie se quita `members.manage`
+  ni se da de baja a sí mismo: lo impide la pantalla, que la base no lo hace.
+- **La invitación se acepta en Inicio.** `InvitacionesPendientes` no pinta nada si
+  `mis_invitaciones` no devuelve ninguna; acepta con `aceptar_invitacion` y llama a
+  `reintentarContexto()`, así que el equipo aparece sin recargar. No se envía ningún correo.
+- **«Personas» en la A04**, junto a «Plantilla», solo en el equipo donde se tiene `members.manage`
+  y con ese permiso también en el equipo activo, que es el que mira la guardia de la ruta.
+- Lint, formato, **842 pruebas en 63 archivos** (eran 816 en 60) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`.
+- **Paquete inicial: 179,38 kB comprimidos**, recorriendo las importaciones estáticas desde
+  `index.html` y `App-*.js`; con el mismo recorrido `main` daba 179,51. No sube: la A07 es
+  perezosa. **Lo que sube es `auth-*.js`, de 1,31 a 7,29 kB comprimidos**, y ese trozo lo cargan el
+  login y todas las pantallas de módulo, porque importan `useAuth` del barril. Partirlo pide que
+  la A07 no salga por el barril, que es justo lo contrario de lo decidido en el traspaso.
+- **Deuda.** Guardar rol y permisos son hasta tres peticiones sin transacción: si falla una a
+  medias, la lista se recarga y dice lo que hay. La guardia mira `members.manage` en el equipo
+  activo y no en el `:id`: con varios equipos y permisos distintos, la base es la que dice que no.
+  Un equipo propio recién creado sigue naciendo sin personas y nadie puede invitar a él: la nota de
+  la A04 («Hasta que existan las invitaciones…») ya no es exacta. `api/queryKeys.ts` y
+  `InvitacionesPendientes.module.css` no estaban en la tabla de archivos del traspaso.
+- **Sin probar contra la base de verdad ni en un móvil.** La prueba es la de la PR: Raúl invita a
+  su segunda cuenta de Google, entra con ella, acepta en Inicio y ve el calendario.
+- **Lo siguiente** es la T-301c. Y el punto 4: darle `members.manage` a Isaac desde la A07.
+
+---
+
 ## Sesión 07/10/2026 — T-301a: migración de personas: ✅ cerrada
 
 Sesión con Raúl delante del ordenador, rama `feat/db-personas-y-solicitudes`. **Toca la base de
@@ -664,6 +697,7 @@ Pendiente de hacer:
 4. **Solo Raúl tiene `members.manage`.** Isaac, que es quien lleva el equipo, tiene los otros once
    permisos y no ese: no podría invitar ni aceptar a nadie. Dárselo desde la A07 en cuanto exista
    (T-301b). Y marcar `event.approve` a quien lleve el registro cada partido.
+   **Desde el 07/10 ya se puede:** Raúl abre «Personas» en la A04, edita a Isaac y se lo marca.
 5. **Los cubos de Storage `crests` y `docs`, sin crear.** Sin `crests` no hay escudo en la A03 ni en
    los equipos. El logo del C.D. Unión Tejina está en `docs/recursos/escudo-cd-union-tejina.png`,
    listo para subirlo. Pide una sesión de Cowork con el cubo y sus políticas definidos antes en el
