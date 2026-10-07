@@ -5,6 +5,31 @@
 
 ---
 
+## Sesión 07/10/2026, noche — revisión de la T-301b, la T-301c y la T-304, y tanda siguiente: ✅ cerrada
+
+Misma sesión de la T-301a, con Raúl. **Sin código de aplicación y sin base.**
+
+- **Las tres están en `main`** (PR #88, #89 y #90), con el CI en verde: 900 pruebas en 69 archivos.
+  Las lanzó Raúl desde su traspaso y las fusionó él: el entorno no dejó fusionar a ninguna.
+- **Revisadas contra su traspaso**, una pasada del `revisor` por tarea y los dos hallazgos del
+  arranque comprobados a mano. Hacen lo que pedían y están todas las pruebas de sus tablas.
+- **Un fallo serio, que hoy no se puede dar** (punto 82) y varios medianos (punto 83). Salen dos
+  tareas, la **T-305** y la **T-306**, con traspaso en `docs/traspasos/`. Sin base y de una en una.
+- **Comprobado contra la base, leyendo sus políticas:** quien sigue a un equipo lee el club, la
+  temporada, las competiciones, los partidos, las convocatorias y la plantilla. El calendario y
+  «Mi equipo» del seguidor no dependen de nada que la base le niegue.
+- **Programadas en la nube**, para que no dependan del ordenador de Raúl: la T-305 y, detrás, la
+  T-306. La T-305 parte de la rama `docs/docs-revision-del-07-10`, que trae estos documentos, y
+  su PR se los lleva a `main`.
+- **La capa visual no se adelanta.** `claude/traspaso_capa_visual.md`, en el proyecto de Claude,
+  la deja para la fase 5, después de la prueba de campo. Su T-500, que es solo documentación,
+  tampoco se lanza todavía: dejaría el DOC 07 describiendo tokens que el código no tiene.
+- **Lo que sigue siendo de Raúl:** publicar en pro antes del jueves 15, la línea de Realtime
+  (punto 77), el cambio repetido (punto 65), darle `members.manage` a Isaac desde la A07 (punto 4)
+  y las pruebas en el móvil de las PR #88 a #90.
+
+---
+
 ## Sesión 07/10/2026, noche — T-304: los destinos de la barra: ✅ cerrada
 
 Sesión lanzada por Raúl desde el traspaso, en la nube, rama `feat/platform-destinos-de-la-barra`.
@@ -1131,6 +1156,19 @@ Pendiente de hacer:
     Vale para la línea de Realtime (punto 77) y para el cambio repetido (punto 65). Una
     migración así se apunta a mano en `supabase_migrations.schema_migrations`, dentro del mismo
     bloque.
+
+82. **El equipo recordado gana aunque solo se siga** (revisión de la T-301c). Quien sigue al
+    equipo B y después entra como miembro en el A se queda con B de activo, sin permisos y con
+    las rutas guardadas en `/403`, y no hay dónde cambiar de equipo. Con un solo equipo en la
+    lista no se puede dar. Además, un fallo al leer `team_followers` tumba el contexto entero,
+    y «Mi equipo» y la tarjeta de Ajustes se quedan en «Cargando…» si el contexto falla. **Es
+    la T-305.**
+
+83. **Flecos de la A07, las invitaciones y «Unirse a un equipo»** (revisión de la T-301b y la
+    T-301c). «Guardar» calcula los cambios contra los permisos de ahora y no contra los de
+    cuando se abrió «Editar»; un guardado a medias no se dice; el mensaje de una invitación que
+    ya no vale desaparece con la tarjeta; y el foco cae en `body` al dar de baja, revocar,
+    aceptar, cancelar y tras un fallo. **Es la T-306.**
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
