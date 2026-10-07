@@ -126,9 +126,7 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: 'equipos/:id/personas',
-                    element: (
-                      <PantallaPendiente id="A07" titulo="Personas y permisos" tarea="T-301" />
-                    ),
+                    lazy: async () => ({ Component: (await import('@modules/auth')).PersonasPage }),
                   },
                 ],
               },

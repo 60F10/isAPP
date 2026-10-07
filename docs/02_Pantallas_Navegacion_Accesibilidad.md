@@ -1,6 +1,6 @@
 # DOC 02 — Pantallas, navegación y accesibilidad
 
-> **Versión:** 1.2 — 25/09/2026 (§3.1: la decisión de los destinos, tras la T-107) · 1.1 — 19/09/2026 (columna «Fase» al día con el recorte del DOC 08 §7) · 1.0 — 08/09/2026
+> **Versión:** 1.3 — 07/10/2026 (T-301b: la invitación se acepta en Inicio) · 1.2 — 25/09/2026 (§3.1: la decisión de los destinos, tras la T-107) · 1.1 — 19/09/2026 (columna «Fase» al día con el recorte del DOC 08 §7) · 1.0 — 08/09/2026
 > **Depende de:** DOC 01 (backlog)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 07 (sistema de diseño), DOC 08 (tareas)
 
@@ -80,7 +80,7 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
      │   ├─ /club
      │   ├─ /equipos ─ /equipos/:id
      │   │              ├─ /plantilla ─ /jugadores/:id/editar
-     │   │              └─ /personas          (roles e invitaciones)
+     │   │              └─ /personas          (roles e invitaciones; la invitación se acepta en Inicio, A02)
      │   ├─ /competiciones ─ /competiciones/:id
      │   └─ /disciplina
      │

@@ -11,10 +11,15 @@
 // enrutador. Sin la prop, la tarjeta enseña su estado vacío. No importes de
 // `agenda` aquí.
 //
+// LAS INVITACIONES VAN LAS PRIMERAS (T-301b). La tarjeta es de `auth`, que es
+// de quien `core` sí puede importar, y no pinta nada si no hay ninguna: quien
+// entra invitado y todavía no es de ningún equipo la tiene arriba del todo.
+//
 // Los avisos pendientes siguen sin datos de servidor.
 
 import { Link } from 'react-router';
 
+import { InvitacionesPendientes } from '@modules/auth';
 import { Card } from '@shared/ui/Card';
 import { Pantalla } from '@shared/ui/Pantalla';
 
@@ -41,6 +46,8 @@ interface HomePageProps {
 export function HomePage({ proximoEvento }: HomePageProps = {}) {
   return (
     <Pantalla id="A02" titulo="Inicio">
+      <InvitacionesPendientes />
+
       <Card title="Próximo evento" headingLevel={2}>
         {proximoEvento === undefined ? (
           <p className={styles.vacio}>

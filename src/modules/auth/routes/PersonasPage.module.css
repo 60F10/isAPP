@@ -1,0 +1,158 @@
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada persona, una fila separada por una raya. A 320 px o con el texto al
+   200 %, las acciones bajan debajo del nombre en vez de desbordar (1.4.10). */
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tap-gap);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:last-child {
+  border-block-end: 0;
+}
+
+.datos {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.nombre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+}
+
+.detalle {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
+}
+
+/* «De baja» lo dice el texto; el borde solo lo separa del resto (1.4.1). */
+.marca {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Separación mínima entre objetivos táctiles (DOC 02 §5.1). */
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  inline-size: 100%;
+  max-inline-size: 32rem;
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tap-gap);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.leyenda {
+  margin-block-end: var(--space-1);
+  padding: 0;
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+}
+
+.permiso {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Toda la fila responde al toque: 48 px de alto (DOC 07, `--tap-min`). */
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--tap-min);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.casilla {
+  flex: 0 0 auto;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.casilla:disabled {
+  cursor: not-allowed;
+}
+
+.casilla:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* Por qué un control está desactivado. Va con el texto normal, no en gris:
+   es justo lo que hay que poder leer al sol. */
+.motivo {
+  max-inline-size: 60ch;
+  margin: 0;
+  font-size: var(--font-size-75);
+}
+
+.hecho {
+  max-inline-size: 60ch;
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* El mensaje lleva el texto; el color solo lo subraya (1.4.1). */
+.fallo {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* La baja va aparte de «Guardar», con una raya por medio: no es el final
+   natural del formulario y no se debe encontrar por inercia. */
+.zonaDeBaja {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--color-border-subtle);
+}

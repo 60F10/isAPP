@@ -12,4 +12,11 @@ export const authKeys = {
    * sirve los equipos ni los permisos del anterior.
    */
   contexto: (userId: string | null) => [...authKeys.all, 'contexto', userId] as const,
+  /** Miembros de un equipo, con sus permisos (A07). */
+  miembros: (teamId: string) => [...authKeys.all, 'miembros', teamId] as const,
+  /** Invitaciones pendientes de un equipo (A07). */
+  invitaciones: (teamId: string) => [...authKeys.all, 'invitaciones', teamId] as const,
+  /** Invitaciones dirigidas a la cuenta que ha entrado (tarjeta de Inicio). */
+  misInvitaciones: (userId: string | null) =>
+    [...authKeys.all, 'mis-invitaciones', userId] as const,
 };

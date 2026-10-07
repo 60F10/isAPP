@@ -4,6 +4,9 @@
 export { AuthCallbackPage } from './routes/AuthCallbackPage';
 export { ForbiddenPage } from './routes/ForbiddenPage';
 export { LoginPage } from './routes/LoginPage';
+export { PersonasPage } from './routes/PersonasPage';
+
+export { InvitacionesPendientes } from './components/InvitacionesPendientes';
 
 export { authKeys } from './api/queryKeys';
 export { fetchContextoDeAcceso, RUTA_VUELTA } from './api/session';
