@@ -37,6 +37,8 @@ producción**: la migración del DOC 05 §14.8, aplicada sin cambiar el SQL. Sin
 - **Lo siguiente** es la T-301b y, tras ella, la T-301c: ninguna necesita ya a Raúl. Sus
   traspasos están en `docs/traspasos/`, revisados el 07/10 y pensados para Opus a esfuerzo medio. En
   «Siguiente», el punto 2 se queda en la línea de Realtime y el cambio repetido (punto 65).
+- **Tras ellas va la T-304**, los destinos de la barra (punto 1, decidido el 07/10), pensada
+  para Sonnet a esfuerzo medio. El orden: T-301b, T-301c, T-304 y, el sábado 17, la T-302.
 
 ---
 
@@ -645,6 +647,11 @@ Pendiente de decidir, que no lo decide el código:
    | **A. Dejarlo como está**                                                                | Cero trabajo. `/mis-aportaciones` solo se alcanza desde Inicio, `/admin/logs` no tiene entrada, «Más» abriendo Ajustes se lee raro, y Equipo manda a `/403` a quien no gestiona |
    | **B. Pantalla índice «Más»** en `/mas`: Mis aportaciones, Ajustes y Registro de errores | Una pantalla pequeña más y un toque más hasta Ajustes. La C02 tiene sitio. **Recomendada**                                                                                      |
    | C. Pantallas índice para Equipo, Datos y Más                                            | Tres pantallas. Arregla también el `/403` de Equipo                                                                                                                             |
+
+   **Decidido por Raúl el 07/10: la B, y además «Equipo» abre el equipo activo**, con la
+   plantilla en solo lectura para quien pertenece al equipo o lo sigue; la lista de equipos queda
+   para quien gestiona el club. La B sola dejaba el `/403` de «Equipo». «Datos» no se toca. Es
+   la **T-304**, con traspaso en `docs/traspasos/`.
 
 2. **`clock` y `plus` haciendo de casa y calendario.** El inventario de 21 iconos del DOC 07 §8.2
    no tiene ninguno de los dos. Decidir si entran dos iconos nuevos.
