@@ -16,8 +16,20 @@
 //
 // El nombre del equipo sale de las membresías de `useAuth()`: `auth` no puede
 // importar de `core` (DOC 06 §4.2).
+//
+// DESDE LA T-301C, TRES TARJETAS MÁS (DOC 05 §14.8). «Solicitudes de
+// permisos», que solo sale si hay alguna y entonces es la primera: aceptar
+// pide rol y permisos, y va por `resolver_solicitud`. «Seguidores», que se
+// quitan borrando su fila. Y la casilla que pone al equipo en la lista, que
+// escribe `teams.accepts_requests` y solo sale con `team.manage`, que es lo
+// que pide la política de `teams`. No hay avisos: una solicitud solo se ve al
+// abrir esta pantalla.
+//
+// Quien solo SIGUE al equipo no entra aquí: su membresía no cuenta.
 
 import { useEffect, useId, useRef, useState } from 'react';
+
+import type { RefObject } from 'react';
 import { useParams } from 'react-router';
 
 import { useAnnounce } from '@shared/hooks/announceContext';
@@ -39,6 +51,14 @@ import {
   useRevocarInvitacion,
 } from '../hooks/usePersonas';
 import {
+  useEnLaLista,
+  useGuardarEnLaLista,
+  useQuitarSeguidor,
+  useResolverSolicitud,
+  useSeguidoresDelEquipo,
+  useSolicitudesDelEquipo,
+} from '../hooks/useSolicitudes';
+import {
   cambiosDePermisos,
   DESCRIPCION_DE_PERMISO,
   enOrden,
@@ -51,10 +71,14 @@ import {
   validarInvitacion,
 } from '../model/personas';
 
+import { diaDe, mensajeDeLaBase, nombreDePersona } from '../model/solicitudes';
+
 import styles from './PersonasPage.module.css';
 
+import type { Decision } from '../api/solicitudes';
 import type { Invitacion, Miembro } from '../model/personas';
 import type { AppPermission, TeamRole } from '../model/permissions';
+import type { Seguidor, SolicitudRecibida } from '../model/solicitudes';
 
 const OPCIONES_DE_ROL = ROLES.map((rol) => ({ valor: rol, etiqueta: NOMBRES_DE_ROL[rol] }));
 
@@ -668,14 +692,468 @@ function InvitacionesDelEquipo({ teamId }: DeEquipoProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Tarjeta «Solicitudes de permisos» (T-301c)
+// ---------------------------------------------------------------------------
+
+interface FilaSolicitudProps {
+  solicitud: SolicitudRecibida;
+  ocupado: boolean;
+  alResolver: (decision: Decision) => void;
+}
+
+function FilaSolicitud({ solicitud, ocupado, alResolver }: FilaSolicitudProps) {
+  const idAceptar = useId();
+  const idRechazar = useId();
+  const idFormulario = useId();
+  const pregunta = useRef<HTMLParagraphElement>(null);
+  const nombre = nombreDePersona(solicitud.nombre);
+  const [modo, setModo] = useState<'cerrada' | 'aceptando' | 'rechazando'>('cerrada');
+  const [rol, setRol] = useState<TeamRole>(ROL_AL_INVITAR);
+  const [marcados, setMarcados] = useState<ReadonlySet<AppPermission>>(
+    () => new Set(PLANTILLAS_DE_ROL[ROL_AL_INVITAR]),
+  );
+  // Los botones, el formulario y la pregunta se sustituyen entre sí, y el foco
+  // se iría a `body` (2.4.3): va a lo que se abre y vuelve al botón que lo
+  // abrió.
+  const volverA = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (modo === 'aceptando') {
+      document.getElementById(idFormulario)?.focus();
+    } else if (modo === 'rechazando') {
+      pregunta.current?.focus();
+    } else if (volverA.current !== null) {
+      document.getElementById(volverA.current)?.focus();
+      volverA.current = null;
+    }
+  }, [modo, idFormulario]);
+
+  const datos = (
+    <div className={styles.datos}>
+      <span className={styles.nombre}>{nombre}</span>
+      <span className={styles.detalle}>Lo pidió el {diaDe(solicitud.createdAt)}</span>
+      {solicitud.mensaje === null ? null : <p className={styles.mensaje}>«{solicitud.mensaje}»</p>}
+    </div>
+  );
+
+  if (modo === 'aceptando') {
+    return (
+      <li className={styles.fila}>
+        <form
+          id={idFormulario}
+          className={styles.formulario}
+          aria-label={`Aceptar a ${nombre}`}
+          tabIndex={-1}
+          noValidate
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            alResolver({ aprobar: true, role: rol, permissions: enOrden(marcados) });
+          }}
+        >
+          {datos}
+
+          <GrupoDeOpciones
+            leyenda="Rol"
+            opciones={OPCIONES_DE_ROL}
+            valor={rol}
+            alCambiar={(nuevo) => {
+              // Los permisos nacen con la plantilla del rol; después se cambian.
+              setRol(nuevo);
+              setMarcados(new Set(PLANTILLAS_DE_ROL[nuevo]));
+            }}
+          />
+
+          <CasillasDePermisos
+            marcados={marcados}
+            alCambiar={(permiso, marcado) => {
+              setMarcados((antes) => conCambio(antes, permiso, marcado));
+            }}
+          />
+
+          <div className={styles.acciones}>
+            <Button type="submit" variant="primary" disabled={ocupado}>
+              {ocupado ? 'Aceptando…' : 'Aceptar con estos permisos'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                volverA.current = idAceptar;
+                setModo('cerrada');
+              }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      </li>
+    );
+  }
+
+  return (
+    <li className={styles.fila}>
+      {datos}
+      {modo === 'rechazando' ? (
+        <div className={styles.confirmar}>
+          <p ref={pregunta} className={styles.pregunta} tabIndex={-1}>
+            ¿Rechazar la solicitud de {nombre}? Podrá seguir al equipo igualmente, y volver a pedir
+            permisos pasados unos días.
+          </p>
+          <div className={styles.acciones}>
+            <Button
+              variant="primary"
+              disabled={ocupado}
+              onClick={() => {
+                alResolver({ aprobar: false });
+              }}
+            >
+              {ocupado ? 'Rechazando…' : 'Sí, rechazar'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                volverA.current = idRechazar;
+                setModo('cerrada');
+              }}
+            >
+              No, dejarla
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className={styles.acciones}>
+          <Button
+            id={idAceptar}
+            variant="primary"
+            aria-label={`Aceptar a ${nombre}`}
+            disabled={ocupado}
+            onClick={() => {
+              setModo('aceptando');
+            }}
+          >
+            Aceptar
+          </Button>
+          <Button
+            id={idRechazar}
+            variant="secondary"
+            aria-label={`Rechazar a ${nombre}`}
+            disabled={ocupado}
+            onClick={() => {
+              setModo('rechazando');
+            }}
+          >
+            Rechazar
+          </Button>
+        </div>
+      )}
+    </li>
+  );
+}
+
+interface SolicitudesProps extends DeEquipoProps {
+  /** A dónde va el foco cuando se resuelve la última y la tarjeta desaparece. */
+  focoAlVaciarse: RefObject<HTMLHeadingElement | null>;
+}
+
+/**
+ * SIN SOLICITUDES NO PINTA NADA, ni el título: es lo normal casi siempre.
+ * Tampoco mientras carga ni si la consulta falla: es un aviso, y el resto de
+ * la pantalla no depende de él.
+ */
+function Solicitudes({ teamId, focoAlVaciarse }: SolicitudesProps) {
+  const anunciar = useAnnounce();
+  const solicitudes = useSolicitudesDelEquipo(teamId);
+  // La mutación vive aquí y no en cada fila: al resolver, la fila desaparece.
+  const resolver = useResolverSolicitud(teamId);
+  const titulo = useRef<HTMLHeadingElement>(null);
+  const [fallo, setFallo] = useState<string | null>(null);
+  // La fila resuelta se lleva el foco con ella (2.4.3): pasa al título de esta
+  // tarjeta, o al de «Miembros» si era la última.
+  const recolocarFoco = useRef(false);
+  const cuantas = solicitudes.data === undefined ? 0 : solicitudes.data.length;
+
+  useEffect(() => {
+    if (!recolocarFoco.current) {
+      return;
+    }
+
+    recolocarFoco.current = false;
+    (cuantas === 0 ? focoAlVaciarse.current : titulo.current)?.focus();
+  }, [cuantas, focoAlVaciarse]);
+
+  if (solicitudes.data === undefined || solicitudes.data.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card title="Solicitudes de permisos" headingLevel={2} headingRef={titulo}>
+      <p className={styles.nota}>
+        Personas que quieren anotar en este equipo. Hasta que aceptes, no tienen ningún permiso.
+      </p>
+      <ul className={styles.lista}>
+        {solicitudes.data.map((solicitud) => {
+          const nombre = nombreDePersona(solicitud.nombre);
+
+          return (
+            <FilaSolicitud
+              key={solicitud.id}
+              solicitud={solicitud}
+              ocupado={resolver.isPending}
+              alResolver={(decision) => {
+                setFallo(null);
+                resolver.mutate(
+                  { requestId: solicitud.id, decision },
+                  {
+                    onSuccess: () => {
+                      recolocarFoco.current = true;
+                      anunciar(
+                        decision.aprobar
+                          ? `${nombre} ya forma parte del equipo`
+                          : `Solicitud de ${nombre} rechazada`,
+                      );
+                    },
+                    onError: (error) => {
+                      const mensaje = mensajeDeLaBase(error);
+                      setFallo(mensaje);
+                      anunciar(mensaje);
+                    },
+                  },
+                );
+              }}
+            />
+          );
+        })}
+      </ul>
+      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tarjeta «Seguidores» (T-301c)
+// ---------------------------------------------------------------------------
+
+interface FilaSeguidorProps {
+  seguidor: Seguidor;
+  ocupado: boolean;
+  alQuitar: () => void;
+}
+
+function FilaSeguidor({ seguidor, ocupado, alQuitar }: FilaSeguidorProps) {
+  const idQuitar = useId();
+  const pregunta = useRef<HTMLParagraphElement>(null);
+  const nombre = nombreDePersona(seguidor.nombre);
+  const [confirmando, setConfirmando] = useState(false);
+  const preguntado = useRef(false);
+
+  useEffect(() => {
+    if (confirmando) {
+      preguntado.current = true;
+      pregunta.current?.focus();
+    } else if (preguntado.current) {
+      preguntado.current = false;
+      document.getElementById(idQuitar)?.focus();
+    }
+  }, [confirmando, idQuitar]);
+
+  return (
+    <li className={styles.fila}>
+      <div className={styles.datos}>
+        <span className={styles.nombre}>{nombre}</span>
+        <span className={styles.detalle}>Sigue al equipo desde el {diaDe(seguidor.createdAt)}</span>
+      </div>
+      {confirmando ? (
+        <div className={styles.confirmar}>
+          <p ref={pregunta} className={styles.pregunta} tabIndex={-1}>
+            ¿Quitar a {nombre} de los seguidores? Podrá volver a seguir mientras el equipo esté en
+            la lista.
+          </p>
+          <div className={styles.acciones}>
+            <Button variant="primary" disabled={ocupado} onClick={alQuitar}>
+              {ocupado ? 'Quitando…' : 'Sí, quitar'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmando(false);
+              }}
+            >
+              No, dejarlo
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className={styles.acciones}>
+          <Button
+            id={idQuitar}
+            variant="secondary"
+            aria-label={`Quitar a ${nombre}`}
+            disabled={ocupado}
+            onClick={() => {
+              setConfirmando(true);
+            }}
+          >
+            Quitar
+          </Button>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function Seguidores({ teamId }: DeEquipoProps) {
+  const anunciar = useAnnounce();
+  const seguidores = useSeguidoresDelEquipo(teamId);
+  // La mutación vive aquí y no en cada fila: al quitar, la fila desaparece.
+  const quitar = useQuitarSeguidor(teamId);
+  const titulo = useRef<HTMLHeadingElement>(null);
+  const [fallo, setFallo] = useState<string | null>(null);
+  const recolocarFoco = useRef(false);
+  const cuantos = seguidores.data === undefined ? 0 : seguidores.data.length;
+
+  useEffect(() => {
+    if (recolocarFoco.current) {
+      recolocarFoco.current = false;
+      titulo.current?.focus();
+    }
+  }, [cuantos]);
+
+  return (
+    <Card title="Seguidores" headingLevel={2} headingRef={titulo}>
+      {seguidores.isPending ? (
+        <Cargando />
+      ) : seguidores.isError ? (
+        <ErrorDeCarga
+          que="los seguidores"
+          onReintentar={() => {
+            void seguidores.refetch();
+          }}
+        />
+      ) : seguidores.data.length === 0 ? (
+        <p className={styles.nota}>
+          Nadie sigue a este equipo. Quien lo sigue ve el calendario y los resultados, y no puede
+          tocar nada.
+        </p>
+      ) : (
+        <ul className={styles.lista}>
+          {seguidores.data.map((seguidor) => (
+            <FilaSeguidor
+              key={seguidor.userId}
+              seguidor={seguidor}
+              ocupado={quitar.isPending}
+              alQuitar={() => {
+                setFallo(null);
+                quitar.mutate(seguidor.userId, {
+                  onSuccess: () => {
+                    recolocarFoco.current = true;
+                    anunciar(`${nombreDePersona(seguidor.nombre)} ya no sigue al equipo`);
+                  },
+                  onError: (error) => {
+                    const mensaje = mensajeDeErrorAlGuardar(error);
+                    setFallo(mensaje);
+                    anunciar(mensaje);
+                  },
+                });
+              }}
+            />
+          ))}
+        </ul>
+      )}
+      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tarjeta «Lista de equipos» (T-301c). Solo con `team.manage`.
+// ---------------------------------------------------------------------------
+
+interface EnLaListaProps extends DeEquipoProps {
+  nombreDelEquipo: string;
+}
+
+function EnLaLista({ teamId, nombreDelEquipo }: EnLaListaProps) {
+  const anunciar = useAnnounce();
+  const enLaLista = useEnLaLista(teamId);
+  const guardar = useGuardarEnLaLista(teamId);
+  const id = useId();
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  if (enLaLista.isPending) {
+    return <Cargando />;
+  }
+
+  if (enLaLista.isError) {
+    return (
+      <ErrorDeCarga
+        que="si el equipo está en la lista"
+        onReintentar={() => {
+          void enLaLista.refetch();
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className={styles.bloque}>
+      <label className={styles.opcion} htmlFor={id}>
+        {/* Mientras se guarda, la casilla enseña lo que se ha pedido y no
+            atiende otro toque. No se desactiva: desactivarla le quitaría el
+            foco a quien la acaba de marcar. */}
+        <input
+          id={id}
+          className={styles.casilla}
+          type="checkbox"
+          checked={guardar.isPending ? guardar.variables : enLaLista.data}
+          aria-describedby={`${id}-ayuda`}
+          onChange={(evento) => {
+            if (guardar.isPending) {
+              return;
+            }
+
+            const marcada = evento.target.checked;
+
+            setFallo(null);
+            guardar.mutate(marcada, {
+              onSuccess: () => {
+                anunciar(
+                  marcada
+                    ? `${nombreDelEquipo} está en la lista`
+                    : `${nombreDelEquipo} ya no está en la lista`,
+                );
+              },
+              onError: (error) => {
+                const mensaje = mensajeDeErrorAlGuardar(error);
+                setFallo(mensaje);
+                anunciar(mensaje);
+              },
+            });
+          }}
+        />
+        <span>Este equipo está en la lista</span>
+      </label>
+      <p id={`${id}-ayuda`} className={styles.motivo}>
+        Con esto encendido, cualquier persona con cuenta ve el nombre del equipo y del club, lo
+        puede seguir sin esperar a nadie y puede pedir permisos. Quien sigue ve el calendario, los
+        resultados, los dorsales y los apodos. Para anotar hace falta que lo aceptes.
+      </p>
+      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Pantalla
 // ---------------------------------------------------------------------------
 
 export function PersonasPage() {
   const { id } = useParams();
   const { teams } = useAuth();
+  const tituloDeMiembros = useRef<HTMLHeadingElement>(null);
+  // Seguir a un equipo no da entrada a su A07: solo cuenta tener función.
   const membresia =
-    teams === null ? undefined : teams.find((candidata) => candidata.team.id === id);
+    teams === null
+      ? undefined
+      : teams.find((candidata) => candidata.team.id === id && candidata.seguidor !== true);
 
   return (
     <Pantalla id="A07" titulo="Personas y permisos">
@@ -689,7 +1167,8 @@ export function PersonasPage() {
             Personas de {membresia.team.name}. El rol es solo el punto de partida: lo que cada una
             puede hacer es lo que tenga marcado.
           </p>
-          <Card title="Miembros" headingLevel={2}>
+          <Solicitudes teamId={membresia.team.id} focoAlVaciarse={tituloDeMiembros} />
+          <Card title="Miembros" headingLevel={2} headingRef={tituloDeMiembros}>
             <Miembros teamId={membresia.team.id} />
           </Card>
           <Card title="Invitar" headingLevel={2}>
@@ -698,6 +1177,12 @@ export function PersonasPage() {
           <Card title="Invitaciones pendientes" headingLevel={2}>
             <InvitacionesDelEquipo teamId={membresia.team.id} />
           </Card>
+          <Seguidores teamId={membresia.team.id} />
+          {membresia.permissions.has('team.manage') ? (
+            <Card title="Lista de equipos" headingLevel={2}>
+              <EnLaLista teamId={membresia.team.id} nombreDelEquipo={membresia.team.name} />
+            </Card>
+          ) : null}
         </>
       )}
     </Pantalla>

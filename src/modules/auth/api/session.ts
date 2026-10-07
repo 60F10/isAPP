@@ -27,27 +27,34 @@ export interface ContextoDeAcceso {
   temporadaPorClub: ReadonlyMap<string, string>;
 }
 
+const COLUMNAS_EQUIPO = 'id, club_id, name, category, crest_url, primary_color';
+
 /**
- * Perfil, equipos con sus permisos y temporada en curso de cada club.
+ * Perfil, equipos con sus permisos, equipos que sigue y temporada en curso de
+ * cada club.
  *
- * Tres consultas y no una: el perfil y los equipos no dependen entre sí, así
- * que van a la vez; las temporadas necesitan saber de qué clubes preguntar,
- * así que esperan. Con un equipo, que es el caso de hoy, son dos viajes.
+ * Cuatro consultas y no una: el perfil, los equipos y los seguidos no dependen
+ * entre sí, así que van a la vez; las temporadas necesitan saber de qué clubes
+ * preguntar, así que esperan. Son dos viajes.
+ *
+ * LOS EQUIPOS SEGUIDOS SON MEMBRESÍAS SIN PERMISOS (T-301c, DOC 04 §15.3).
+ * `team_followers` no tiene `is_active`: se sigue o no se sigue. La política
+ * de la tabla deja leer también los seguidores de un equipo a quien tiene
+ * `members.manage`, y por eso se filtra por `user_id`.
  *
  * La RLS decide qué vuelve. Aquí no se filtra por seguridad, se filtra por
  * pertinencia: `is_active` deja fuera a quien está dado de baja sin perder su
  * historial (DOC 05 §5.5).
  */
 export async function fetchContextoDeAcceso(userId: string): Promise<ContextoDeAcceso> {
-  const [perfil, miembros] = await Promise.all([
+  const [perfil, miembros, seguidos] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
     supabase
       .from('team_members')
-      .select(
-        'id, role, teams(id, club_id, name, category, crest_url, primary_color), team_member_permissions(permission)',
-      )
+      .select(`id, role, teams(${COLUMNAS_EQUIPO}), team_member_permissions(permission)`)
       .eq('user_id', userId)
       .eq('is_active', true),
+    supabase.from('team_followers').select(`teams(${COLUMNAS_EQUIPO})`).eq('user_id', userId),
   ]);
 
   if (perfil.error) {
@@ -58,7 +65,11 @@ export async function fetchContextoDeAcceso(userId: string): Promise<ContextoDeA
     throw miembros.error;
   }
 
-  const memberships = construirMembresias(miembros.data ?? []);
+  if (seguidos.error) {
+    throw seguidos.error;
+  }
+
+  const memberships = construirMembresias(miembros.data ?? [], seguidos.data ?? []);
 
   return {
     profile: perfil.data,

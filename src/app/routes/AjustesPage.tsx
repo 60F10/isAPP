@@ -1,6 +1,8 @@
 // Pantalla C01 — Ajustes (T-107, DOC 02 §2 y §5.2).
 //
-// Tres cosas: alto contraste, movimiento reducido y cerrar sesión.
+// Tres cosas: alto contraste, movimiento reducido y cerrar sesión. Desde la
+// T-301c, también los equipos que se siguen: una línea por equipo con «Dejar
+// de seguir», y el enlace a «Unirse a un equipo».
 //
 // Vive en `app/` y no en un módulo porque es del ámbito `platform`, que no
 // tiene carpeta en `modules/` (DOC 06 §3.3). Entra en perezoso desde el
@@ -18,6 +20,8 @@ import { Link, useNavigate } from 'react-router';
 // Rutas directas y no el barril: ver `AuthProvider`.
 import { cerrarSesion } from '@modules/auth/api/session';
 import { useAuth } from '@modules/auth/hooks/authContext';
+import { useDejarDeSeguir } from '@modules/auth/hooks/useSolicitudes';
+import { mensajeDeLaBase } from '@modules/auth/model/solicitudes';
 import { useAnnounce } from '@shared/hooks/announceContext';
 import {
   aplicarPreferencias,
@@ -67,7 +71,13 @@ function Opcion({ etiqueta, ayuda, marcada, alCambiar }: OpcionProps) {
 }
 
 export function AjustesPage() {
-  const { session, profile } = useAuth();
+  const { session, profile, teams, reintentarContexto } = useAuth();
+  const dejarDeSeguir = useDejarDeSeguir();
+  const [falloAlDejar, setFalloAlDejar] = useState<string | null>(null);
+  // La línea del equipo desaparece al dejar de seguirlo, y el foco con ella
+  // (2.4.3): pasa al título de la tarjeta.
+  const tituloDeEquipos = useRef<HTMLHeadingElement>(null);
+  const seguidos = teams === null ? [] : teams.filter((membresia) => membresia.seguidor === true);
   const anunciar = useAnnounce();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -175,6 +185,52 @@ export function AjustesPage() {
           />
         </div>
         <p className={styles.nota}>Se guardan en este dispositivo.</p>
+      </Card>
+
+      <Card title="Equipos que sigues" headingLevel={2} headingRef={tituloDeEquipos}>
+        {seguidos.length === 0 ? (
+          <p className={styles.nota}>
+            {teams === null
+              ? 'Cargando…'
+              : 'Ahora mismo solo ves los equipos donde tienes función.'}
+          </p>
+        ) : (
+          <ul className={styles.seguidos}>
+            {seguidos.map(({ team }) => (
+              <li key={team.id} className={styles.seguido}>
+                <span className={styles.etiqueta}>{team.name}</span>
+                <Button
+                  variant="secondary"
+                  aria-label={`Dejar de seguir a ${team.name}`}
+                  disabled={dejarDeSeguir.isPending}
+                  onClick={() => {
+                    setFalloAlDejar(null);
+                    dejarDeSeguir.mutate(team.id, {
+                      onSuccess: () => {
+                        tituloDeEquipos.current?.focus();
+                        reintentarContexto();
+                        anunciar(`Has dejado de seguir a ${team.name}`);
+                      },
+                      onError: (error) => {
+                        const mensaje = mensajeDeLaBase(error);
+                        setFalloAlDejar(mensaje);
+                        anunciar(mensaje);
+                      },
+                    });
+                  }}
+                >
+                  {dejarDeSeguir.isPending && dejarDeSeguir.variables === team.id
+                    ? 'Dejando de seguir…'
+                    : 'Dejar de seguir'}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {falloAlDejar === null ? null : <p className={styles.fallo}>{falloAlDejar}</p>}
+        <p>
+          <Link to="/unirse">Seguir a otro equipo</Link>
+        </p>
       </Card>
 
       <Card title="Cuenta" headingLevel={2}>

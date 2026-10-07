@@ -5,8 +5,10 @@ export { AuthCallbackPage } from './routes/AuthCallbackPage';
 export { ForbiddenPage } from './routes/ForbiddenPage';
 export { LoginPage } from './routes/LoginPage';
 export { PersonasPage } from './routes/PersonasPage';
+export { UnirsePage } from './routes/UnirsePage';
 
 export { InvitacionesPendientes } from './components/InvitacionesPendientes';
+export { SinEquipo } from './components/SinEquipo';
 
 export { authKeys } from './api/queryKeys';
 export { fetchContextoDeAcceso, RUTA_VUELTA } from './api/session';

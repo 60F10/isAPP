@@ -73,3 +73,22 @@
   flex-wrap: wrap;
   gap: var(--tap-gap);
 }
+
+/* Equipos que se siguen (T-301c). A 320 px o con el texto al 200 %, el botón
+   baja debajo del nombre en vez de desbordar (1.4.10). */
+.seguidos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tap-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.seguido {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tap-gap);
+}

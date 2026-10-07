@@ -273,6 +273,13 @@ export const router = createBrowserRouter([
                 ],
               },
 
+              // --- Unirse a un equipo (T-301c). Sin permiso A PROPÓSITO: es la
+              // pantalla de quien todavía no tiene ninguno. Basta la sesión.
+              {
+                path: 'unirse',
+                lazy: async () => ({ Component: (await import('@modules/auth')).UnirsePage }),
+              },
+
               // --- Ajustes. Sin permiso: son los del propio usuario. --------
               // Perezosa por ruta directa: `platform` no tiene barril (DOC 06
               // §3.3) y nada más la importa, así que sale en su propio trozo.

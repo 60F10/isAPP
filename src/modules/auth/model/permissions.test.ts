@@ -176,3 +176,46 @@ describe('el equipo recordado', () => {
     expect(() => recordarEquipo('eq-1')).not.toThrow();
   });
 });
+
+describe('construirMembresias con equipos seguidos (T-301c)', () => {
+  const seguido = (idEquipo: string, nombre: string) => ({
+    teams: filaDe(idEquipo, nombre, []).teams,
+  });
+
+  it('un seguidor sale como membresía sin permisos y sin fila de miembro', () => {
+    const [membresia] = construirMembresias([], [seguido('eq-1', 'Cadete A')]);
+
+    expect(membresia.seguidor).toBe(true);
+    expect(membresia.teamMemberId).toBeNull();
+    expect(membresia.role).toBeNull();
+    expect(membresia.team.name).toBe('Cadete A');
+    expect(membresia.permissions.size).toBe(0);
+    expect(permisosDe([membresia], 'eq-1').size).toBe(0);
+  });
+
+  it('miembro y seguidor del mismo equipo es una sola membresía, la de miembro', () => {
+    const membresias = construirMembresias(
+      [filaDe('eq-1', 'Cadete A', ['stats.view'])],
+      [seguido('eq-1', 'Cadete A')],
+    );
+
+    expect(membresias).toHaveLength(1);
+    expect(membresias[0].seguidor).toBe(false);
+    expect(membresias[0].teamMemberId).toBe('miembro-eq-1');
+    expect(membresias[0].permissions.has('stats.view')).toBe(true);
+  });
+
+  it('los equipos con función van antes que los seguidos, para que el activo no cambie al seguir', () => {
+    const membresias = construirMembresias(
+      [filaDe('eq-2', 'Cadete B', [])],
+      [seguido('eq-1', 'Alevín A')],
+    );
+
+    expect(membresias.map((membresia) => membresia.team.name)).toEqual(['Cadete B', 'Alevín A']);
+    expect(elegirEquipoActivo(membresias, null)).toBe('eq-2');
+  });
+
+  it('descarta el equipo seguido que la RLS no deja leer', () => {
+    expect(construirMembresias([], [{ teams: null }])).toEqual([]);
+  });
+});

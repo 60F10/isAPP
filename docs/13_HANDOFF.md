@@ -5,6 +5,45 @@
 
 ---
 
+## Sesión 07/10/2026, noche — T-301c: entrar sin equipo, seguir y pedir permisos: ✅ cerrada
+
+Sesión lanzada por Raúl desde el traspaso, en la nube, rama `feat/auth-entrada-sin-equipo`. Sin
+migración ni SQL: todo va por las funciones de la T-301a.
+
+- **«Unirse a un equipo» existe** (A01b, `/unirse`, `modules/auth`, perezosa por el barril, sin
+  guardia de permiso). Lista los equipos de `equipos_que_admiten_solicitudes`; «Seguir» es
+  inmediato y recarga el contexto, y «Quiero anotar: pedir permisos» deja una solicitud con un
+  mensaje opcional de hasta 280 caracteres. Arriba, las solicitudes propias, con «Cancelar» en las
+  pendientes. Se llega desde la tarjeta «¿Buscas tu equipo?» de Inicio, desde la C05 y desde
+  Ajustes.
+- **La A07 resuelve.** «Solicitudes de permisos» solo sale si hay alguna, y entonces es la
+  primera: aceptar pide rol y permisos y va por `resolver_solicitud`. «Seguidores» los lista y los
+  quita, y «Lista de equipos» es la casilla que escribe `teams.accepts_requests`, solo con
+  `team.manage`.
+- **El seguidor es una membresía sin permisos.** `fetchContextoDeAcceso` lee también
+  `team_followers`, y `construirMembresias` lo devuelve con `seguidor: true`, sin fila de miembro y
+  sin rol; los equipos con función van delante, para que seguir a otro no le cambie el equipo
+  activo a nadie. Ve Inicio y el calendario, y las rutas con guardia le mandan a la C05. Deja de
+  seguir desde Ajustes. La A07 no cuenta la membresía de quien solo sigue.
+- Lint, formato, **870 pruebas en 65 archivos** (eran 842 en 63) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`.
+- **Paquete inicial: 179,04 kB comprimidos**, con el recorrido de siempre; `main` daba 179,38. El
+  contexto de acceso le añade 0,2 kB a `App-*.js`, y Rollup junta ahora en un solo trozo lo que
+  antes eran `QueryClientProvider-*.js` y `useQuery-*.js`. **`auth-*.js` sube de 7,30 a 9,50 kB.**
+- **Deuda.** No hay avisos: quien lleva el equipo solo ve una solicitud si abre la A07. El seguidor
+  no tiene estadísticas que mirar hasta que exista el bloque B, y los accesos rápidos de Inicio le
+  llevan a la C05. Quitar a un seguidor no le impide volver (punto 69), y sacar al equipo de la
+  lista no quita a quien ya lo sigue. Nadie cambia de equipo activo desde la aplicación: quien
+  tiene función en un equipo y sigue otro no llega a ver el seguido. `mensajeDeLaBase` repite la
+  función privada de `InvitacionesPendientes`. Tocados fuera de la tabla del traspaso:
+  `api/queryKeys.ts`, `AjustesPage.module.css` y `AjustesPage.test.tsx`.
+- **Sin probar contra la base de verdad ni en un móvil.** La prueba es la de la PR: poner el
+  Cadete A en la lista desde la A07, seguirlo con la tercera cuenta y ver el calendario, y pedir
+  permisos con ella y aceptarla con la de Raúl.
+- **Lo siguiente** es la T-304, que tiene que estar fusionada el jueves 15, y después la T-302.
+
+---
+
 ## Sesión 07/10/2026, noche — T-301b: personas y permisos (A07), e invitaciones en Inicio: ✅ cerrada
 
 Sesión lanzada por Raúl desde el traspaso, en la nube, rama `feat/auth-personas-permisos`. Sin
@@ -730,7 +769,9 @@ Pendiente de hacer:
     (T-301b) y la entrada (T-301c). Raúl no ha dicho nada de que los equipos nazcan fuera de la
     lista: es como está escrito, y se cambia con una casilla.
     **La T-301a está aplicada desde el 07/10**: quedan la A07 y la entrada.
+    **Cerrado el 07/10**: la A07 (T-301b) y la entrada (T-301c) están en `main`.
 15. **A01b no está en el inventario del DOC 02.** O entra como parada técnica, o se le da otro sitio.
+    **Cerrado el 07/10**: es «Unirse a un equipo», `/unirse`, con su fila en el DOC 02 §2 (T-301c).
 16. **El contrato de `AuthState` mezcla idiomas**: `cargando`, `permisos` y `reintentarContexto`
     junto a `profile` y `activeTeamId`. Decidir y unificar con el DOC 06 §5.5.
 17. **Un club puede enlazar objetos de otro club en sus propias filas** (los catorce avisos de la
