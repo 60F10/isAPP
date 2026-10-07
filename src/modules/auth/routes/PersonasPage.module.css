@@ -171,7 +171,9 @@
   margin: 0;
 }
 
-.pregunta:focus-visible {
+.pregunta:focus-visible,
+.fallo:focus-visible,
+.nombre:focus-visible {
   outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
 }

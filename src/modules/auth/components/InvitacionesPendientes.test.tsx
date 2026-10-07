@@ -116,7 +116,7 @@ describe('InvitacionesPendientes', () => {
   it('si aceptar falla, enseña el mensaje de la base tal cual', async () => {
     api.misInvitaciones.mockResolvedValue([INVITACION]);
     api.aceptarInvitacion.mockRejectedValue({
-      code: 'P0001',
+      code: 'P0002',
       message: 'La invitación ha caducado.',
     });
     const usuario = userEvent.setup();
@@ -128,5 +128,48 @@ describe('InvitacionesPendientes', () => {
 
     expect(await screen.findByText('La invitación ha caducado.')).toBeInTheDocument();
     expect(reintentarContexto).not.toHaveBeenCalled();
+  });
+
+  it('si aceptar falla y la lista vuelve vacía, la tarjeta sigue con el mensaje y «Cerrar»', async () => {
+    api.misInvitaciones.mockResolvedValueOnce([INVITACION]).mockResolvedValue([]);
+    api.aceptarInvitacion.mockRejectedValue({
+      code: 'P0002',
+      message: 'La invitación ya no está vigente.',
+    });
+    const usuario = userEvent.setup();
+    const { container } = montar();
+
+    await usuario.click(
+      await screen.findByRole('button', { name: 'Aceptar la invitación a Cadete A' }),
+    );
+
+    const mensaje = await screen.findByText('La invitación ya no está vigente.');
+
+    await vi.waitFor(() => {
+      expect(mensaje).toHaveFocus();
+    });
+    expect(screen.getByRole('heading', { name: 'Invitaciones' })).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+    await vi.waitFor(() => {
+      expect(container).toBeEmptyDOMElement();
+    });
+  });
+
+  it('un error que no viene de las funciones de la base no se enseña tal cual', async () => {
+    api.misInvitaciones.mockResolvedValue([INVITACION]);
+    api.aceptarInvitacion.mockRejectedValue({ code: 'PGRST301', message: 'JWT expired' });
+    const usuario = userEvent.setup();
+    montar();
+
+    await usuario.click(
+      await screen.findByRole('button', { name: 'Aceptar la invitación a Cadete A' }),
+    );
+
+    expect(
+      await screen.findByText('No se ha podido completar. Vuelve a intentarlo.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('JWT expired')).not.toBeInTheDocument();
   });
 });

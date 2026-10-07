@@ -8,8 +8,6 @@
 //
 // De las personas, aquí solo hay `display_name`.
 
-import { mensajeDeErrorAlGuardar } from '@shared/lib/guardado';
-
 import type { Enums } from '@app-types/database.types';
 
 export type EstadoDeSolicitud = Enums<'access_request_status'>;
@@ -98,16 +96,21 @@ export function nombreDePersona(nombre: string | null): string {
   return nombre === null || nombre.trim() === '' ? 'Sin nombre' : nombre;
 }
 
+/** Los códigos que lanzan las funciones de la T-301a, con su mensaje en español. */
+const CODIGOS_DE_LAS_FUNCIONES = new Set(['42501', 'P0002', '23514', '23505']);
+
+const NO_SE_HA_PODIDO = 'No se ha podido completar. Vuelve a intentarlo.';
+
 /**
  * Frase para cuando una función de la base dice que no.
  *
  * Lo que rechaza la función ya viene en español y dice el motivo («Ese equipo
- * no admite seguidores»): se enseña tal cual. Lo que no viene de la función
- * —sin red, o un `PGRST…` de PostgREST, que habla en inglés— pasa por el
- * texto común.
+ * no admite seguidores»): se enseña tal cual, pero solo con los códigos que
+ * lanzan esas funciones (T-306). Cualquier otro error —sin red, un `PGRST…` de
+ * PostgREST, un `57014`— habla en inglés o no dice nada útil.
  *
- * DEUDA (T-301c): `InvitacionesPendientes` tiene una copia privada de esta
- * misma función desde la T-301b.
+ * La usan las dos pantallas que llaman a esas funciones: «Unirse a un equipo»
+ * y la tarjeta de invitaciones de Inicio.
  */
 export function mensajeDeLaBase(error: unknown): string {
   if (
@@ -115,7 +118,7 @@ export function mensajeDeLaBase(error: unknown): string {
     error !== null &&
     'code' in error &&
     typeof error.code === 'string' &&
-    !error.code.startsWith('PGRST') &&
+    CODIGOS_DE_LAS_FUNCIONES.has(error.code) &&
     'message' in error &&
     typeof error.message === 'string' &&
     error.message !== ''
@@ -123,7 +126,7 @@ export function mensajeDeLaBase(error: unknown): string {
     return error.message;
   }
 
-  return mensajeDeErrorAlGuardar(error);
+  return NO_SE_HA_PODIDO;
 }
 
 /** «6 de octubre», en la hora del móvil. */

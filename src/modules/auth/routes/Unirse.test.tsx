@@ -55,6 +55,7 @@ const SIGUE_AL_CADETE: Membership = {
 function montar(teams: readonly Membership[] = []) {
   const anunciar = vi.fn();
   const reintentarContexto = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const auth: AuthState = {
     session: { user: { id: 'usuario-9' } } as Session,
     cargando: false,
@@ -72,9 +73,7 @@ function montar(teams: readonly Membership[] = []) {
   });
 
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
+    <QueryClientProvider client={client}>
       <AuthContext value={auth}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
@@ -83,7 +82,7 @@ function montar(teams: readonly Membership[] = []) {
     </QueryClientProvider>,
   );
 
-  return { anunciar, reintentarContexto };
+  return { anunciar, reintentarContexto, client };
 }
 
 /** La fila de la tarjeta «Equipos» que nombra a `equipo`. */
@@ -271,5 +270,54 @@ describe('Unirse a un equipo', () => {
         'Ningún equipo está en la lista ahora mismo. Pide a quien lleve el tuyo que te invite a este correo.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('tras «Cancelar», el foco está en el título de «Mis solicitudes»', async () => {
+    api.misSolicitudes.mockResolvedValue([
+      { id: 'sol-1', teamId: 'eq-1', status: 'pending', createdAt: '2026-10-06T10:00:00Z' },
+    ]);
+    const usuario = userEvent.setup();
+    montar();
+
+    await usuario.click(
+      await screen.findByRole('button', { name: 'Cancelar la solicitud a Cadete A' }),
+    );
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole('heading', { level: 2, name: 'Mis solicitudes' })).toHaveFocus();
+    });
+  });
+
+  it('tras «Seguir», la fila dice «Siguiendo» aunque el contexto no haya vuelto', async () => {
+    const usuario = userEvent.setup();
+    montar();
+
+    const fila = within(await filaDe('Cadete A'));
+    await usuario.click(fila.getByRole('button', { name: 'Seguir a Cadete A' }));
+
+    expect(await fila.findByText('Siguiendo')).toBeInTheDocument();
+    expect(fila.getByRole('button', { name: 'Dejar de seguir a Cadete A' })).toBeInTheDocument();
+  });
+
+  it('una solicitud recién pedida deja de decir «pendiente» cuando la lista trae su resolución', async () => {
+    const usuario = userEvent.setup();
+    const { client } = montar();
+
+    const fila = within(await filaDe('Cadete A'));
+    await usuario.click(
+      fila.getByRole('button', { name: 'Quiero anotar: pedir permisos en Cadete A' }),
+    );
+    await usuario.click(fila.getByRole('button', { name: 'Enviar' }));
+    expect(await fila.findByText(/Solicitud pendiente/)).toBeInTheDocument();
+
+    // Quien lleva el equipo la rechaza y la lista de solicitudes se recarga.
+    api.misSolicitudes.mockResolvedValue([
+      { id: 'sol-9', teamId: 'eq-1', status: 'rejected', createdAt: '2026-10-07T10:00:00Z' },
+    ]);
+    await client.invalidateQueries();
+
+    await vi.waitFor(() => {
+      expect(fila.queryByText(/Solicitud pendiente/)).not.toBeInTheDocument();
+    });
   });
 });

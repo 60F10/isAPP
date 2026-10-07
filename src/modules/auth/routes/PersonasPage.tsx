@@ -62,11 +62,15 @@ import {
   cambiosDePermisos,
   DESCRIPCION_DE_PERMISO,
   enOrden,
+  esGuardadoAMedias,
+  esPermisosCambiados,
   NOMBRES_DE_ROL,
   nombreDeMiembro,
   PERMISOS,
   PLANTILLAS_DE_ROL,
   ROLES,
+  TEXTO_GUARDADO_A_MEDIAS,
+  TEXTO_PERMISOS_CAMBIADOS,
   textoDePermisos,
   validarInvitacion,
 } from '../model/personas';
@@ -160,6 +164,24 @@ function CasillasDePermisos({ marcados, alCambiar, bloqueado }: CasillasDePermis
   );
 }
 
+/**
+ * Lleva el foco al mensaje de error cuando aparece (2.4.3). El botón que lo
+ * tenía estaba desactivado mientras se guardaba, y al reactivarse el foco ya
+ * se había ido a `body`. Devuelve el `ref` del elemento del mensaje, que
+ * tiene que llevar `tabIndex={-1}`.
+ */
+function useFocoAlFallar<T extends HTMLElement>(fallo: string | null): RefObject<T | null> {
+  const mensaje = useRef<T>(null);
+
+  useEffect(() => {
+    if (fallo !== null) {
+      mensaje.current?.focus();
+    }
+  }, [fallo]);
+
+  return mensaje;
+}
+
 /** Marca o desmarca un permiso sin tocar el conjunto anterior. */
 function conCambio(
   marcados: ReadonlySet<AppPermission>,
@@ -182,57 +204,120 @@ function conCambio(
 // ---------------------------------------------------------------------------
 
 interface FilaMiembroProps {
+  teamId: string;
   miembro: Miembro;
   /** Si la fila es la de quien está usando la pantalla. */
   esUnoMismo: boolean;
 }
 
-function FilaMiembro({ miembro, esUnoMismo }: FilaMiembroProps) {
+function FilaMiembro({ teamId, miembro, esUnoMismo }: FilaMiembroProps) {
   const anunciar = useAnnounce();
-  const guardar = useGuardarMiembro();
-  const cambiarActivo = useCambiarActivo();
+  const guardar = useGuardarMiembro(teamId);
+  const cambiarActivo = useCambiarActivo(teamId);
   const idAccion = useId();
   const idFormulario = useId();
   const idMotivoBaja = useId();
+  const idNombre = useId();
+  const idDarDeBaja = useId();
   const nombre = nombreDeMiembro(miembro);
   const [editando, setEditando] = useState(false);
-  // Al cerrar la edición, el foco vuelve al botón que la abrió (2.4.3).
-  const devolverFoco = useRef(false);
+  // Al cerrar la edición, el foco vuelve al botón que la abrió (2.4.3), o al
+  // nombre de la persona si acaba de darse de baja.
+  const devolverFoco = useRef<'accion' | 'nombre' | null>(null);
   const [rol, setRol] = useState<TeamRole>(miembro.role);
   const [marcados, setMarcados] = useState<ReadonlySet<AppPermission>>(
     () => new Set(miembro.permisos),
   );
+  // La foto de los permisos al abrir «Editar»: «Guardar» calcula sus cambios
+  // contra ella y no contra lo que traiga la lista ahora, que otra persona
+  // puede haber cambiado mientras tanto.
+  const [foto, setFoto] = useState<readonly AppPermission[]>(miembro.permisos);
   const [confirmandoBaja, setConfirmandoBaja] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
+  const mensaje = useFocoAlFallar<HTMLParagraphElement>(fallo);
+  const mensajeEnLinea = useFocoAlFallar<HTMLSpanElement>(fallo);
+  const pregunta = useRef<HTMLParagraphElement>(null);
+  const preguntando = useRef(false);
   const ocupado = guardar.isPending || cambiarActivo.isPending;
+  // Lo último que trae la lista, para volver a sembrar el formulario con ello.
+  const ultimo = useRef(miembro);
+  const resembrar = useRef(false);
+
+  useEffect(() => {
+    ultimo.current = miembro;
+
+    // Tras un conflicto la lista ya se ha recargado con lo que hay de verdad.
+    if (resembrar.current) {
+      resembrar.current = false;
+      setRol(miembro.role);
+      setMarcados(new Set(miembro.permisos));
+      setFoto(miembro.permisos);
+    }
+  }, [miembro]);
 
   useEffect(() => {
     if (editando) {
       document.getElementById(idFormulario)?.focus();
-    } else if (devolverFoco.current) {
-      devolverFoco.current = false;
-      document.getElementById(idAccion)?.focus();
-    }
-  }, [editando, idFormulario, idAccion]);
+    } else if (devolverFoco.current !== null) {
+      const destino = devolverFoco.current === 'nombre' ? idNombre : idAccion;
 
-  const cerrar = () => {
-    devolverFoco.current = true;
+      devolverFoco.current = null;
+      document.getElementById(destino)?.focus();
+    }
+  }, [editando, idFormulario, idAccion, idNombre]);
+
+  // Dar de baja: al abrir la pregunta el foco va a ella, y con «No, dejarlo»
+  // vuelve a «Dar de baja». Si se cierra todo, el foco lo lleva el efecto de
+  // arriba.
+  useEffect(() => {
+    if (confirmandoBaja) {
+      preguntando.current = true;
+      pregunta.current?.focus();
+    } else if (preguntando.current) {
+      preguntando.current = false;
+
+      if (editando) {
+        document.getElementById(idDarDeBaja)?.focus();
+      }
+    }
+  }, [confirmandoBaja, editando, idDarDeBaja]);
+
+  const cerrar = (destino: 'accion' | 'nombre' = 'accion') => {
+    devolverFoco.current = destino;
+    resembrar.current = false;
     setEditando(false);
     setConfirmandoBaja(false);
     setFallo(null);
   };
 
   const alFallar = (error: unknown) => {
-    const mensaje = mensajeDeErrorAlGuardar(error);
-    setFallo(mensaje);
-    anunciar(mensaje);
+    let texto: string;
+
+    if (esGuardadoAMedias(error)) {
+      texto = TEXTO_GUARDADO_A_MEDIAS;
+    } else if (esPermisosCambiados(error)) {
+      texto = TEXTO_PERMISOS_CAMBIADOS;
+    } else {
+      texto = mensajeDeErrorAlGuardar(error);
+    }
+
+    // En un conflicto, o si quedó a medias, el formulario enseña lo que hay.
+    if (esGuardadoAMedias(error) || esPermisosCambiados(error)) {
+      setRol(ultimo.current.role);
+      setMarcados(new Set(ultimo.current.permisos));
+      setFoto(ultimo.current.permisos);
+      resembrar.current = true;
+    }
+
+    setFallo(texto);
+    anunciar(texto);
   };
 
   if (!editando) {
     return (
       <li className={styles.fila}>
         <div className={styles.datos}>
-          <span className={styles.nombre}>
+          <span id={idNombre} className={styles.nombre} tabIndex={-1}>
             {nombre}
             {esUnoMismo ? <span className={styles.detalle}> (tú)</span> : null}
           </span>
@@ -240,7 +325,11 @@ function FilaMiembro({ miembro, esUnoMismo }: FilaMiembroProps) {
             {NOMBRES_DE_ROL[miembro.role]} · {textoDePermisos(miembro.permisos.length)}
           </span>
           {miembro.activo ? null : <span className={styles.marca}>De baja</span>}
-          {fallo === null ? null : <span className={styles.fallo}>{fallo}</span>}
+          {fallo === null ? null : (
+            <span ref={mensajeEnLinea} className={styles.fallo} tabIndex={-1}>
+              {fallo}
+            </span>
+          )}
         </div>
         <div className={styles.acciones}>
           {miembro.activo ? (
@@ -251,7 +340,9 @@ function FilaMiembro({ miembro, esUnoMismo }: FilaMiembroProps) {
               onClick={() => {
                 setRol(miembro.role);
                 setMarcados(new Set(miembro.permisos));
+                setFoto(miembro.permisos);
                 setFallo(null);
+                resembrar.current = false;
                 setEditando(true);
               }}
             >
@@ -296,7 +387,7 @@ function FilaMiembro({ miembro, esUnoMismo }: FilaMiembroProps) {
           evento.preventDefault();
           setFallo(null);
 
-          const cambios = cambiosDePermisos(miembro.permisos, marcados);
+          const cambios = cambiosDePermisos(foto, marcados);
           const rolNuevo = rol === miembro.role ? null : rol;
 
           if (rolNuevo === null && cambios.altas.length === 0 && cambios.bajas.length === 0) {
@@ -355,13 +446,22 @@ function FilaMiembro({ miembro, esUnoMismo }: FilaMiembroProps) {
           }
         />
 
-        {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+        {fallo === null ? null : (
+          <p ref={mensaje} className={styles.fallo} tabIndex={-1}>
+            {fallo}
+          </p>
+        )}
 
         <div className={styles.acciones}>
           <Button type="submit" variant="primary" disabled={ocupado}>
             {guardar.isPending ? 'Guardando…' : 'Guardar'}
           </Button>
-          <Button variant="secondary" onClick={cerrar}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              cerrar();
+            }}
+          >
             Cancelar
           </Button>
         </div>
@@ -369,7 +469,7 @@ function FilaMiembro({ miembro, esUnoMismo }: FilaMiembroProps) {
         <div className={styles.zonaDeBaja}>
           {confirmandoBaja ? (
             <>
-              <p className={styles.nota}>
+              <p ref={pregunta} className={styles.pregunta} tabIndex={-1}>
                 ¿Dar de baja a {nombre}? Dejará de entrar en el equipo. No se borra nada de lo que
                 ha apuntado, y se puede reactivar después.
               </p>
@@ -384,7 +484,7 @@ function FilaMiembro({ miembro, esUnoMismo }: FilaMiembroProps) {
                       {
                         onSuccess: () => {
                           anunciar(`${nombre} dado de baja`);
-                          cerrar();
+                          cerrar('nombre');
                         },
                         onError: alFallar,
                       },
@@ -407,6 +507,7 @@ function FilaMiembro({ miembro, esUnoMismo }: FilaMiembroProps) {
             <>
               <div>
                 <Button
+                  id={idDarDeBaja}
                   variant="ghost"
                   disabled={esUnoMismo || ocupado}
                   aria-describedby={esUnoMismo ? idMotivoBaja : undefined}
@@ -468,6 +569,7 @@ function Miembros({ teamId }: DeEquipoProps) {
       {miembros.data.map((miembro) => (
         <FilaMiembro
           key={miembro.teamMemberId}
+          teamId={teamId}
           miembro={miembro}
           esUnoMismo={miembro.userId === yo}
         />
@@ -494,6 +596,8 @@ function Invitar({ teamId }: DeEquipoProps) {
   const [errorDeCorreo, setErrorDeCorreo] = useState<string | undefined>(undefined);
   const [fallo, setFallo] = useState<string | null>(null);
   const [guardada, setGuardada] = useState(false);
+  const idCorreo = useId();
+  const mensaje = useFocoAlFallar<HTMLParagraphElement>(fallo);
   // `navigator.share` no existe en el escritorio ni fuera de HTTPS.
   const sePuedeCompartir = typeof navigator.share === 'function';
 
@@ -511,6 +615,7 @@ function Invitar({ teamId }: DeEquipoProps) {
 
         if (resultado.email === null) {
           anunciar('Revisa el correo');
+          document.getElementById(idCorreo)?.focus();
           return;
         }
 
@@ -534,6 +639,7 @@ function Invitar({ teamId }: DeEquipoProps) {
       {/* `type="text"` con teclado de correo: un `type="email"` controlado se
           come los espacios a su manera y descoloca el cursor al escribir. */}
       <Field
+        id={idCorreo}
         label="Correo"
         hint="El de su cuenta de Google. No se le envía ningún correo."
         required
@@ -546,6 +652,8 @@ function Invitar({ teamId }: DeEquipoProps) {
         error={errorDeCorreo}
         onChange={(evento) => {
           setCorreo(evento.target.value);
+          // «Invitación guardada» era del correo anterior.
+          setGuardada(false);
         }}
       />
 
@@ -567,7 +675,11 @@ function Invitar({ teamId }: DeEquipoProps) {
         }}
       />
 
-      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+      {fallo === null ? null : (
+        <p ref={mensaje} className={styles.fallo} tabIndex={-1}>
+          {fallo}
+        </p>
+      )}
 
       <div>
         <Button type="submit" variant="primary" iconStart="plus" disabled={invitar.isPending}>
@@ -618,13 +730,19 @@ function textoDeCaducidad(invitacion: Invitacion, ahora: number): string {
   return caduca.getTime() <= ahora ? `Caducó el ${dia}` : `Caduca el ${dia}`;
 }
 
-function InvitacionesDelEquipo({ teamId }: DeEquipoProps) {
+interface InvitacionesDelEquipoProps extends DeEquipoProps {
+  /** El título de la tarjeta, a donde va el foco cuando la fila revocada se va. */
+  focoAlRevocar: RefObject<HTMLHeadingElement | null>;
+}
+
+function InvitacionesDelEquipo({ teamId, focoAlRevocar }: InvitacionesDelEquipoProps) {
   const anunciar = useAnnounce();
   const invitaciones = useInvitaciones(teamId);
   // La mutación vive aquí y no en cada fila: al revocar, la fila desaparece, y
   // una mutación cuyo componente se desmonta pierde sus `onSuccess`.
   const revocar = useRevocarInvitacion(teamId);
   const [fallo, setFallo] = useState<string | null>(null);
+  const mensaje = useFocoAlFallar<HTMLParagraphElement>(fallo);
   // La hora de abrir la pantalla basta: aquí solo separa «caduca» de «caducó».
   const ahora = useAhora(false);
 
@@ -667,6 +785,8 @@ function InvitacionesDelEquipo({ teamId }: DeEquipoProps) {
                     setFallo(null);
                     revocar.mutate(invitacion.id, {
                       onSuccess: () => {
+                        // La fila se va con el foco dentro (2.4.3).
+                        focoAlRevocar.current?.focus();
                         anunciar(`Invitación de ${invitacion.email} revocada`);
                       },
                       onError: (error) => {
@@ -686,7 +806,11 @@ function InvitacionesDelEquipo({ teamId }: DeEquipoProps) {
           ))}
         </ul>
       )}
-      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+      {fallo === null ? null : (
+        <p ref={mensaje} className={styles.fallo} tabIndex={-1}>
+          {fallo}
+        </p>
+      )}
     </>
   );
 }
@@ -866,6 +990,7 @@ function Solicitudes({ teamId, focoAlVaciarse }: SolicitudesProps) {
   const resolver = useResolverSolicitud(teamId);
   const titulo = useRef<HTMLHeadingElement>(null);
   const [fallo, setFallo] = useState<string | null>(null);
+  const mensaje = useFocoAlFallar<HTMLParagraphElement>(fallo);
   // La fila resuelta se lleva el foco con ella (2.4.3): pasa al título de esta
   // tarjeta, o al de «Miembros» si era la última.
   const recolocarFoco = useRef(false);
@@ -923,7 +1048,11 @@ function Solicitudes({ teamId, focoAlVaciarse }: SolicitudesProps) {
           );
         })}
       </ul>
-      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+      {fallo === null ? null : (
+        <p ref={mensaje} className={styles.fallo} tabIndex={-1}>
+          {fallo}
+        </p>
+      )}
     </Card>
   );
 }
@@ -1007,6 +1136,7 @@ function Seguidores({ teamId }: DeEquipoProps) {
   const quitar = useQuitarSeguidor(teamId);
   const titulo = useRef<HTMLHeadingElement>(null);
   const [fallo, setFallo] = useState<string | null>(null);
+  const mensaje = useFocoAlFallar<HTMLParagraphElement>(fallo);
   const recolocarFoco = useRef(false);
   const cuantos = seguidores.data === undefined ? 0 : seguidores.data.length;
 
@@ -1058,7 +1188,11 @@ function Seguidores({ teamId }: DeEquipoProps) {
           ))}
         </ul>
       )}
-      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+      {fallo === null ? null : (
+        <p ref={mensaje} className={styles.fallo} tabIndex={-1}>
+          {fallo}
+        </p>
+      )}
     </Card>
   );
 }
@@ -1149,6 +1283,7 @@ export function PersonasPage() {
   const { id } = useParams();
   const { teams } = useAuth();
   const tituloDeMiembros = useRef<HTMLHeadingElement>(null);
+  const tituloDeInvitaciones = useRef<HTMLHeadingElement>(null);
   // Seguir a un equipo no da entrada a su A07: solo cuenta tener función.
   const membresia =
     teams === null
@@ -1174,8 +1309,11 @@ export function PersonasPage() {
           <Card title="Invitar" headingLevel={2}>
             <Invitar teamId={membresia.team.id} />
           </Card>
-          <Card title="Invitaciones pendientes" headingLevel={2}>
-            <InvitacionesDelEquipo teamId={membresia.team.id} />
+          <Card title="Invitaciones pendientes" headingLevel={2} headingRef={tituloDeInvitaciones}>
+            <InvitacionesDelEquipo
+              teamId={membresia.team.id}
+              focoAlRevocar={tituloDeInvitaciones}
+            />
           </Card>
           <Seguidores teamId={membresia.team.id} />
           {membresia.permissions.has('team.manage') ? (

@@ -132,6 +132,38 @@ export function cambiosDePermisos(
   };
 }
 
+/**
+ * Marca de «el guardado de un miembro se quedó a medias»: el rol o parte de
+ * los permisos ya están en la base y lo demás no. La lanzan `api/` y el hook
+ * de guardar, y la pantalla la traduce a una frase (T-306).
+ */
+export const GUARDADO_A_MEDIAS = 'GUARDADO_A_MEDIAS';
+
+/**
+ * Marca de «otra persona ha cambiado los permisos mientras se editaban»: la
+ * base contestó 23505 o cero filas y todavía no se había guardado nada.
+ */
+export const PERMISOS_CAMBIADOS = 'PERMISOS_CAMBIADOS';
+
+/** Un error con la marca `marca` como mensaje. */
+function esMarca(error: unknown, marca: string): boolean {
+  return error instanceof Error && error.message === marca;
+}
+
+export function esGuardadoAMedias(error: unknown): boolean {
+  return esMarca(error, GUARDADO_A_MEDIAS);
+}
+
+export function esPermisosCambiados(error: unknown): boolean {
+  return esMarca(error, PERMISOS_CAMBIADOS);
+}
+
+export const TEXTO_GUARDADO_A_MEDIAS =
+  'Se ha guardado una parte. La lista ya enseña lo que hay: revísala y vuelve a guardar.';
+
+export const TEXTO_PERMISOS_CAMBIADOS =
+  'Otra persona ha cambiado estos permisos. La lista ya enseña lo que hay: revísala y vuelve a guardar.';
+
 export interface ResultadoInvitacion {
   /** El correo listo para guardar, o `null` si no vale. */
   email: string | null;

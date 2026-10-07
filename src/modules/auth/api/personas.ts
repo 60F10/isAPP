@@ -13,6 +13,8 @@
 import { SIN_FILAS } from '@shared/lib/guardado';
 import { supabase } from '@shared/lib/supabase';
 
+import { GUARDADO_A_MEDIAS } from '../model/personas';
+
 import type { CambiosDePermisos, Invitacion, InvitacionRecibida, Miembro } from '../model/personas';
 import type { AppPermission, TeamRole } from '../model/permissions';
 
@@ -79,12 +81,20 @@ export async function fetchInvitaciones(teamId: string): Promise<Invitacion[]> {
   return data.map(aInvitacion);
 }
 
-/** Cambia el rol. Lanza `SIN_FILAS` si la RLS no lo deja. */
-export async function guardarRol(teamMemberId: string, role: TeamRole): Promise<void> {
+/**
+ * Cambia el rol. Lanza `SIN_FILAS` si la RLS no lo deja. El equipo va en el
+ * filtro: la fila tiene que ser de ese equipo, no solo tener ese `id`.
+ */
+export async function guardarRol(
+  teamId: string,
+  teamMemberId: string,
+  role: TeamRole,
+): Promise<void> {
   const { data, error } = await supabase
     .from('team_members')
     .update({ role })
     .eq('id', teamMemberId)
+    .eq('team_id', teamId)
     .select('id')
     .maybeSingle();
 
@@ -113,7 +123,9 @@ export async function guardarPermisos(
   grantedBy: string,
   cambios: CambiosDePermisos,
 ): Promise<void> {
-  if (cambios.altas.length > 0) {
+  const hayAltas = cambios.altas.length > 0;
+
+  if (hayAltas) {
     const { error } = await supabase.from('team_member_permissions').insert(
       cambios.altas.map((permission) => ({
         team_member_id: teamMemberId,
@@ -135,25 +147,35 @@ export async function guardarPermisos(
       .in('permission', cambios.bajas)
       .select('permission');
 
+    // Si las altas ya entraron, la persona se queda con lo nuevo y sin perder
+    // lo quitado: se dice que fue a medias y no se disfraza de otro fallo.
     if (error) {
-      throw error;
+      throw hayAltas ? new Error(GUARDADO_A_MEDIAS, { cause: error }) : error;
     }
 
     if (data.length === 0) {
-      throw new Error(SIN_FILAS);
+      throw hayAltas ? new Error(GUARDADO_A_MEDIAS) : new Error(SIN_FILAS);
     }
   }
 }
 
 /**
  * Da de baja (`false`) o reactiva (`true`). No se borra a nadie: la fila se
- * queda con su historial. Lanza `SIN_FILAS` si la RLS no lo deja.
+ * queda con su historial. Lanza `SIN_FILAS` si la RLS no lo deja, si la fila
+ * no es de ese equipo o si ya estaba en el estado pedido (el estado de
+ * partida va en el filtro, para no pisar lo que otro haya cambiado).
  */
-export async function cambiarActivo(teamMemberId: string, activo: boolean): Promise<void> {
+export async function cambiarActivo(
+  teamId: string,
+  teamMemberId: string,
+  activo: boolean,
+): Promise<void> {
   const { data, error } = await supabase
     .from('team_members')
     .update({ is_active: activo })
     .eq('id', teamMemberId)
+    .eq('team_id', teamId)
+    .eq('is_active', !activo)
     .select('id')
     .maybeSingle();
 

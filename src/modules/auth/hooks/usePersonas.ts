@@ -6,6 +6,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { SIN_FILAS } from '@shared/lib/guardado';
+
 import {
   aceptarInvitacion,
   cambiarActivo,
@@ -18,7 +20,12 @@ import {
   revocarInvitacion,
 } from '../api/personas';
 import { authKeys } from '../api/queryKeys';
-import { ordenarMiembros } from '../model/personas';
+import {
+  esGuardadoAMedias,
+  GUARDADO_A_MEDIAS,
+  ordenarMiembros,
+  PERMISOS_CAMBIADOS,
+} from '../model/personas';
 import { useAuth } from './authContext';
 
 import type { CambiosDePermisos } from '../model/personas';
@@ -60,14 +67,25 @@ interface GuardarMiembro {
   cambios: CambiosDePermisos;
 }
 
+/** La base dice que la fila ya no es como era: otra persona la cambió. */
+function esConflicto(error: unknown): boolean {
+  if (error instanceof Error && error.message === SIN_FILAS) {
+    return true;
+  }
+
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
+}
+
 /**
  * Guarda el rol y los permisos de un miembro.
  *
  * DEUDA (T-301b): son hasta tres peticiones sin transacción. Si falla una a
  * medias, lo anterior ya está guardado; por eso se invalida también al fallar,
- * para que la lista se recargue y diga lo que hay de verdad.
+ * para que la lista se recargue y diga lo que hay de verdad. Desde la T-306 el
+ * fallo a medias lleva su marca (`GUARDADO_A_MEDIAS`), y el conflicto con otra
+ * persona la suya (`PERMISOS_CAMBIADOS`).
  */
-export function useGuardarMiembro() {
+export function useGuardarMiembro(teamId: string) {
   const { session } = useAuth();
   const queryClient = useQueryClient();
 
@@ -77,12 +95,30 @@ export function useGuardarMiembro() {
         throw new Error('Sin sesión.');
       }
 
+      const algoGuardado = role !== null;
+
       if (role !== null) {
-        await guardarRol(teamMemberId, role);
+        await guardarRol(teamId, teamMemberId, role);
       }
 
       if (cambios.altas.length > 0 || cambios.bajas.length > 0) {
-        await guardarPermisos(teamMemberId, session.user.id, cambios);
+        try {
+          await guardarPermisos(teamMemberId, session.user.id, cambios);
+        } catch (error) {
+          if (esGuardadoAMedias(error)) {
+            throw error;
+          }
+
+          if (algoGuardado) {
+            throw new Error(GUARDADO_A_MEDIAS, { cause: error });
+          }
+
+          if (esConflicto(error)) {
+            throw new Error(PERMISOS_CAMBIADOS, { cause: error });
+          }
+
+          throw error;
+        }
       }
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: authKeys.all }),
@@ -90,12 +126,12 @@ export function useGuardarMiembro() {
 }
 
 /** Da de baja o reactiva a un miembro. */
-export function useCambiarActivo() {
+export function useCambiarActivo(teamId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ teamMemberId, activo }: { teamMemberId: string; activo: boolean }) =>
-      cambiarActivo(teamMemberId, activo),
+      cambiarActivo(teamId, teamMemberId, activo),
     onSettled: () => queryClient.invalidateQueries({ queryKey: authKeys.all }),
   });
 }
