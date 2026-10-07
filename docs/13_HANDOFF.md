@@ -34,7 +34,8 @@ producción**: la migración del DOC 05 §14.8, aplicada sin cambiar el SQL. Sin
   permisos por defecto: sin política para él, no lee ninguna fila. Y el código guardado de las
   doce funciones lleva saltos CRLF, por pegarse desde Windows: no cambia lo que hacen.
 - **`supabase/pendientes/` no desaparece**: sigue `realtime_del_directo.sql` (punto 77).
-- **Lo siguiente** es la T-301b y, tras ella, la T-301c: ninguna necesita ya a Raúl. En
+- **Lo siguiente** es la T-301b y, tras ella, la T-301c: ninguna necesita ya a Raúl. Sus
+  traspasos están en `docs/traspasos/`, revisados el 07/10 y pensados para Opus a esfuerzo medio. En
   «Siguiente», el punto 2 se queda en la línea de Realtime y el cambio repetido (punto 65).
 
 ---
