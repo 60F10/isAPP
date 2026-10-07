@@ -1,6 +1,7 @@
 // C01, Ajustes (T-107): los interruptores cambian `<html>` y se guardan, y
 // «Cerrar sesión» sale o avisa si no puede. Desde la T-206, antes de salir
-// avisa de las anotaciones sin enviar de la cola.
+// avisa de las anotaciones sin enviar de la cola. Desde la T-301c, una línea por
+// equipo seguido con «Dejar de seguir».
 //
 // La red se sustituye en la frontera de `api/` (DOC 06 §11).
 
@@ -23,7 +24,10 @@ const cerrarSesion = vi.hoisted(() => vi.fn<() => Promise<void>>());
 
 const contarPendientes = vi.hoisted(() => vi.fn<(userId: string) => Promise<number>>());
 
+const dejarDeSeguir = vi.hoisted(() => vi.fn<(teamId: string) => Promise<void>>());
+
 vi.mock('@modules/auth/api/session', () => ({ cerrarSesion }));
+vi.mock('@modules/auth/api/solicitudes', () => ({ dejarDeSeguir }));
 vi.mock('@modules/sync', () => ({ contarPendientes }));
 
 const AUTH: AuthState = {
@@ -39,7 +43,7 @@ const AUTH: AuthState = {
   reintentarContexto: () => undefined,
 };
 
-function montar(conSesion = false, esAdministrador = false) {
+function montar(conSesion = false, esAdministrador = false, estado: Partial<AuthState> = {}) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
@@ -56,6 +60,7 @@ function montar(conSesion = false, esAdministrador = false) {
           ...AUTH,
           profile: perfil('Isaac', esAdministrador),
           session: conSesion ? ({ user: { id: 'usuario-1' } } as Session) : null,
+          ...estado,
         }}
       >
         <AnnounceContext value={{ anunciar }}>
@@ -194,5 +199,51 @@ describe('AjustesPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
 
     expect(await screen.findByText('Pantalla de acceso')).toBeInTheDocument();
+  });
+
+  it('sin equipos seguidos, lo dice y enlaza a «Unirse a un equipo»', () => {
+    montar();
+
+    expect(screen.queryByRole('button', { name: /Dejar de seguir/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Seguir a otro equipo' })).toHaveAttribute(
+      'href',
+      '/unirse',
+    );
+  });
+
+  it('«Dejar de seguir» llama a la API con el equipo y recarga el contexto', async () => {
+    dejarDeSeguir.mockResolvedValue(undefined);
+    const reintentarContexto = vi.fn();
+    const usuario = userEvent.setup();
+    const { anunciar } = montar(true, false, {
+      reintentarContexto,
+      activeTeamId: 'eq-1',
+      teams: [
+        {
+          teamMemberId: null,
+          role: null,
+          team: {
+            id: 'eq-1',
+            clubId: 'club-1',
+            name: 'Cadete A',
+            category: 'Cadete',
+            crestUrl: null,
+            primaryColor: null,
+          },
+          permissions: new Set(),
+          seguidor: true,
+        },
+      ],
+    });
+
+    await usuario.click(screen.getByRole('button', { name: 'Dejar de seguir a Cadete A' }));
+
+    await vi.waitFor(() => {
+      expect(dejarDeSeguir).toHaveBeenCalledWith('eq-1');
+    });
+    await vi.waitFor(() => {
+      expect(reintentarContexto).toHaveBeenCalledTimes(1);
+    });
+    expect(anunciar).toHaveBeenCalledWith('Has dejado de seguir a Cadete A');
   });
 });

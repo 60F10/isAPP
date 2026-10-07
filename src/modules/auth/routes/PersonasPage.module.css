@@ -156,3 +156,32 @@
   padding-block-start: var(--space-4);
   border-block-start: 1px solid var(--color-border-subtle);
 }
+
+/* Confirmar en su sitio: la pregunta y sus dos botones ocupan la fila entera,
+   debajo del nombre (T-301c). */
+.confirmar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  inline-size: 100%;
+}
+
+.pregunta {
+  max-inline-size: 60ch;
+  margin: 0;
+}
+
+.pregunta:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+/* Lo que escribió quien pide permisos. La raya lo separa de lo que dice la
+   aplicación; que es suyo lo dicen también las comillas (1.4.1). */
+.mensaje {
+  max-inline-size: 60ch;
+  margin: 0;
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--color-border);
+  overflow-wrap: anywhere;
+}

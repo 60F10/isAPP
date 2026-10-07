@@ -1,0 +1,110 @@
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada equipo, un bloque separado por una raya: arriba quién es y «Seguir»,
+   debajo lo de pedir permisos. */
+.fila {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:first-child {
+  padding-block-start: 0;
+}
+
+.fila:last-child {
+  padding-block-end: 0;
+  border-block-end: 0;
+}
+
+/* A 320 px o con el texto al 200 %, el botón baja debajo del nombre en vez de
+   desbordar (1.4.10). */
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tap-gap);
+}
+
+.datos {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.nombre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+}
+
+.detalle {
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+/* «Siguiendo» lo dice el texto; el borde solo lo separa del resto (1.4.1). */
+.marca {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Separación mínima entre objetivos táctiles (DOC 02 §5.1). */
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  inline-size: 100%;
+  max-inline-size: 32rem;
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* Lo que ya está hecho y espera a otra persona. Va con el texto normal, no en
+   gris: es lo que hay que poder leer al sol. */
+.estado {
+  max-inline-size: 60ch;
+  margin: 0;
+}
+
+.estado:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+/* El mensaje lleva el texto; el color solo lo subraya (1.4.1). */
+.fallo {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}

@@ -15,11 +15,16 @@
 // de quien `core` sí puede importar, y no pinta nada si no hay ninguna: quien
 // entra invitado y todavía no es de ningún equipo la tiene arriba del todo.
 //
+// DEBAJO, LA TARJETA DE QUIEN NO TIENE EQUIPO (T-301c). También es de `auth`:
+// manda a «Unirse a un equipo» a quien no está en ninguno, y a quien solo
+// sigue al equipo activo le dice que las estadísticas llegarán más adelante.
+// Con función en el equipo, no pinta nada.
+//
 // Los avisos pendientes siguen sin datos de servidor.
 
 import { Link } from 'react-router';
 
-import { InvitacionesPendientes } from '@modules/auth';
+import { InvitacionesPendientes, SinEquipo } from '@modules/auth';
 import { Card } from '@shared/ui/Card';
 import { Pantalla } from '@shared/ui/Pantalla';
 
@@ -47,6 +52,7 @@ export function HomePage({ proximoEvento }: HomePageProps = {}) {
   return (
     <Pantalla id="A02" titulo="Inicio">
       <InvitacionesPendientes />
+      <SinEquipo />
 
       <Card title="Próximo evento" headingLevel={2}>
         {proximoEvento === undefined ? (

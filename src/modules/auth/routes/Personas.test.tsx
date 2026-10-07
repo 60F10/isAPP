@@ -1,4 +1,5 @@
-// Pantalla A07 (T-301b): miembros, permisos e invitaciones.
+// Pantalla A07 (T-301b): miembros, permisos e invitaciones. Desde la T-301c,
+// también las solicitudes de permisos, los seguidores y la casilla de la lista.
 //
 // La red se sustituye en la frontera de `api/` (DOC 06 §11).
 
@@ -16,6 +17,8 @@ import { PersonasPage } from './PersonasPage';
 
 import type { AuthState } from '../hooks/authContext';
 import type { Invitacion, Miembro } from '../model/personas';
+import type { AppPermission } from '../model/permissions';
+import type { Seguidor, SolicitudRecibida } from '../model/solicitudes';
 import type { Session } from '@supabase/supabase-js';
 
 const api = vi.hoisted(() => ({
@@ -30,7 +33,17 @@ const api = vi.hoisted(() => ({
   aceptarInvitacion: vi.fn(),
 }));
 
+const solicitudes = vi.hoisted(() => ({
+  solicitudesDelEquipo: vi.fn<(teamId: string) => Promise<SolicitudRecibida[]>>(),
+  resolverSolicitud: vi.fn(),
+  seguidoresDelEquipo: vi.fn<(teamId: string) => Promise<Seguidor[]>>(),
+  quitarSeguidor: vi.fn(),
+  fetchEnLaLista: vi.fn<(teamId: string) => Promise<boolean>>(),
+  guardarEnLaLista: vi.fn(),
+}));
+
 vi.mock('../api/personas', () => api);
+vi.mock('../api/solicitudes', () => solicitudes);
 // El cliente de Supabase trae `env.ts`, que lanza sin configuración. Aquí no
 // se habla con la red: basta un objeto vacío.
 vi.mock('@shared/lib/supabase', () => ({ supabase: {} }));
@@ -64,34 +77,54 @@ const INVITACIONES: Invitacion[] = [
   },
 ];
 
-const AUTH: AuthState = {
-  session: { user: { id: 'usuario-1' } } as Session,
-  cargando: false,
-  permisos: new Set(['members.manage']),
-  profile: null,
-  teams: [
-    {
-      teamMemberId: 'tm-1',
-      role: 'coach',
-      team: {
-        id: 'eq-1',
-        clubId: 'club-1',
-        name: 'Cadete A',
-        category: 'Cadete',
-        crestUrl: null,
-        primaryColor: null,
-      },
-      permissions: new Set(['members.manage']),
-    },
-  ],
-  activeTeamId: 'eq-1',
-  activeSeasonId: null,
-  setActiveTeam: () => undefined,
-  errorContexto: null,
-  reintentarContexto: () => undefined,
+const SOLICITUD: SolicitudRecibida = {
+  id: 'sol-1',
+  userId: 'usuario-5',
+  nombre: 'Dani',
+  mensaje: 'Soy el delegado de campo',
+  createdAt: '2026-10-06T10:00:00Z',
 };
 
-function montar(ruta = '/equipos/eq-1/personas') {
+const SEGUIDORA: Seguidor = {
+  userId: 'usuario-7',
+  nombre: 'Marta',
+  createdAt: '2026-10-05T10:00:00Z',
+};
+
+/** La sesión de Raúl en el Cadete A, con los permisos que se le pasen. */
+function authCon(permisos: readonly AppPermission[], seguidor = false): AuthState {
+  return {
+    session: { user: { id: 'usuario-1' } } as Session,
+    cargando: false,
+    permisos: new Set(permisos),
+    profile: null,
+    teams: [
+      {
+        teamMemberId: seguidor ? null : 'tm-1',
+        role: seguidor ? null : 'coach',
+        team: {
+          id: 'eq-1',
+          clubId: 'club-1',
+          name: 'Cadete A',
+          category: 'Cadete',
+          crestUrl: null,
+          primaryColor: null,
+        },
+        permissions: new Set(permisos),
+        seguidor,
+      },
+    ],
+    activeTeamId: 'eq-1',
+    activeSeasonId: null,
+    setActiveTeam: () => undefined,
+    errorContexto: null,
+    reintentarContexto: () => undefined,
+  };
+}
+
+const AUTH = authCon(['members.manage']);
+
+function montar(ruta = '/equipos/eq-1/personas', auth: AuthState = AUTH) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [{ path: '/equipos/:id/personas', element: <PersonasPage /> }],
@@ -102,7 +135,7 @@ function montar(ruta = '/equipos/eq-1/personas') {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <AuthContext value={AUTH}>
+      <AuthContext value={auth}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
         </AnnounceContext>
@@ -140,6 +173,12 @@ beforeEach(() => {
     permisos: [...PLANTILLAS_DE_ROL.delegate],
     expiresAt: '2026-10-21T10:00:00Z',
   });
+  solicitudes.solicitudesDelEquipo.mockResolvedValue([]);
+  solicitudes.seguidoresDelEquipo.mockResolvedValue([]);
+  solicitudes.fetchEnLaLista.mockResolvedValue(false);
+  solicitudes.resolverSolicitud.mockResolvedValue(undefined);
+  solicitudes.quitarSeguidor.mockResolvedValue(undefined);
+  solicitudes.guardarEnLaLista.mockResolvedValue(undefined);
 });
 
 describe('A07 · Personas y permisos', () => {
@@ -298,5 +337,122 @@ describe('A07 · Personas y permisos', () => {
     await vi.waitFor(() => {
       expect(api.revocarInvitacion).toHaveBeenCalledWith('inv-1');
     });
+  });
+  it('sin solicitudes, la tarjeta no sale; con una, es la primera de la pantalla', async () => {
+    montar();
+
+    await tarjeta('Miembros');
+    expect(
+      screen.queryByRole('heading', { level: 2, name: 'Solicitudes de permisos' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('con una solicitud, «Aceptar» pide rol y permisos antes de llamar', async () => {
+    solicitudes.solicitudesDelEquipo.mockResolvedValue([SOLICITUD]);
+    const usuario = userEvent.setup();
+    const { anunciar } = montar();
+
+    const tarjetaDeSolicitudes = await tarjeta('Solicitudes de permisos');
+    const encabezados = screen.getAllByRole('heading', { level: 2 });
+    expect(encabezados[0]).toHaveTextContent('Solicitudes de permisos');
+
+    const pedidas = within(tarjetaDeSolicitudes);
+    expect(pedidas.getByText('Dani')).toBeInTheDocument();
+    expect(pedidas.getByText(/Soy el delegado de campo/)).toBeInTheDocument();
+    expect(solicitudes.solicitudesDelEquipo).toHaveBeenCalledWith('eq-1');
+
+    await usuario.click(pedidas.getByRole('button', { name: 'Aceptar a Dani' }));
+
+    expect(solicitudes.resolverSolicitud).not.toHaveBeenCalled();
+
+    await usuario.click(pedidas.getByRole('radio', { name: 'Delegado' }));
+    await usuario.click(pedidas.getByRole('button', { name: 'Aceptar con estos permisos' }));
+
+    await vi.waitFor(() => {
+      expect(solicitudes.resolverSolicitud).toHaveBeenCalledWith('sol-1', {
+        aprobar: true,
+        role: 'delegate',
+        permissions: ['schedule.manage', 'match.live.write', 'training.manage', 'stats.view'],
+      });
+    });
+    await vi.waitFor(() => {
+      expect(anunciar).toHaveBeenCalledWith('Dani ya forma parte del equipo');
+    });
+  });
+
+  it('«Rechazar» pide confirmación en su sitio y llama con `aprobar: false`', async () => {
+    solicitudes.solicitudesDelEquipo.mockResolvedValue([SOLICITUD]);
+    const usuario = userEvent.setup();
+    montar();
+
+    const pedidas = within(await tarjeta('Solicitudes de permisos'));
+    await usuario.click(pedidas.getByRole('button', { name: 'Rechazar a Dani' }));
+
+    expect(solicitudes.resolverSolicitud).not.toHaveBeenCalled();
+    expect(pedidas.getByText(/Podrá seguir al equipo igualmente/)).toBeInTheDocument();
+
+    await usuario.click(pedidas.getByRole('button', { name: 'Sí, rechazar' }));
+
+    await vi.waitFor(() => {
+      expect(solicitudes.resolverSolicitud).toHaveBeenCalledWith('sol-1', { aprobar: false });
+    });
+  });
+
+  it('«Quitar» a un seguidor avisa de que podrá volver a seguir', async () => {
+    solicitudes.seguidoresDelEquipo.mockResolvedValue([SEGUIDORA]);
+    const usuario = userEvent.setup();
+    montar();
+
+    const seguidores = within(await tarjeta('Seguidores'));
+    await usuario.click(await seguidores.findByRole('button', { name: 'Quitar a Marta' }));
+
+    expect(solicitudes.quitarSeguidor).not.toHaveBeenCalled();
+    expect(
+      seguidores.getByText(/Podrá volver a seguir mientras el equipo esté en la lista\./),
+    ).toBeInTheDocument();
+
+    await usuario.click(seguidores.getByRole('button', { name: 'Sí, quitar' }));
+
+    await vi.waitFor(() => {
+      expect(solicitudes.quitarSeguidor).toHaveBeenCalledWith('eq-1', 'usuario-7');
+    });
+  });
+
+  it('la casilla de la lista no sale sin `team.manage`', async () => {
+    montar();
+
+    await tarjeta('Seguidores');
+    expect(
+      screen.queryByRole('checkbox', { name: 'Este equipo está en la lista' }),
+    ).not.toBeInTheDocument();
+    expect(solicitudes.fetchEnLaLista).not.toHaveBeenCalled();
+  });
+
+  it('con `team.manage`, la casilla escribe `accepts_requests`', async () => {
+    const usuario = userEvent.setup();
+    const { anunciar } = montar(
+      '/equipos/eq-1/personas',
+      authCon(['members.manage', 'team.manage']),
+    );
+
+    const casilla = await screen.findByRole('checkbox', { name: 'Este equipo está en la lista' });
+    expect(casilla).not.toBeChecked();
+    expect(screen.getByText(/Para anotar hace falta que lo aceptes\./)).toBeInTheDocument();
+
+    await usuario.click(casilla);
+
+    await vi.waitFor(() => {
+      expect(solicitudes.guardarEnLaLista).toHaveBeenCalledWith('eq-1', true);
+    });
+    await vi.waitFor(() => {
+      expect(anunciar).toHaveBeenCalledWith('Cadete A está en la lista');
+    });
+  });
+
+  it('quien solo sigue al equipo no entra en su A07', async () => {
+    montar('/equipos/eq-1/personas', authCon([], true));
+
+    expect(await screen.findByText('No se encuentra ese equipo.')).toBeInTheDocument();
+    expect(api.fetchMiembros).not.toHaveBeenCalled();
   });
 });

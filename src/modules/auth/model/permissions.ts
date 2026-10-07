@@ -30,12 +30,28 @@ export interface Team {
   primaryColor: string | null;
 }
 
-/** Pertenencia a un equipo, con sus permisos ya resueltos. */
+/**
+ * Pertenencia a un equipo, con sus permisos ya resueltos.
+ *
+ * Desde la T-301c también lo es SEGUIR a un equipo (DOC 04 §15.3): la misma
+ * forma, con `seguidor` a `true`, sin fila de miembro, sin rol y con el
+ * conjunto de permisos vacío. Así el equipo seguido puede ser el activo y el
+ * calendario lo enseña sin que ninguna pantalla aprenda nada nuevo: quien
+ * pregunta por un permiso recibe un «no», que es lo que dice la base.
+ */
 export interface Membership {
-  teamMemberId: string;
-  role: TeamRole;
+  /** `id` de la fila de `team_members`. `null` en quien solo sigue al equipo. */
+  teamMemberId: string | null;
+  /** `null` en quien solo sigue al equipo: seguir no es una función. */
+  role: TeamRole | null;
   team: Team;
   permissions: ReadonlySet<AppPermission>;
+  /**
+   * `true` si solo sigue al equipo. `construirMembresias` lo pone siempre; es
+   * opcional para que una membresía escrita a mano sea de miembro salvo que
+   * diga otra cosa.
+   */
+  seguidor?: boolean;
 }
 
 /** Fila de `teams` tal como llega anidada desde `api/`. */
@@ -56,19 +72,47 @@ export interface FilaMembresia {
   team_member_permissions: readonly { permission: AppPermission }[];
 }
 
+/** Fila de `team_followers` con el equipo anidado. */
+export interface FilaSeguido {
+  teams: FilaEquipo | null;
+}
+
 /** Un solo conjunto vacío compartido. Comparar por identidad sale gratis. */
 const SIN_PERMISOS: ReadonlySet<AppPermission> = new Set<AppPermission>();
 
+function aEquipo(fila: FilaEquipo): Team {
+  return {
+    id: fila.id,
+    clubId: fila.club_id,
+    name: fila.name,
+    category: fila.category,
+    crestUrl: fila.crest_url,
+    primaryColor: fila.primary_color,
+  };
+}
+
+function porNombre(a: Membership, b: Membership): number {
+  return a.team.name.localeCompare(b.team.name, 'es');
+}
+
 /**
- * Convierte las filas de la consulta en membresías, ordenadas por nombre de
- * equipo.
+ * Convierte las filas de la consulta en membresías: primero los equipos donde
+ * tiene función, por nombre, y después los que solo sigue, por nombre.
  *
  * El orden importa y no es estético: `elegirEquipoActivo` coge la primera
  * cuando no hay nada recordado, y un orden que cambiara entre cargas movería
- * el equipo activo de quien tiene varios sin que él tocara nada.
+ * el equipo activo de quien tiene varios sin que él tocara nada. Por eso los
+ * seguidos van detrás: seguir a otro equipo no le cambia el suyo a nadie.
+ *
+ * SI ES MIEMBRO Y SEGUIDOR DEL MISMO EQUIPO, MANDA LA DE MIEMBRO (DOC 04
+ * §15.3). Las funciones de la base ya impiden que ocurra; si ocurre, una sola
+ * membresía, con sus permisos.
  */
-export function construirMembresias(filas: readonly FilaMembresia[]): Membership[] {
-  const membresias: Membership[] = [];
+export function construirMembresias(
+  filas: readonly FilaMembresia[],
+  seguidos: readonly FilaSeguido[] = [],
+): Membership[] {
+  const deMiembro: Membership[] = [];
 
   for (const fila of filas) {
     // Sin equipo legible no hay nada que enseñar. No debería ocurrir —quien es
@@ -78,22 +122,33 @@ export function construirMembresias(filas: readonly FilaMembresia[]): Membership
       continue;
     }
 
-    membresias.push({
+    deMiembro.push({
       teamMemberId: fila.id,
       role: fila.role,
-      team: {
-        id: fila.teams.id,
-        clubId: fila.teams.club_id,
-        name: fila.teams.name,
-        category: fila.teams.category,
-        crestUrl: fila.teams.crest_url,
-        primaryColor: fila.teams.primary_color,
-      },
+      team: aEquipo(fila.teams),
       permissions: new Set(fila.team_member_permissions.map((concesion) => concesion.permission)),
+      seguidor: false,
     });
   }
 
-  return membresias.sort((a, b) => a.team.name.localeCompare(b.team.name, 'es'));
+  const conFuncion = new Set(deMiembro.map((membresia) => membresia.team.id));
+  const deSeguidor: Membership[] = [];
+
+  for (const fila of seguidos) {
+    if (!fila.teams || conFuncion.has(fila.teams.id)) {
+      continue;
+    }
+
+    deSeguidor.push({
+      teamMemberId: null,
+      role: null,
+      team: aEquipo(fila.teams),
+      permissions: SIN_PERMISOS,
+      seguidor: true,
+    });
+  }
+
+  return [...deMiembro.sort(porNombre), ...deSeguidor.sort(porNombre)];
 }
 
 /**

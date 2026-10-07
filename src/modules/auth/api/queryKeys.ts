@@ -19,4 +19,14 @@ export const authKeys = {
   /** Invitaciones dirigidas a la cuenta que ha entrado (tarjeta de Inicio). */
   misInvitaciones: (userId: string | null) =>
     [...authKeys.all, 'mis-invitaciones', userId] as const,
+  /** Equipos que están en la lista («Unirse a un equipo»). */
+  equiposDeLaLista: () => [...authKeys.all, 'equipos-de-la-lista'] as const,
+  /** Solicitudes de permisos de la cuenta que ha entrado. */
+  misSolicitudes: (userId: string | null) => [...authKeys.all, 'mis-solicitudes', userId] as const,
+  /** Solicitudes de permisos pendientes de un equipo (A07). */
+  solicitudes: (teamId: string) => [...authKeys.all, 'solicitudes', teamId] as const,
+  /** Seguidores de un equipo (A07). */
+  seguidores: (teamId: string) => [...authKeys.all, 'seguidores', teamId] as const,
+  /** Si un equipo está en la lista (A07). */
+  enLaLista: (teamId: string) => [...authKeys.all, 'en-la-lista', teamId] as const,
 };
