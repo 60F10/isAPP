@@ -12,43 +12,18 @@
 // Aceptar va por función (`aceptar_invitacion`), no escribiendo en tablas:
 // quien acepta todavía no es nadie en el equipo.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useAnnounce } from '@shared/hooks/announceContext';
-import { mensajeDeErrorAlGuardar } from '@shared/lib/guardado';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 
 import { useAuth } from '../hooks/authContext';
 import { useAceptarInvitacion, useMisInvitaciones } from '../hooks/usePersonas';
 import { fraseDeInvitacion } from '../model/personas';
+import { mensajeDeLaBase } from '../model/solicitudes';
 
 import styles from './InvitacionesPendientes.module.css';
-
-/**
- * Frase para cuando aceptar falla.
- *
- * Lo que rechaza la función de la base ya viene en español y dice el motivo
- * («La invitación ya no está vigente»): se enseña tal cual. Lo que no viene de
- * la función —sin red, o un `PGRST…` de PostgREST, que habla en inglés— pasa
- * por el texto común.
- */
-function mensajeAlAceptar(error: unknown): string {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'string' &&
-    !error.code.startsWith('PGRST') &&
-    'message' in error &&
-    typeof error.message === 'string' &&
-    error.message !== ''
-  ) {
-    return error.message;
-  }
-
-  return mensajeDeErrorAlGuardar(error);
-}
 
 export function InvitacionesPendientes() {
   const anunciar = useAnnounce();
@@ -57,15 +32,27 @@ export function InvitacionesPendientes() {
   // La mutación vive aquí y no en cada fila: al aceptar, la fila desaparece.
   const aceptar = useAceptarInvitacion();
   const [fallo, setFallo] = useState<string | null>(null);
+  const titulo = useRef<HTMLHeadingElement>(null);
+  const mensaje = useRef<HTMLParagraphElement>(null);
 
-  if (invitaciones.data === undefined || invitaciones.data.length === 0) {
+  // El foco va al mensaje cuando aceptar falla: el botón que lo tenía estaba
+  // desactivado mientras se aceptaba (2.4.3).
+  useEffect(() => {
+    if (fallo !== null) {
+      mensaje.current?.focus();
+    }
+  }, [fallo]);
+
+  // Con un fallo la tarjeta se queda aunque la lista haya quedado vacía (la
+  // invitación ya no vale): si no, el mensaje se iría con ella.
+  if (fallo === null && (invitaciones.data === undefined || invitaciones.data.length === 0)) {
     return null;
   }
 
   return (
-    <Card title="Invitaciones" headingLevel={2}>
+    <Card title="Invitaciones" headingLevel={2} headingRef={titulo}>
       <ul className={styles.lista}>
-        {invitaciones.data.map((invitacion) => (
+        {(invitaciones.data ?? []).map((invitacion) => (
           <li key={invitacion.id} className={styles.fila}>
             <p className={styles.frase}>{fraseDeInvitacion(invitacion)}</p>
             <div>
@@ -77,6 +64,9 @@ export function InvitacionesPendientes() {
                   setFallo(null);
                   aceptar.mutate(invitacion.id, {
                     onSuccess: () => {
+                      // La tarjeta se va con la última invitación: el foco, al
+                      // `h1` de la pantalla, como hace la banda de sincronización.
+                      document.querySelector('h1')?.focus();
                       // El equipo aparece sin recargar la página.
                       reintentarContexto();
                       anunciar(
@@ -86,9 +76,9 @@ export function InvitacionesPendientes() {
                       );
                     },
                     onError: (error) => {
-                      const mensaje = mensajeAlAceptar(error);
-                      setFallo(mensaje);
-                      anunciar(mensaje);
+                      const texto = mensajeDeLaBase(error);
+                      setFallo(texto);
+                      anunciar(texto);
                     },
                   });
                 }}
@@ -101,7 +91,24 @@ export function InvitacionesPendientes() {
           </li>
         ))}
       </ul>
-      {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+      {fallo === null ? null : (
+        <div className={styles.aviso}>
+          <p ref={mensaje} className={styles.fallo} tabIndex={-1}>
+            {fallo}
+          </p>
+          <div>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFallo(null);
+                titulo.current?.focus();
+              }}
+            >
+              Cerrar
+            </Button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

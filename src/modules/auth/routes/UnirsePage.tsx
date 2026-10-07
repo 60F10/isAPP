@@ -244,13 +244,23 @@ export function UnirsePage() {
   // Equipos a los que se acaba de pedir permisos desde esta pantalla. Tapa el
   // rato que tarda en volver la lista de solicitudes, para que el equipo diga
   // «pendiente» en cuanto la base contesta y el foco tenga a dónde ir.
-  const [recienPedidos, setRecienPedidos] = useState<ReadonlySet<string>>(() => new Set());
+  // Guarda, por equipo, las solicitudes que ya había al pedir: la nueva es la
+  // que no está entre ellas, y en cuanto `misSolicitudes` la trae, el equipo
+  // sale de aquí y manda lo que diga la base (si ya la resolvieron, no sigue
+  // diciendo «pendiente»).
+  const [recienPedidos, setRecienPedidos] = useState<ReadonlyMap<string, ReadonlySet<string>>>(
+    () => new Map(),
+  );
+  // Equipos que se acaban de seguir desde esta pantalla: la fila dice
+  // «Siguiendo» en cuanto la función contesta, sin esperar al contexto.
+  const [recienSeguidos, setRecienSeguidos] = useState<ReadonlySet<string>>(() => new Set());
+  const tituloDeSolicitudes = useRef<HTMLHeadingElement>(null);
 
   const relacionCon = (teamId: string): Relacion => {
     const membresia = teams?.find((candidata) => candidata.team.id === teamId);
 
     if (membresia === undefined) {
-      return 'ninguna';
+      return recienSeguidos.has(teamId) ? 'seguidor' : 'ninguna';
     }
 
     return membresia.seguidor === true ? 'seguidor' : 'miembro';
@@ -261,6 +271,19 @@ export function UnirsePage() {
       .filter((solicitud) => solicitud.status === 'pending')
       .map((solicitud) => solicitud.teamId),
   );
+
+  /** Si la solicitud que se acaba de pedir a ese equipo aún no ha llegado a la lista. */
+  const sinLlegar = (teamId: string): boolean => {
+    const vistas = recienPedidos.get(teamId);
+
+    if (vistas === undefined) {
+      return false;
+    }
+
+    return !(solicitudes.data ?? []).some(
+      (solicitud) => solicitud.teamId === teamId && !vistas.has(solicitud.id),
+    );
+  };
 
   /** El nombre sale de la lista, y si el equipo ya no está en ella, de los propios. */
   const nombreDelEquipo = (teamId: string): string => {
@@ -286,11 +309,13 @@ export function UnirsePage() {
     cancelar.mutate(solicitud.id, {
       onSuccess: () => {
         setRecienPedidos((antes) => {
-          const siguiente = new Set(antes);
+          const siguiente = new Map(antes);
           siguiente.delete(solicitud.teamId);
 
           return siguiente;
         });
+        // El botón se va con la solicitud cancelada (2.4.3).
+        tituloDeSolicitudes.current?.focus();
         anunciar(`Solicitud a ${equipo} cancelada`);
       },
       onError: (error) => {
@@ -313,7 +338,7 @@ export function UnirsePage() {
       </p>
 
       {misSolicitudes.length === 0 ? null : (
-        <Card title="Mis solicitudes" headingLevel={2}>
+        <Card title="Mis solicitudes" headingLevel={2} headingRef={tituloDeSolicitudes}>
           <ul className={styles.lista}>
             {misSolicitudes.map((solicitud) => {
               const equipo = nombreDelEquipo(solicitud.teamId);
@@ -382,12 +407,13 @@ export function UnirsePage() {
                   key={equipo.teamId}
                   equipo={equipo}
                   relacion={relacionCon(equipo.teamId)}
-                  pendiente={pendientes.has(equipo.teamId) || recienPedidos.has(equipo.teamId)}
+                  pendiente={pendientes.has(equipo.teamId) || sinLlegar(equipo.teamId)}
                   ocupado={seguir.isPending || dejarDeSeguir.isPending}
                   alSeguir={() => {
                     setFallo(null);
                     seguir.mutate(equipo.teamId, {
                       onSuccess: () => {
+                        setRecienSeguidos((antes) => new Set(antes).add(equipo.teamId));
                         // El equipo aparece en el resto de la aplicación sin
                         // recargar la página.
                         reintentarContexto();
@@ -400,6 +426,12 @@ export function UnirsePage() {
                     setFallo(null);
                     dejarDeSeguir.mutate(equipo.teamId, {
                       onSuccess: () => {
+                        setRecienSeguidos((antes) => {
+                          const siguiente = new Set(antes);
+                          siguiente.delete(equipo.teamId);
+
+                          return siguiente;
+                        });
                         reintentarContexto();
                         anunciar(`Has dejado de seguir a ${equipo.teamName}`);
                       },
@@ -407,7 +439,13 @@ export function UnirsePage() {
                     });
                   }}
                   alSolicitar={() => {
-                    setRecienPedidos((antes) => new Set(antes).add(equipo.teamId));
+                    const vistas = new Set(
+                      (solicitudes.data ?? [])
+                        .filter((solicitud) => solicitud.teamId === equipo.teamId)
+                        .map((solicitud) => solicitud.id),
+                    );
+
+                    setRecienPedidos((antes) => new Map(antes).set(equipo.teamId, vistas));
                   }}
                 />
               ))}

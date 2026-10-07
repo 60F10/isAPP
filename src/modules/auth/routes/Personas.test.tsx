@@ -12,7 +12,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnnounceContext } from '@shared/hooks/announceContext';
 
 import { AuthContext } from '../hooks/authContext';
-import { PERMISOS, PLANTILLAS_DE_ROL } from '../model/personas';
+import { authKeys } from '../api/queryKeys';
+import { GUARDADO_A_MEDIAS, PERMISOS, PLANTILLAS_DE_ROL } from '../model/personas';
 import { PersonasPage } from './PersonasPage';
 
 import type { AuthState } from '../hooks/authContext';
@@ -126,15 +127,14 @@ const AUTH = authCon(['members.manage']);
 
 function montar(ruta = '/equipos/eq-1/personas', auth: AuthState = AUTH) {
   const anunciar = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const router = createMemoryRouter(
     [{ path: '/equipos/:id/personas', element: <PersonasPage /> }],
     { initialEntries: [ruta] },
   );
 
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
+    <QueryClientProvider client={client}>
       <AuthContext value={auth}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
@@ -143,7 +143,7 @@ function montar(ruta = '/equipos/eq-1/personas', auth: AuthState = AUTH) {
     </QueryClientProvider>,
   );
 
-  return { anunciar };
+  return { anunciar, client };
 }
 
 /** La tarjeta cuyo encabezado es `titulo`. `Card` no le pone nombre a su `<section>`. */
@@ -240,7 +240,7 @@ describe('A07 · Personas y permisos', () => {
     await usuario.click(miembros.getByRole('button', { name: 'Guardar' }));
 
     await vi.waitFor(() => {
-      expect(api.guardarRol).toHaveBeenCalledWith('tm-2', 'scout');
+      expect(api.guardarRol).toHaveBeenCalledWith('eq-1', 'tm-2', 'scout');
     });
     expect(api.guardarPermisos).toHaveBeenCalledWith('tm-2', 'usuario-1', {
       altas: [],
@@ -276,7 +276,7 @@ describe('A07 · Personas y permisos', () => {
     await usuario.click(miembros.getByRole('button', { name: 'Sí, dar de baja' }));
 
     await vi.waitFor(() => {
-      expect(api.cambiarActivo).toHaveBeenCalledWith('tm-2', false);
+      expect(api.cambiarActivo).toHaveBeenCalledWith('eq-1', 'tm-2', false);
     });
   });
 
@@ -454,5 +454,152 @@ describe('A07 · Personas y permisos', () => {
 
     expect(await screen.findByText('No se encuentra ese equipo.')).toBeInTheDocument();
     expect(api.fetchMiembros).not.toHaveBeenCalled();
+  });
+});
+
+describe('A07 · arreglos de la revisión (T-306)', () => {
+  it('«Guardar» calcula los cambios contra los permisos de cuando se abrió «Editar»', async () => {
+    const usuario = userEvent.setup();
+    const { client } = montar();
+
+    const miembros = within(await tarjeta('Miembros'));
+    await usuario.click(await miembros.findByRole('button', { name: 'Editar a Isaac' }));
+
+    // Mientras tanto, otra persona le da `event.approve` y la lista se recarga.
+    api.fetchMiembros.mockResolvedValue([
+      MIEMBROS[0],
+      { ...MIEMBROS[1], permisos: [...MIEMBROS[1].permisos, 'event.approve'] },
+    ]);
+    await client.invalidateQueries({ queryKey: authKeys.all });
+    await vi.waitFor(() => {
+      expect(api.fetchMiembros).toHaveBeenCalledTimes(2);
+    });
+
+    await usuario.click(
+      miembros.getByRole('checkbox', { name: 'Aprobar y rechazar eventos, y editar los ajenos' }),
+    );
+    await usuario.click(miembros.getByRole('button', { name: 'Guardar' }));
+
+    await vi.waitFor(() => {
+      expect(api.guardarPermisos).toHaveBeenCalledWith('tm-2', 'usuario-1', {
+        altas: ['event.approve'],
+        bajas: [],
+      });
+    });
+  });
+
+  it('si otra persona ya había cambiado los permisos, lo dice y vuelve a sembrar el formulario', async () => {
+    api.guardarPermisos.mockRejectedValue({ code: '23505' });
+    const usuario = userEvent.setup();
+    montar();
+
+    const miembros = within(await tarjeta('Miembros'));
+    await usuario.click(await miembros.findByRole('button', { name: 'Editar a Isaac' }));
+    await usuario.click(
+      miembros.getByRole('checkbox', { name: 'Aprobar y rechazar eventos, y editar los ajenos' }),
+    );
+    await usuario.click(miembros.getByRole('button', { name: 'Guardar' }));
+
+    expect(
+      await miembros.findByText(
+        'Otra persona ha cambiado estos permisos. La lista ya enseña lo que hay: revísala y vuelve a guardar.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      miembros.getByRole('checkbox', { name: 'Aprobar y rechazar eventos, y editar los ajenos' }),
+    ).not.toBeChecked();
+  });
+
+  it('con `GUARDADO_A_MEDIAS` sale el texto propio y el foco está en el mensaje', async () => {
+    api.guardarPermisos.mockRejectedValue(new Error(GUARDADO_A_MEDIAS));
+    const usuario = userEvent.setup();
+    montar();
+
+    const miembros = within(await tarjeta('Miembros'));
+    await usuario.click(await miembros.findByRole('button', { name: 'Editar a Isaac' }));
+    await usuario.click(
+      miembros.getByRole('checkbox', { name: 'Aprobar y rechazar eventos, y editar los ajenos' }),
+    );
+    await usuario.click(miembros.getByRole('button', { name: 'Guardar' }));
+
+    const mensaje = await miembros.findByText(
+      'Se ha guardado una parte. La lista ya enseña lo que hay: revísala y vuelve a guardar.',
+    );
+
+    await vi.waitFor(() => {
+      expect(mensaje).toHaveFocus();
+    });
+  });
+
+  it('«Dar de baja» lleva el foco a la pregunta, y «No, dejarlo» lo devuelve al botón', async () => {
+    const usuario = userEvent.setup();
+    montar();
+
+    const miembros = within(await tarjeta('Miembros'));
+    await usuario.click(await miembros.findByRole('button', { name: 'Editar a Isaac' }));
+    await usuario.click(miembros.getByRole('button', { name: 'Dar de baja' }));
+
+    expect(miembros.getByText(/¿Dar de baja a Isaac\?/)).toHaveFocus();
+
+    await usuario.click(miembros.getByRole('button', { name: 'No, dejarlo' }));
+
+    expect(miembros.getByRole('button', { name: 'Dar de baja' })).toHaveFocus();
+  });
+
+  it('tras «Revocar», el foco está en el título de «Invitaciones pendientes»', async () => {
+    const usuario = userEvent.setup();
+    montar();
+
+    const pendientes = within(await tarjeta('Invitaciones pendientes'));
+    await usuario.click(
+      await pendientes.findByRole('button', { name: 'Revocar la invitación de colega@gmail.com' }),
+    );
+
+    await vi.waitFor(() => {
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'Invitaciones pendientes' }),
+      ).toHaveFocus();
+    });
+  });
+
+  it('un correo sin arroba lleva el foco al campo', async () => {
+    const usuario = userEvent.setup();
+    montar();
+
+    const invitar = within(await tarjeta('Invitar'));
+    await usuario.type(invitar.getByLabelText(/Correo/), 'colega.gmail.com');
+    await usuario.click(invitar.getByRole('button', { name: 'Invitar' }));
+
+    expect(invitar.getByLabelText(/Correo/)).toHaveFocus();
+  });
+
+  it('escribir otro correo quita «Invitación guardada»', async () => {
+    const usuario = userEvent.setup();
+    montar();
+
+    const invitar = within(await tarjeta('Invitar'));
+    await usuario.type(invitar.getByLabelText(/Correo/), 'nueva@gmail.com');
+    await usuario.click(invitar.getByRole('button', { name: 'Invitar' }));
+    expect(await invitar.findByText(/Invitación guardada/)).toBeInTheDocument();
+
+    await usuario.type(invitar.getByLabelText(/Correo/), 'o');
+
+    expect(invitar.queryByText(/Invitación guardada/)).not.toBeInTheDocument();
+  });
+
+  it('si invitar falla, el foco está en el mensaje', async () => {
+    api.invitar.mockRejectedValue({ code: '23505' });
+    const usuario = userEvent.setup();
+    montar();
+
+    const invitar = within(await tarjeta('Invitar'));
+    await usuario.type(invitar.getByLabelText(/Correo/), 'colega@gmail.com');
+    await usuario.click(invitar.getByRole('button', { name: 'Invitar' }));
+
+    const mensaje = await invitar.findByText('Ya hay una invitación pendiente para ese correo.');
+
+    await vi.waitFor(() => {
+      expect(mensaje).toHaveFocus();
+    });
   });
 });

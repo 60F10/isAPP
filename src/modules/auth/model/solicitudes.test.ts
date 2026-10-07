@@ -60,15 +60,22 @@ describe('nombreDePersona', () => {
 
 describe('mensajeDeLaBase', () => {
   it('lo que rechaza una función de la base se enseña tal cual', () => {
-    expect(mensajeDeLaBase({ code: 'P0001', message: 'Ya tienes una solicitud pendiente.' })).toBe(
+    expect(mensajeDeLaBase({ code: 'P0002', message: 'Ya tienes una solicitud pendiente.' })).toBe(
       'Ya tienes una solicitud pendiente.',
     );
   });
 
-  it('lo que no viene de la función pasa por el texto común', () => {
-    const comun = mensajeDeLaBase(new Error('Failed to fetch'));
+  it('un `P0002` enseña el mensaje de la base', () => {
+    expect(mensajeDeLaBase({ code: 'P0002', message: 'La invitación ya no está vigente.' })).toBe(
+      'La invitación ya no está vigente.',
+    );
+  });
 
-    expect(mensajeDeLaBase({ code: 'PGRST301', message: 'JWT expired' })).toBe(comun);
-    expect(comun).not.toBe('Failed to fetch');
+  it('cualquier otro código —un `57014`, un `PGRST…`, sin red— da el texto genérico', () => {
+    const generico = 'No se ha podido completar. Vuelve a intentarlo.';
+
+    expect(mensajeDeLaBase({ code: '57014', message: 'canceling statement' })).toBe(generico);
+    expect(mensajeDeLaBase({ code: 'PGRST301', message: 'JWT expired' })).toBe(generico);
+    expect(mensajeDeLaBase(new Error('Failed to fetch'))).toBe(generico);
   });
 });

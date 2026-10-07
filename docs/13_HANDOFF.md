@@ -5,6 +5,44 @@
 
 ---
 
+## Sesión 07/10/2026, noche — T-306: arreglos de la A07, las invitaciones y «Unirse a un equipo»: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `fix/auth-arreglos-de-personas`, con la
+T-305 ya en `main`. Un solo commit. Sin migración ni SQL.
+
+- **A07, «Guardar» contra la foto.** Al abrir «Editar» se guarda `foto` con los permisos de ese
+  momento y los cambios salen de `cambiosDePermisos(foto, marcados)`. Si la base contesta `23505`
+  o cero filas al guardar permisos, `useGuardarMiembro` lanza `PERMISOS_CAMBIADOS`; si algo
+  anterior ya estaba guardado (el rol, o las altas antes de unas bajas que fallan), lanza
+  `GUARDADO_A_MEDIAS`. Los dos textos y las marcas viven en `model/personas.ts`, y el formulario
+  se vuelve a sembrar con lo que trae la lista.
+- **Foco.** Dar de baja: a la pregunta, de vuelta a «Dar de baja» con «No, dejarlo», y al nombre
+  de la persona al confirmar. «Revocar»: al título de «Invitaciones pendientes». «Aceptar» una
+  invitación: al `h1`. «Cancelar» una solicitud: al título de «Mis solicitudes». Tras un fallo
+  en las tarjetas de la A07, al mensaje (`useFocoAlFallar`). Correo mal escrito: al campo.
+- **Invitaciones de Inicio.** Con un fallo la tarjeta se queda aunque la lista vuelva vacía, con
+  el mensaje y «Cerrar». «Invitación guardada…» se quita al escribir otro correo.
+- **`mensajeDeLaBase`** es una sola, en `model/solicitudes.ts`, y enseña el mensaje tal cual solo
+  con `42501`, `P0002`, `23514` y `23505`. Con cualquier otro, «No se ha podido completar. Vuelve
+  a intentarlo.» Ajustes la usa también y cambia con ella. **Un cambio que el traspaso arrastra:**
+  el `TypeError` de «sin red» ya no dice «No hay conexión», sino ese genérico.
+- **API.** `guardarRol(teamId, …)` y `cambiarActivo(teamId, …)` llevan `team_id`, y
+  `cambiarActivo` el estado de partida. `api/personas.test.ts` es nuevo, con el doble del cliente.
+- **«Unirse a un equipo».** «Seguir» apunta el equipo en `recienSeguidos` y la fila dice
+  «Siguiendo» al momento. `recienPedidos` guarda las solicitudes que ya había, y el equipo sale en
+  cuanto la lista trae una nueva: una ya resuelta no sigue diciendo «pendiente».
+- Lint, formato, **936 pruebas en 71 archivos** y build, sin `INEFFECTIVE_DYNAMIC_IMPORT`. La
+  prueba de la foto falla si se vuelve a calcular contra la lista. **Paquete inicial sin cambio**
+  (176,59 kB con mi recorrido de las importaciones, igual que `main`).
+- **Deuda.** Rol y permisos siguen siendo varias peticiones sin transacción; los hooks esperan a
+  que se recargue todo `auth` antes de dar por terminado un guardado; la guardia de la A07 mira
+  `members.manage` en el equipo activo y no en el de la dirección (punto 24); el reseñado del
+  formulario tras un conflicto depende de que la lista llegue antes que el callback; y la nota
+  de la A04 sobre los equipos que nacen sin personas ya no es exacta.
+- **Sin probar contra la base de verdad ni en un móvil.**
+
+---
+
 ## Sesión 07/10/2026, noche — T-305: arreglos del contexto de acceso: ✅ cerrada
 
 Sesión programada, en la nube y sin Raúl delante, rama `fix/auth-arreglos-del-contexto`. Nació de
@@ -1211,6 +1249,7 @@ Pendiente de hacer:
     cuando se abrió «Editar»; un guardado a medias no se dice; el mensaje de una invitación que
     ya no vale desaparece con la tarjeta; y el foco cae en `body` al dar de baja, revocar,
     aceptar, cancelar y tras un fallo. **Es la T-306.**
+    **Cerrado el 07/10 con la T-306.**
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;
