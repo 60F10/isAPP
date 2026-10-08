@@ -81,7 +81,7 @@ function partido(cambios: Partial<Partido> = {}): Partido {
   };
 }
 
-function auth(permisos: AppPermission[]): AuthState {
+function auth(permisos: AppPermission[], seguidor = false): AuthState {
   return {
     session: { user: { id: 'usuario-1' } } as Session,
     cargando: false,
@@ -89,8 +89,10 @@ function auth(permisos: AppPermission[]): AuthState {
     profile: null,
     teams: [
       {
-        teamMemberId: 'tm-1',
-        role: 'coach',
+        // Quien solo sigue al equipo no tiene fila de miembro ni rol (T-301c).
+        teamMemberId: seguidor ? null : 'tm-1',
+        role: seguidor ? null : 'coach',
+        seguidor,
         team: {
           id: 'eq-1',
           clubId: 'club-1',
@@ -110,7 +112,11 @@ function auth(permisos: AppPermission[]): AuthState {
   };
 }
 
-function montar(ruta: string, permisos: AppPermission[] = ['schedule.manage', 'lineup.manage']) {
+function montar(
+  ruta: string,
+  permisos: AppPermission[] = ['schedule.manage', 'lineup.manage'],
+  seguidor = false,
+) {
   const anunciar = vi.fn();
   const router = createMemoryRouter(
     [
@@ -126,7 +132,7 @@ function montar(ruta: string, permisos: AppPermission[] = ['schedule.manage', 'l
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <AuthContext value={auth(permisos)}>
+      <AuthContext value={auth(permisos, seguidor)}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
         </AnnounceContext>
@@ -206,6 +212,38 @@ describe('A09 · Calendario', () => {
     expect(within(porJugar).getByText('Cadete A – UD Orotava')).toBeInTheDocument();
     expect(within(porJugar).queryByRole('link')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Nuevo partido' })).toBeNull();
+  });
+
+  it('«Entrenamientos» sale con función en el equipo, tenga o no training.manage', async () => {
+    api.fetchCalendario.mockResolvedValue([partido()]);
+    montar('/calendario', ['training.manage']);
+
+    await tarjeta('Por jugar');
+    expect(screen.getByRole('link', { name: 'Entrenamientos' })).toHaveAttribute(
+      'href',
+      '/entrenamientos',
+    );
+
+    cleanup();
+    api.fetchCalendario.mockResolvedValue([partido()]);
+    montar('/calendario', []);
+
+    await tarjeta('Por jugar');
+    expect(screen.getByRole('link', { name: 'Entrenamientos' })).toHaveAttribute(
+      'href',
+      '/entrenamientos',
+    );
+    expect(screen.queryByRole('link', { name: 'Nuevo partido' })).toBeNull();
+  });
+
+  it('«Entrenamientos» no sale con una membresía de seguidor, que no puede leerlos', async () => {
+    api.fetchCalendario.mockResolvedValue([partido()]);
+    montar('/calendario', [], true);
+
+    const porJugar = await tarjeta('Por jugar');
+
+    expect(within(porJugar).getByText('Cadete A – UD Orotava')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Entrenamientos' })).toBeNull();
   });
 
   it('el cierre solo se enlaza con el permiso de cerrar', async () => {

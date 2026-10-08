@@ -1,0 +1,123 @@
+/* Los botones de arriba y, debajo, el mensaje si «Entrenamiento de hoy»
+   falla. */
+.cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada entrenamiento, un bloque separado por una raya. Todo en columna: a
+   320 px o con el texto al 200 % no hay nada que desborde en horizontal
+   (1.4.10). */
+.fila {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.fila:last-child {
+  border-block-end: 0;
+}
+
+/* El día y la hora son lo que se busca en la lista: con peso. */
+.cuando {
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.detalle {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fallo {
+  max-inline-size: 60ch;
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+.fila .acciones {
+  margin-block-start: var(--space-2);
+}
+
+.mas {
+  margin-block-start: var(--space-3);
+}
+
+/* «Entrenamiento» es una palabra larga: a 320 px con el texto al 200 % no cabe
+   entera en un botón, y antes de sacar la pantalla de su ancho se parte. */
+.accion,
+.principal,
+.largo {
+  overflow-wrap: anywhere;
+}
+
+/* Enlaces con pinta de control: borde y peso, no solo color (1.4.1). 48 px de
+   alto, como cualquier objetivo táctil del proyecto. */
+.accion,
+.principal {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.accion {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-accent-ink);
+}
+
+/* «Pasar lista de hoy» ocupa el sitio de «Entrenamiento de hoy» y es la acción
+   principal de la pantalla: relleno de acento, como el botón al que releva. */
+.principal {
+  background-color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.accion:focus-visible,
+.principal:focus-visible,
+.fila:focus-visible,
+.fallo:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}

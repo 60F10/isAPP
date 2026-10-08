@@ -8,12 +8,15 @@
 // no se puede hacer no se enseña. Cada partido lo pinta `ResumenDePartido`
 // (T-213), que es quien lee esos permisos; aquí solo queda el de programar.
 //
-// Los entrenamientos (E4-01) no salen todavía: su pantalla es de después del
-// MVP (DOC 08 §7).
+// Los entrenamientos (E4-01) no salen dentro del calendario todavía (T-231),
+// pero desde la T-228 tienen su pantalla, `/entrenamientos`, y aquí está el
+// enlace. Lo ve cualquiera con función en el equipo, que el horario es de todo
+// el club; quien solo lo sigue no, porque la base no le deja leerlos. `agenda`
+// no importa nada de `training`: es solo una dirección.
 
 import { Link } from 'react-router';
 
-import { useHasPermission } from '@modules/auth';
+import { useAuth, useHasPermission } from '@modules/auth';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Pantalla } from '@shared/ui/Pantalla';
@@ -57,6 +60,11 @@ export function CalendarioPage() {
   // `undefined` mientras no se saben los permisos: no se enseña el botón
   // hasta saber que se puede, en vez de enseñarlo y quitarlo.
   const programa = useHasPermission('schedule.manage') === true;
+  // Con función en el equipo activo, y no solo siguiéndolo (T-301c).
+  const { teams, activeTeamId } = useAuth();
+  const conFuncion =
+    teams !== null &&
+    teams.some((membresia) => membresia.team.id === activeTeamId && membresia.seguidor !== true);
 
   const contenido = () => {
     if (equipoId === null) {
@@ -123,12 +131,19 @@ export function CalendarioPage() {
 
   return (
     <Pantalla id="A09" titulo="Calendario">
-      {programa && equipoId !== null && temporadaId !== null ? (
-        <p>
-          <Link className={styles.nuevo} to="/partidos/nuevo">
-            Nuevo partido
-          </Link>
-        </p>
+      {equipoId !== null && ((programa && temporadaId !== null) || conFuncion) ? (
+        <div className={styles.enlaces}>
+          {programa && temporadaId !== null ? (
+            <Link className={styles.nuevo} to="/partidos/nuevo">
+              Nuevo partido
+            </Link>
+          ) : null}
+          {conFuncion ? (
+            <Link className={styles.otro} to="/entrenamientos">
+              Entrenamientos
+            </Link>
+          ) : null}
+        </div>
       ) : null}
       {contenido()}
     </Pantalla>

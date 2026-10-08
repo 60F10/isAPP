@@ -5,6 +5,64 @@
 
 ---
 
+## Sesión 08/10/2026, noche — T-228: entrenamientos, las sesiones: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `feat/training-sesiones`. Un solo commit.
+Sin migración ni SQL: la T-227 sigue sin aplicar y no hace falta.
+
+- **Nace el módulo `training`**, con `model/`, `api/`, `hooks/` y `routes/`. Importa de `shared`,
+  `auth` y `core`, y **no de `agenda`**. Su barril exporta las tres pantallas, perezosas.
+- **A15a, `/entrenamientos`.** El horario del equipo y la temporada activos, en «Próximos» (desde
+  las 00:00 de hoy, el más cercano primero) y «Pasados» (los diez más recientes y «Ver los N
+  anteriores»). **Va sin guardia de permiso**, junto a `/calendario`: lo abre cualquiera con
+  función en el equipo. Con `training.manage` salen «Entrenamiento de hoy», «Nuevo
+  entrenamiento» y, en cada fila, «Pasar lista» y «Editar», con el día en su nombre accesible.
+- **«Entrenamiento de hoy»** crea uno para ahora mismo, con los segundos a cero, el lugar del más
+  reciente o el campo de casa del club y sin objetivo, y navega a su lista. Si hoy ya hay uno, en
+  su sitio sale «Pasar lista de hoy». Si falla, el mensaje se anuncia y recibe el foco.
+- **A15b, alta y edición.** `/entrenamientos/nuevo` y `/entrenamientos/:id/editar`, las dos tras
+  `training.manage`. El alta trae la fecha de hoy y la hora y el lugar del más reciente. Las
+  fechas pasadas se admiten. Al fallar la validación el foco va al primer campo con error.
+  Borrar pregunta en su sitio y dice que se lleva la lista de asistencia.
+- **`/entrenamientos/:id/lista` sigue en `PantallaPendiente`**, ahora con «la T-229». La B04
+  pendiente sale de `stats.view`: el historial tendrá su ruta en la T-232.
+- **`training_sessions.notes` no se toca.** No está en `COLUMNAS`, ni en el tipo, ni en ninguna
+  consulta, y una prueba lo vigila: la fila la ve todo el club.
+- **`aInstante` y `partesDeInstante` viven en `shared/lib/instante.ts`**, movidas tal cual con
+  sus pruebas. `agenda/model/partido.ts` las importa y las vuelve a exportar.
+- **Cómo se llega.** El calendario enseña «Entrenamientos» a quien tiene función en el equipo, y
+  no a quien solo lo sigue. «Agenda» se marca también en `/entrenamientos`. En la A07,
+  `schedule.manage` dice «Crear y editar partidos» y `training.manage`, «Crear entrenamientos,
+  pasar lista y escribir observaciones».
+- **Las tres mutaciones invalidan `trainingKeys.all` sin esperar**, como pide `CLAUDE.md`: tras
+  borrar, la relectura devuelve «no existe» y quita el botón que tiene que navegar. **Ninguna
+  prueba lo distingue:** la del borrado contesta `null` después de borrar, y pasa igual con la
+  invalidación esperada. Es prevención, no un fallo visto.
+- Lint, formato, **979 pruebas en 75 archivos** y build, sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+  **Paquete inicial: 176,33 kB comprimidos** con mi recorrido de las importaciones (176,20 en
+  `main`): **+0,13 kB**, por la cadena de `destinos.ts` y las tres rutas perezosas de
+  `router.tsx`. Sobre los 180,97 kB de `CLAUDE.md`, 181,10. El trozo `training-*.js` pesa 4,33 kB.
+- **Mirado con un arnés temporal**, sin base: a 320 px y a 1024 px no hay desplazamiento
+  horizontal y ningún enlace, botón o campo baja de 48 px. **A 320 px con el texto al 200 % sí
+  lo hay**, y no es de estas pantallas: el `h1` de `Pantalla` y el título de `Card`, comunes a
+  todas, no parten «Entrenamientos» ni «entrenamiento». Los botones y enlaces propios sí se
+  parten (`overflow-wrap: anywhere`). Sin tarea.
+- **Dos cosas que el traspaso no decía y se resolvieron así:** el `Borrar` de `PartidoPage.tsx`
+  no mueve el foco, así que el de aquí sigue el de la A07 (a la pregunta, y de vuelta al botón);
+  y con un entrenamiento que no existe, el enlace a la lista es el «Volver a entrenamientos» de
+  arriba, sin repetirlo debajo del mensaje.
+- **Deuda.** Un seguidor que escriba la dirección a mano ve la lista vacía, sin que nada le diga
+  que no puede leerla. Sin red no se crea ni se edita nada: va en línea y no por la cola.
+  `useEquipoDeTrabajo` repite el `useEquipoActivo` de `agenda`, y el formato del día está escrito
+  dos veces, aquí y en `ResumenDePartido`. Un entrenamiento no tiene duración ni hora de fin,
+  porque la tabla no las tiene. El alta no enseña el formulario si no carga el horario o el club,
+  aunque solo los usa para proponer la hora y el lugar. Y hasta la T-229, «Pasar lista» lleva a
+  una pantalla pendiente.
+- **Sin probar contra la base de verdad ni en un móvil.** Mientras Raúl no pegue la T-227, el
+  horario lo lee el equipo y no el resto del club.
+
+---
+
 ## Sesión 08/10/2026 — pase a pro y plan de los entrenamientos: ✅ cerrada
 
 Sesión con Raúl en el móvil, rama `docs/docs-plan-de-entrenamientos`. **Sin código de aplicación y

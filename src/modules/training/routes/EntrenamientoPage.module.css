@@ -1,0 +1,72 @@
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-inline-size: 32rem;
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Fecha y hora juntas cuando caben; una debajo de otra a 320 px. El `min()`
+   es para el texto al 200 %: sin él, la columna no baja de 10 rem y se sale de
+   la pantalla (1.4.10). */
+.fechaHora {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  gap: var(--space-4);
+}
+
+.fallo {
+  max-inline-size: 60ch;
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.pregunta {
+  max-inline-size: 60ch;
+  margin: 0;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+/* «Entrenamiento» es una palabra larga: a 320 px con el texto al 200 % no cabe
+   entera en un botón, y antes de sacar la pantalla de su ancho se parte. */
+.volver,
+.largo {
+  overflow-wrap: anywhere;
+}
+
+.volver {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.volver:focus-visible,
+.pregunta:focus-visible,
+.fallo:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
