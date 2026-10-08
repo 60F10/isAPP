@@ -1,0 +1,135 @@
+/* Lista de asistencia (A15). Se pasa de pie, en el campo: todo en columna,
+   objetivos de 48 px (`--tap-min`) y nada que desborde en horizontal a 320 px
+   ni con el texto al 200 % (1.4.10). */
+
+.cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* El día y la hora dicen de qué entrenamiento es la lista: con peso. */
+.cuando {
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.detalle {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.nota {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* La cuenta que cambia con cada toque. Números de ancho fijo para que no baile. */
+.cuenta {
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada jugador, un bloque separado por una raya. Las tres opciones bajan de
+   línea si no caben. */
+.jugador {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.jugador:last-child {
+  border-block-end: 0;
+}
+
+.nombre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La leyenda «Asistencia de …» nombra el grupo para el lector de pantalla y
+   no se ve: el apodo ya está escrito justo encima. El mismo recorte que
+   `.oculto` de `MiEquipoPage.module.css`; no hay uno común en `shared`. */
+.asistencia legend {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Avisos en palabras y con peso, no solo en color (1.4.1). */
+.aviso {
+  max-inline-size: 60ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+}
+
+.fallo {
+  max-inline-size: 60ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tap-gap);
+}
+
+.guardada {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.volver {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  overflow-wrap: anywhere;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.volver:focus-visible,
+.fallo:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}

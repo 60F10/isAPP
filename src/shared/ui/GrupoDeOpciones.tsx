@@ -6,6 +6,10 @@
 //
 // `enLinea` pone las opciones una al lado de otra y las baja de línea si no
 // caben: lo pide la convocatoria (T-205), con tres opciones por jugador.
+//
+// `valor` admite `null` desde la T-229: ningún radio marcado. Lo pide la lista
+// de asistencia, donde un jugador puede estar sin marcar. Una vez elegida una
+// opción, el grupo no ofrece volver a ninguna: eso lo decide quien lo usa.
 
 import { useId } from 'react';
 
@@ -19,7 +23,8 @@ interface Opcion<T extends string> {
 interface GrupoDeOpcionesProps<T extends string> {
   leyenda: string;
   opciones: readonly Opcion<T>[];
-  valor: T;
+  /** La opción elegida, o `null` si todavía no hay ninguna. */
+  valor: T | null;
   alCambiar: (valor: T) => void;
   enLinea?: boolean;
 }

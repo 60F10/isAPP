@@ -5,6 +5,76 @@
 
 ---
 
+## Sesión 08/10/2026, noche — T-229: entrenamientos, pasar lista: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `feat/training-pasar-lista`. Un solo commit.
+Sin migración ni SQL: la T-227 sigue sin aplicar y no hace falta.
+
+- **A15, `/entrenamientos/:id/lista`**, tras `training.manage` y perezosa: sustituye a la
+  `PantallaPendiente`. Bajo el título, el día, la hora y el lugar, y el aviso «Las observaciones
+  son para lo deportivo. No apuntes lesiones ni datos de salud.» Cada jugador de la plantilla,
+  con su dorsal y su apodo de encabezado, tiene sus tres opciones —«Presente», «Ausente»,
+  «Retraso»— y «Añadir observación», que abre un campo de 280 caracteres.
+- **Sin marcar es sin fila.** Ningún radio marcado, y al guardar ese jugador no viaja. Guardar con
+  jugadores sin marcar se permite: encima del botón se lee cuántos quedan.
+- **La partida de la lista** se elige arriba, «Todos presentes» o «Todos sin marcar», y se guarda
+  en `localStorage` (`sasi.lista-de-partida`). Solo mueve a quien no tiene fila ni se ha tocado.
+- **El borrador.** Cada toque escribe lo tocado en `sasi.lista.<id>`, con el `userId`. Al volver
+  se recupera y se dice. «Descartar cambios» sale solo con cambios y no pregunta.
+- **Guardar son dos `upsert` repetibles** sobre `training_attendance`, como en la convocatoria: el
+  primero crea las filas que faltan con `created_by` e `ignoreDuplicates`; el segundo las escribe
+  todas sin `created_by` y pide `player_id` de vuelta. Menos filas de vuelta es `SIN_FILAS`. El
+  estado se manda siempre, en los dos. Mirado con el cliente de Supabase de verdad y la red
+  interceptada: salen esas dos peticiones y no otras.
+- **De `players` solo se pide `nickname`**, y `training_sessions.notes` no se toca.
+- **La plantilla es la del equipo y la temporada del entrenamiento**, no la del equipo activo.
+  Sale de `usePlantillaDeLectura`, que `core` exporta ya por su barril con `LecturaDePlantilla`.
+- **`GrupoDeOpciones` admite `valor` nulo**, sin cambios para quien ya lo usaba.
+- Lint, formato, **1048 pruebas en 80 archivos** (eran 979 en 75) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. **Paquete inicial: 180,65 kB comprimidos** recorriendo las
+  importaciones estáticas desde `index.html` y `App-*.js`; `main` da 180,66 con el mismo
+  recorrido: **no sube**. En las unidades de la sección de abajo son 176,42 y 176,43; allí
+  `main` daba 176,33, con un recorrido que no es idéntico al mío. El trozo `training-*.js` pasa
+  de 4,33 a 7,43 kB.
+- **Mirado con un arnés temporal**, sin base y con veinte jugadores: a 320 px, a 1024 px y a
+  320 px con el texto al 200 % no hay desplazamiento horizontal, y las opciones, los botones y
+  los campos miden 48 px o más.
+- **Cinco cosas que el traspaso no decía, o decía de otra manera. Para que Raúl las mire:**
+  1. **Al guardar, `Cambios` no siempre vuelve a vacío.** Se queda la observación escrita a un
+     jugador que sigue sin marcar, que no tiene fila donde ir y se perdería sin aviso, y lo que
+     se tocó mientras la petición estaba en camino, que no viajó. Lo decide `cambiosTrasGuardar`.
+     Con todos marcados y sin tocar nada a medias, vuelve a vacío, como pedía el traspaso.
+  2. **Quien ya no está en la plantilla no viaja al guardar.** Su fila se lee y no se cambia, y
+     reescribirla solo serviría para pisar lo que otro haya corregido. Sí cuenta en el recuento.
+  3. **Lo guardado se pone en la caché antes de releer**, y el borrador lo pone al día el hook
+     además de la pantalla: si se sale con el guardado en camino, el `onSuccess` de la pantalla
+     no corre.
+  4. **El foco solo se mueve si nadie lo está usando.** Tras guardar vuelve a «Guardar lista», y
+     al fallar va al mensaje, salvo que se haya seguido marcando o escribiendo. El anuncio sale
+     siempre.
+  5. **La leyenda «Asistencia de …» va oculta a la vista** con una regla de la hoja de la
+     pantalla, sin tocar `GrupoDeOpciones`. Y «Añadir observación» lleva el apodo en su nombre
+     accesible: «Añadir observación: Tito».
+- **Revisado con el subagente `revisor`** antes de subir. De sus cuatro hallazgos, tres están
+  arreglados: el borrador al salir con el guardado en camino (punto 3), el foco (punto 4) y que
+  sin cuenta no se lee ni se escribe ningún borrador. El cuarto va en la deuda.
+- **Deuda.** Guardar son dos peticiones sin transacción, repetibles. La observación del
+  entrenamiento no existe hasta la T-233. Sin red no se guarda, y lo marcado espera en el
+  borrador del móvil; el mensaje sin conexión dice «No se ha guardado nada», que no es exacto si
+  la primera petición llegó. Si dos entrenadores pasan la misma lista a la vez, gana el último
+  que guarda, jugador a jugador. Un jugador marcado no puede volver a «sin marcar». La partida
+  de la lista se guarda por móvil y no por persona. El borrador de un entrenamiento borrado se
+  queda en el móvil, y en un móvil compartido el de una cuenta lo pisa el primer toque de otra.
+  Nadie más que quien pasa lista ve la asistencia, tampoco el jugador ni su familia. Un campo de
+  observación abierto y vacío no se cierra. El aviso «Márcalo para guardar la observación.» va
+  bajo el campo y no está atado a él con `aria-describedby`, que `Field` no deja pasar. El
+  formato del día está ya escrito tres veces. Y la regla que recorta la leyenda es otra copia
+  más de `.oculto`: no hay una común en `shared`.
+- **Sin probar contra la base de verdad ni en un móvil.** Mientras Raúl no pegue la T-227,
+  cualquier miembro del equipo puede leer la asistencia por la API.
+
+---
+
 ## Sesión 08/10/2026, noche — T-228: entrenamientos, las sesiones: ✅ cerrada
 
 Sesión programada, en la nube y sin Raúl delante, rama `feat/training-sesiones`. Un solo commit.

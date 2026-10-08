@@ -11,9 +11,10 @@ export { PlantillaPage } from './routes/PlantillaPage';
 // propone el campo de casa del club en la A10 (T-203b).
 export { useClub, useClubActivo, useEquipos } from './hooks/useClubYEquipos';
 
-// Para `lineup`, que convoca sobre la plantilla del equipo (T-205).
-export { usePlantilla } from './hooks/usePlantilla';
+// Para `lineup`, que convoca sobre la plantilla del equipo (T-205), y para
+// `training`, que pasa lista sobre ella con apodo y dorsal (T-229).
+export { usePlantilla, usePlantillaDeLectura } from './hooks/usePlantilla';
 export { DISPONIBILIDADES, POSICIONES } from './model/plantilla';
 
 export type { Club, Equipo, TipoDeEquipo } from './model/clubYEquipos';
-export type { Disponibilidad, Inscripcion, Posicion } from './model/plantilla';
+export type { Disponibilidad, Inscripcion, LecturaDePlantilla, Posicion } from './model/plantilla';
