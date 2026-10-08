@@ -13,6 +13,10 @@
 //
 // Mismo cuidado que en el resto: la actualización y el borrado piden la fila
 // de vuelta y lanzan `SIN_FILAS` si la RLS no deja tocarla.
+//
+// «REPETIR CADA SEMANA» (T-230) NO TIENE TABLA. `crearEntrenamientos` mete
+// filas sueltas, iguales que las demás, y la tanda no existe en la base: nada
+// las une después.
 
 import { SIN_FILAS } from '@shared/lib/guardado';
 import { supabase } from '@shared/lib/supabase';
@@ -100,6 +104,58 @@ export async function crearEntrenamiento(
   }
 
   return aEntrenamiento(data);
+}
+
+/**
+ * Crea de golpe los entrenamientos de una tanda y devuelve cuántos se crearon.
+ *
+ * UN SOLO `insert` con todas las filas: es una sola sentencia, así que entran
+ * todas o ninguna. No lo partas en varias llamadas, que un fallo a medias
+ * dejaría la tanda coja y sin forma de saber cuáles faltan.
+ */
+export async function crearEntrenamientos(
+  destino: { equipoId: string; temporadaId: string; userId: string },
+  lista: readonly DatosDeEntrenamiento[],
+): Promise<number> {
+  if (lista.length === 0) {
+    return 0;
+  }
+
+  const { data, error } = await supabase
+    .from('training_sessions')
+    .insert(
+      lista.map((datos) => ({
+        ...datos,
+        team_id: destino.equipoId,
+        season_id: destino.temporadaId,
+        created_by: destino.userId,
+      })),
+    )
+    .select('id');
+
+  if (error) {
+    throw error;
+  }
+
+  return data.length;
+}
+
+/**
+ * El último día de la temporada, como texto `2027-06-30`. `null` si no llega
+ * fila: «Repetir cada semana» sigue sin ella, con solo su máximo.
+ */
+export async function fetchFinDeTemporada(temporadaId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('seasons')
+    .select('ends_on')
+    .eq('id', temporadaId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data === null ? null : data.ends_on;
 }
 
 /** Cambia cuándo, dónde y el objetivo. Lanza `SIN_FILAS` si la RLS no lo deja. */

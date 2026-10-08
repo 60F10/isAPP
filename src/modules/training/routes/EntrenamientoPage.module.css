@@ -70,3 +70,87 @@
   outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
 }
+
+/* «Repetir cada semana» (T-230): la casilla, lo que abre y el resumen. Con
+   márgenes y no con `gap`, para que el resumen vacío no deje un hueco: está
+   siempre en el documento, que es una región viva. */
+.repeticion {
+  display: flex;
+  flex-direction: column;
+}
+
+.repeticion > * + * {
+  margin-block-start: var(--space-4);
+}
+
+/* Toda la fila responde al toque: 48 px de alto (`--tap-min`), como el resto
+   de las casillas del proyecto. */
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--tap-min);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.marca {
+  flex: 0 0 auto;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.marca:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+/* `min-inline-size: 0` porque un `fieldset` no baja por defecto del ancho de
+   su contenido, y a 320 px con el texto al 200 % empujaría la pantalla. */
+.dias {
+  min-inline-size: 0;
+  /* Solo los lados: el de arriba lo pone `.repeticion`. */
+  margin-inline: 0;
+  padding: 0;
+  border: 0;
+}
+
+.leyenda {
+  margin-block-end: var(--space-1);
+  padding: 0;
+  font-size: var(--font-size-75);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Las siete, una al lado de otra, y abajo las que no quepan: nunca hay
+   desplazamiento horizontal. Entre filas, `--tap-gap`; entre casillas, algo
+   más para que no se lean juntas. */
+.casillas {
+  display: flex;
+  flex-flow: row wrap;
+  gap: var(--tap-gap) var(--space-5);
+}
+
+/* Como el error de `Field`: icono y texto, no solo el color (1.4.1). */
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--color-rejected);
+  font-size: var(--font-size-75);
+}
+
+.repeticion > .resumen {
+  max-inline-size: 60ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: var(--font-weight-semibold);
+}
+
+.repeticion > .resumen:not(:empty) {
+  margin-block-start: var(--space-2);
+}

@@ -6,6 +6,9 @@
 //
 // Las fechas se construyen alrededor del día en que corre la prueba, porque
 // «hoy» lo decide el reloj: hoy a mediodía, mañana y ayer.
+//
+// «Repetir cada semana» (T-230) se prueba con fechas fijas de noviembre de
+// 2099, escritas en el campo: el 3, el 10, el 17 y el 24 son martes.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
@@ -27,6 +30,8 @@ const api = vi.hoisted(() => ({
   fetchEntrenamientos: vi.fn(),
   fetchEntrenamiento: vi.fn(),
   crearEntrenamiento: vi.fn(),
+  crearEntrenamientos: vi.fn(),
+  fetchFinDeTemporada: vi.fn(),
   actualizarEntrenamiento: vi.fn(),
   borrarEntrenamiento: vi.fn(),
 }));
@@ -151,6 +156,8 @@ beforeEach(() => {
   }
 
   core.fetchClub.mockResolvedValue(CLUB);
+  // Sin fin de temporada conocido, salvo que la prueba diga otra cosa.
+  api.fetchFinDeTemporada.mockResolvedValue(null);
 });
 
 describe('A15a · Entrenamientos', () => {
@@ -414,6 +421,355 @@ describe('A15b · Nuevo entrenamiento', () => {
     );
     expect(within(datos).getByLabelText(/^Objetivo de la sesión/)).toHaveValue('Presión alta');
     expect(screen.getByRole('heading', { level: 1, name: 'Nuevo entrenamiento' })).toBeVisible();
+  });
+});
+
+describe('A15b · Nuevo entrenamiento, repetir cada semana', () => {
+  const DESTINO = { equipoId: 'eq-1', temporadaId: 'temp-1', userId: 'usuario-1' };
+
+  /** Un martes de noviembre de 2099, a las 18:00 en la hora local. */
+  function martes(diaDelMes: number): Date {
+    return new Date(2099, 10, diaDelMes, 18, 0);
+  }
+
+  /**
+   * Abre el alta con la hora de las 18:00 propuesta, escribe el 3 de noviembre
+   * de 2099 en la fecha y marca «Repetir cada semana».
+   */
+  async function abrirRepitiendo(existentes: Entrenamiento[] = []) {
+    api.fetchEntrenamientos.mockResolvedValue([entrenamiento('ent-ayer', dia(-1)), ...existentes]);
+    api.fetchFinDeTemporada.mockResolvedValue('2099-11-26');
+    const montado = montar('/entrenamientos/nuevo');
+    const datos = await tarjeta('Datos del entrenamiento');
+
+    await userEvent.clear(within(datos).getByLabelText(/^Fecha/));
+    await userEvent.type(within(datos).getByLabelText(/^Fecha/), '2099-11-03');
+    await userEvent.click(within(datos).getByRole('checkbox', { name: 'Repetir cada semana' }));
+
+    return { ...montado, datos };
+  }
+
+  it('sin marcar la casilla, el alta es la de siempre y llama a `crearEntrenamiento`', async () => {
+    api.fetchEntrenamientos.mockResolvedValue([entrenamiento('ent-ayer', dia(-1))]);
+    api.crearEntrenamiento.mockResolvedValue(entrenamiento('ent-nuevo', martes(3)));
+    const { anunciar } = montar('/entrenamientos/nuevo');
+
+    const datos = await tarjeta('Datos del entrenamiento');
+
+    expect(within(datos).getByRole('checkbox', { name: 'Repetir cada semana' })).not.toBeChecked();
+    expect(within(datos).queryByRole('group', { name: 'Días' })).toBeNull();
+    expect(within(datos).queryByLabelText(/^Hasta/)).toBeNull();
+    expect(within(datos).queryByLabelText(/^Desde/)).toBeNull();
+
+    await userEvent.clear(within(datos).getByLabelText(/^Fecha/));
+    await userEvent.type(within(datos).getByLabelText(/^Fecha/), '2099-11-03');
+    await userEvent.click(within(datos).getByRole('button', { name: 'Guardar entrenamiento' }));
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Entrenamientos' }),
+    ).toBeInTheDocument();
+    expect(api.crearEntrenamiento).toHaveBeenCalledWith(DESTINO, {
+      scheduled_at: martes(3).toISOString(),
+      location: CAMPO,
+      focus: null,
+    });
+    expect(api.crearEntrenamientos).not.toHaveBeenCalled();
+    expect(anunciar).toHaveBeenCalledWith('Entrenamiento guardado.');
+  });
+
+  it('la edición no ofrece repetir', async () => {
+    api.fetchEntrenamiento.mockResolvedValue(entrenamiento('ent-1', dia(1)));
+    montar('/entrenamientos/ent-1/editar');
+
+    const datos = await tarjeta('Datos del entrenamiento');
+
+    expect(within(datos).queryByRole('checkbox', { name: 'Repetir cada semana' })).toBeNull();
+    expect(api.fetchFinDeTemporada).not.toHaveBeenCalled();
+  });
+
+  it('al marcarla sale marcado el día de «Desde», y el resumen dice cuántos se van a crear', async () => {
+    const { datos } = await abrirRepitiendo();
+
+    // «Fecha» pasa a llamarse «Desde», con lo que tenía escrito.
+    expect(within(datos).queryByLabelText(/^Fecha/)).toBeNull();
+    expect(within(datos).getByLabelText(/^Desde/)).toHaveValue('2099-11-03');
+
+    const dias = within(datos).getByRole('group', { name: 'Días' });
+
+    expect(within(dias).getAllByRole('checkbox')).toHaveLength(7);
+    expect(within(dias).getByRole('checkbox', { name: 'Martes' })).toBeChecked();
+
+    for (const nombre of ['Lunes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']) {
+      expect(within(dias).getByRole('checkbox', { name: nombre })).not.toBeChecked();
+    }
+
+    // «Hasta» trae el fin de la temporada.
+    expect(within(datos).getByLabelText(/^Hasta/)).toHaveValue('2099-11-26');
+
+    const resumen = within(datos).getByText(
+      `Se van a crear 4 entrenamientos, del ${DIA.format(martes(3))} al ${DIA.format(martes(24))}.`,
+    );
+
+    expect(resumen).toHaveAttribute('aria-live', 'polite');
+    expect(within(datos).getByRole('button', { name: 'Crear 4 entrenamientos' })).toBeEnabled();
+    expect(within(datos).queryByRole('button', { name: 'Guardar entrenamiento' })).toBeNull();
+  });
+
+  it('el resumen se recalcula con cada cambio, y cambiar «Desde» no toca los días', async () => {
+    const { datos } = await abrirRepitiendo();
+    const dias = within(datos).getByRole('group', { name: 'Días' });
+
+    // Con los jueves: 5, 12, 19 y 26, que es el último día y entra.
+    await userEvent.click(within(dias).getByRole('checkbox', { name: 'Jueves' }));
+
+    expect(
+      within(datos).getByText(
+        `Se van a crear 8 entrenamientos, del ${DIA.format(martes(3))} al ${DIA.format(new Date(2099, 10, 26, 18, 0))}.`,
+      ),
+    ).toBeInTheDocument();
+
+    await userEvent.clear(within(datos).getByLabelText(/^Hasta/));
+    await userEvent.type(within(datos).getByLabelText(/^Hasta/), '2099-11-03');
+
+    expect(
+      within(datos).getByText(`Se va a crear 1 entrenamiento, el ${DIA.format(martes(3))}.`),
+    ).toBeInTheDocument();
+    expect(within(datos).getByRole('button', { name: 'Crear 1 entrenamiento' })).toBeEnabled();
+
+    // El 4 es miércoles: los días siguen siendo martes y jueves.
+    await userEvent.clear(within(datos).getByLabelText(/^Desde/));
+    await userEvent.type(within(datos).getByLabelText(/^Desde/), '2099-11-04');
+
+    expect(within(dias).getByRole('checkbox', { name: 'Martes' })).toBeChecked();
+    expect(within(dias).getByRole('checkbox', { name: 'Jueves' })).toBeChecked();
+    expect(within(dias).getByRole('checkbox', { name: 'Miércoles' })).not.toBeChecked();
+  });
+
+  it('con uno que ya existe, el resumen lo dice y `crearEntrenamientos` no lo recibe', async () => {
+    api.crearEntrenamientos.mockResolvedValue(3);
+    const { datos } = await abrirRepitiendo([entrenamiento('ent-10', martes(10))]);
+
+    expect(
+      within(datos).getByText(
+        `Se van a crear 3 entrenamientos, del ${DIA.format(martes(3))} al ${DIA.format(martes(24))}. 1 ya existe y no se repite.`,
+      ),
+    ).toBeInTheDocument();
+
+    await userEvent.type(within(datos).getByLabelText(/^Objetivo de la sesión/), 'Presión alta');
+    await userEvent.click(within(datos).getByRole('button', { name: 'Crear 3 entrenamientos' }));
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Entrenamientos' }),
+    ).toBeInTheDocument();
+    expect(api.crearEntrenamientos).toHaveBeenCalledTimes(1);
+    // El lugar y el objetivo, los del formulario, iguales en todos. El del 10 no va.
+    expect(api.crearEntrenamientos).toHaveBeenCalledWith(
+      DESTINO,
+      [martes(3), martes(17), martes(24)].map((instante) => ({
+        scheduled_at: instante.toISOString(),
+        location: CAMPO,
+        focus: 'Presión alta',
+      })),
+    );
+    expect(api.crearEntrenamiento).not.toHaveBeenCalled();
+  });
+
+  it('si ya existen todos, lo dice, no ofrece crear ninguno y no llama a la base', async () => {
+    const { datos, anunciar } = await abrirRepitiendo(
+      [3, 10, 17, 24].map((diaDelMes) => entrenamiento(`ent-${diaDelMes}`, martes(diaDelMes))),
+    );
+
+    expect(
+      within(datos).getByText('No se va a crear ninguno. 4 ya existen y no se repiten.'),
+    ).toBeInTheDocument();
+
+    await userEvent.click(within(datos).getByRole('button', { name: 'Crear entrenamientos' }));
+
+    expect(within(datos).getByText('No hay ninguno que crear en esas fechas.')).toBeInTheDocument();
+    expect(within(datos).getByLabelText(/^Hasta/)).toHaveAttribute('aria-invalid', 'true');
+    expect(within(datos).getByLabelText(/^Hasta/)).toHaveFocus();
+    expect(anunciar).toHaveBeenCalledWith('Revisa los campos marcados');
+    expect(api.crearEntrenamientos).not.toHaveBeenCalled();
+  });
+
+  it('sin ningún día, se lee el error en el grupo y no se llama a la base', async () => {
+    const { datos, anunciar } = await abrirRepitiendo();
+    const dias = within(datos).getByRole('group', { name: 'Días' });
+
+    await userEvent.click(within(dias).getByRole('checkbox', { name: 'Martes' }));
+    await userEvent.click(within(datos).getByRole('button', { name: 'Crear entrenamientos' }));
+
+    expect(within(dias).getByText('Elige al menos un día.')).toBeInTheDocument();
+    expect(dias).toHaveAccessibleDescription('Elige al menos un día.');
+    // El foco, a la primera casilla del grupo, que es donde se arregla.
+    expect(within(dias).getByRole('checkbox', { name: 'Lunes' })).toHaveFocus();
+    expect(anunciar).toHaveBeenCalledWith('Revisa los campos marcados');
+    expect(api.crearEntrenamientos).not.toHaveBeenCalled();
+    expect(api.crearEntrenamiento).not.toHaveBeenCalled();
+  });
+
+  it('el error se va al arreglarlo, sin esperar a otro envío', async () => {
+    const { datos } = await abrirRepitiendo();
+    const dias = within(datos).getByRole('group', { name: 'Días' });
+
+    await userEvent.click(within(dias).getByRole('checkbox', { name: 'Martes' }));
+    await userEvent.click(within(datos).getByRole('button', { name: 'Crear entrenamientos' }));
+
+    expect(within(dias).getByText('Elige al menos un día.')).toBeInTheDocument();
+
+    await userEvent.click(within(dias).getByRole('checkbox', { name: 'Martes' }));
+
+    // El resumen ya dice que se crean cuatro: el error no puede seguir ahí.
+    expect(within(dias).queryByText('Elige al menos un día.')).toBeNull();
+    expect(dias).not.toHaveAttribute('aria-describedby');
+    expect(within(datos).getByRole('button', { name: 'Crear 4 entrenamientos' })).toBeEnabled();
+  });
+
+  it('con más de 150, el resumen lo dice en vez de prometerlos, y no se llama a la base', async () => {
+    api.fetchEntrenamientos.mockResolvedValue([entrenamiento('ent-ayer', dia(-1))]);
+    montar('/entrenamientos/nuevo');
+
+    const datos = await tarjeta('Datos del entrenamiento');
+
+    await userEvent.clear(within(datos).getByLabelText(/^Fecha/));
+    await userEvent.type(within(datos).getByLabelText(/^Fecha/), '2099-01-01');
+    await userEvent.click(within(datos).getByRole('checkbox', { name: 'Repetir cada semana' }));
+
+    const dias = within(datos).getByRole('group', { name: 'Días' });
+
+    for (const nombre of [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo',
+    ]) {
+      if (!within(dias).getByRole<HTMLInputElement>('checkbox', { name: nombre }).checked) {
+        await userEvent.click(within(dias).getByRole('checkbox', { name: nombre }));
+      }
+    }
+
+    // Del 1 de enero al 31 de mayo, todos los días: 151.
+    await userEvent.type(within(datos).getByLabelText(/^Hasta/), '2099-05-31');
+
+    expect(within(datos).getByText('Son demasiados de una vez: como mucho, 150.')).toHaveAttribute(
+      'aria-live',
+      'polite',
+    );
+
+    await userEvent.click(within(datos).getByRole('button', { name: 'Crear entrenamientos' }));
+
+    expect(within(datos).getByLabelText(/^Hasta/)).toHaveAttribute('aria-invalid', 'true');
+    expect(within(datos).getByLabelText(/^Hasta/)).toHaveAccessibleDescription(
+      'Son demasiados de una vez: como mucho, 150.',
+    );
+    expect(api.crearEntrenamientos).not.toHaveBeenCalled();
+
+    // Con un día menos caben.
+    await userEvent.clear(within(datos).getByLabelText(/^Hasta/));
+    await userEvent.type(within(datos).getByLabelText(/^Hasta/), '2099-05-30');
+
+    expect(within(datos).getByRole('button', { name: 'Crear 150 entrenamientos' })).toBeEnabled();
+    expect(within(datos).getByLabelText(/^Hasta/)).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('el resumen es una región viva que está desde antes de marcar la casilla', async () => {
+    api.fetchEntrenamientos.mockResolvedValue([entrenamiento('ent-ayer', dia(-1))]);
+    montar('/entrenamientos/nuevo');
+
+    const datos = await tarjeta('Datos del entrenamiento');
+    const viva = datos.querySelector('[aria-live="polite"]');
+
+    expect(viva).toBeEmptyDOMElement();
+
+    await userEvent.clear(within(datos).getByLabelText(/^Fecha/));
+    await userEvent.type(within(datos).getByLabelText(/^Fecha/), '2099-11-03');
+    await userEvent.click(within(datos).getByRole('checkbox', { name: 'Repetir cada semana' }));
+    await userEvent.type(within(datos).getByLabelText(/^Hasta/), '2099-11-10');
+
+    // Es el mismo elemento, que ha cambiado de texto.
+    expect(viva).toHaveTextContent(/^Se van a crear 2 entrenamientos/);
+
+    await userEvent.click(within(datos).getByRole('checkbox', { name: 'Repetir cada semana' }));
+
+    expect(viva).toBeEmptyDOMElement();
+    expect(within(datos).getByRole('button', { name: 'Guardar entrenamiento' })).toBeEnabled();
+  });
+
+  it('con «Hasta» pasada la temporada, lo dice bajo su campo', async () => {
+    const { datos } = await abrirRepitiendo();
+
+    await userEvent.clear(within(datos).getByLabelText(/^Hasta/));
+    await userEvent.type(within(datos).getByLabelText(/^Hasta/), '2099-12-01');
+    await userEvent.click(within(datos).getByRole('button', { name: 'Crear entrenamientos' }));
+
+    expect(
+      within(datos).getByText('La temporada termina el 26 de noviembre de 2099.'),
+    ).toBeInTheDocument();
+    expect(within(datos).getByLabelText(/^Hasta/)).toHaveFocus();
+    expect(api.crearEntrenamientos).not.toHaveBeenCalled();
+  });
+
+  it('sin fin de temporada conocido, «Hasta» llega vacía y se puede escribir', async () => {
+    api.fetchEntrenamientos.mockResolvedValue([entrenamiento('ent-ayer', dia(-1))]);
+    api.fetchFinDeTemporada.mockRejectedValue({ code: '42501', message: 'permission denied' });
+    montar('/entrenamientos/nuevo');
+
+    const datos = await tarjeta('Datos del entrenamiento');
+
+    await userEvent.clear(within(datos).getByLabelText(/^Fecha/));
+    await userEvent.type(within(datos).getByLabelText(/^Fecha/), '2099-11-03');
+    await userEvent.click(within(datos).getByRole('checkbox', { name: 'Repetir cada semana' }));
+
+    expect(within(datos).getByLabelText(/^Hasta/)).toHaveValue('');
+    expect(within(datos).getByRole('button', { name: 'Crear entrenamientos' })).toBeEnabled();
+
+    await userEvent.type(within(datos).getByLabelText(/^Hasta/), '2099-11-10');
+
+    expect(within(datos).getByRole('button', { name: 'Crear 2 entrenamientos' })).toBeEnabled();
+  });
+
+  it('al guardar se anuncia cuántos se crearon y se vuelve a la lista', async () => {
+    api.crearEntrenamientos.mockResolvedValue(4);
+    const { datos, anunciar, router } = await abrirRepitiendo();
+
+    await userEvent.click(within(datos).getByRole('button', { name: 'Crear 4 entrenamientos' }));
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Entrenamientos' }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/entrenamientos');
+    expect(anunciar).toHaveBeenCalledWith('4 entrenamientos creados.');
+    expect(api.crearEntrenamientos).toHaveBeenCalledWith(
+      DESTINO,
+      [martes(3), martes(10), martes(17), martes(24)].map((instante) => ({
+        scheduled_at: instante.toISOString(),
+        location: CAMPO,
+        focus: null,
+      })),
+    );
+  });
+
+  it('si falla, lo dice con el foco en el mensaje y el formulario sigue como estaba', async () => {
+    api.crearEntrenamientos.mockRejectedValue(new TypeError('Failed to fetch'));
+    const { datos, anunciar } = await abrirRepitiendo();
+
+    await userEvent.click(within(datos).getByRole('button', { name: 'Crear 4 entrenamientos' }));
+
+    const mensaje = await within(datos).findByText(
+      'No hay conexión. No se ha guardado nada: vuelve a intentarlo con cobertura.',
+    );
+
+    expect(mensaje).toHaveFocus();
+    expect(anunciar).toHaveBeenCalledWith(
+      'No hay conexión. No se ha guardado nada: vuelve a intentarlo con cobertura.',
+    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Nuevo entrenamiento' })).toBeVisible();
+    expect(within(datos).getByRole('checkbox', { name: 'Repetir cada semana' })).toBeChecked();
+    expect(within(datos).getByLabelText(/^Hasta/)).toHaveValue('2099-11-26');
+    expect(within(datos).getByRole('button', { name: 'Crear 4 entrenamientos' })).toBeEnabled();
   });
 });
 

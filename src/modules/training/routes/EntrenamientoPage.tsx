@@ -14,6 +14,12 @@
 // pregunta lo dice. Solo se ofrece en la edición.
 //
 // Va en línea y no por la cola: sin red no se guarda nada.
+//
+// «REPETIR CADA SEMANA» (T-230) SOLO EXISTE EN EL ALTA. Con la casilla
+// marcada se eligen los días y hasta cuándo, una línea viva dice cuántos se
+// van a crear, y al guardar entran todos a la vez o ninguno. Sin marcar, el
+// alta es la de la T-228. La tanda no existe en la base: son entrenamientos
+// sueltos, y cada uno se edita y se borra después como cualquier otro.
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -25,15 +31,18 @@ import { partesDeInstante } from '@shared/lib/instante';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Field } from '@shared/ui/Field';
+import { Icon } from '@shared/ui/Icon';
 import { Pantalla } from '@shared/ui/Pantalla';
 
 import {
   useActualizarEntrenamiento,
   useBorrarEntrenamiento,
   useCrearEntrenamiento,
+  useCrearEntrenamientos,
   useEntrenamiento,
   useEntrenamientos,
   useEquipoDeTrabajo,
+  useFinDeTemporada,
 } from '../hooks/useEntrenamientos';
 import {
   LARGO_LUGAR,
@@ -41,6 +50,13 @@ import {
   propuestaDeAlta,
   validarEntrenamiento,
 } from '../model/entrenamiento';
+import {
+  diaDeLaFecha,
+  DIAS,
+  fechasSemanales,
+  planDeLaTanda,
+  validarRepeticion,
+} from '../model/repeticion';
 
 import styles from './EntrenamientoPage.module.css';
 
@@ -50,10 +66,62 @@ import type {
   FormularioEntrenamiento,
   ResultadoEntrenamiento,
 } from '../model/entrenamiento';
+import type { DiaDeLaSemana, ErroresDeRepeticion, PlanDeLaTanda } from '../model/repeticion';
 import type { UseMutationResult } from '@tanstack/react-query';
 import type { RefObject } from 'react';
 
 const LISTA = '/entrenamientos';
+
+const DIA = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+
+/**
+ * La línea viva de «Repetir cada semana»: cuántos se van a crear y entre qué
+ * días, y los que se quedan fuera. Vacía mientras falte algo por escribir.
+ */
+function resumenDeLaTanda(plan: PlanDeLaTanda | null): string {
+  if (plan === null) {
+    return '';
+  }
+
+  const frases: string[] = [];
+  const { nuevos, repetidos, imposibles } = plan;
+
+  // Con demasiados no se va a crear nada: decir «Se van a crear 152» sería
+  // prometer lo que el botón va a negar.
+  if (plan.error !== null && nuevos.length > 0) {
+    return plan.error;
+  }
+  const primero = nuevos.at(0);
+  const ultimo = nuevos.at(-1);
+
+  if (primero === undefined || ultimo === undefined) {
+    frases.push('No se va a crear ninguno.');
+  } else if (nuevos.length === 1) {
+    frases.push(`Se va a crear 1 entrenamiento, el ${DIA.format(new Date(primero))}.`);
+  } else {
+    frases.push(
+      `Se van a crear ${nuevos.length} entrenamientos, del ${DIA.format(new Date(primero))} al ${DIA.format(new Date(ultimo))}.`,
+    );
+  }
+
+  if (repetidos.length === 1) {
+    frases.push('1 ya existe y no se repite.');
+  } else if (repetidos.length > 1) {
+    frases.push(`${repetidos.length} ya existen y no se repiten.`);
+  }
+
+  if (imposibles.length === 1) {
+    frases.push('1 no se crea porque esa hora no existe ese día.');
+  } else if (imposibles.length > 1) {
+    frases.push(`${imposibles.length} no se crean porque esa hora no existe ese día.`);
+  }
+
+  return frases.join(' ');
+}
+
+function creados(cuantos: number): string {
+  return cuantos === 1 ? '1 entrenamiento creado.' : `${cuantos} entrenamientos creados.`;
+}
 
 /**
  * Lleva el foco al mensaje de error cuando aparece (2.4.3). El botón que lo
@@ -83,19 +151,43 @@ function Volver() {
   );
 }
 
+/** Lo que «Repetir cada semana» necesita del alta. La edición no lo pasa. */
+interface Tanda {
+  /** Los `scheduledAt` del horario que ya existe: no se repiten. */
+  existentes: readonly string[];
+  /** El último día de la temporada, o `null` si no se sabe. */
+  finDeTemporada: string | null;
+  crear: UseMutationResult<number, Error, DatosDeEntrenamiento[]>;
+}
+
 interface FormularioProps {
   inicial: FormularioEntrenamiento;
   guardar: UseMutationResult<Entrenamiento, Error, DatosDeEntrenamiento>;
   textoBoton: string;
+  /** Solo en el alta: con ella sale la casilla «Repetir cada semana». */
+  tanda?: Tanda;
 }
 
 /** El formulario común al alta y a la edición. Al guardar vuelve a la lista. */
-function Formulario({ inicial, guardar, textoBoton }: FormularioProps) {
+function Formulario({ inicial, guardar, textoBoton, tanda }: FormularioProps) {
   const anunciar = useAnnounce();
   const navigate = useNavigate();
+  const idCampos = useId();
   const [formulario, setFormulario] = useState<FormularioEntrenamiento>(inicial);
   const [errores, setErrores] = useState<ResultadoEntrenamiento['errores']>({});
   const [falloAlGuardar, setFalloAlGuardar] = useState<string | null>(null);
+  const [repetir, setRepetir] = useState(false);
+  // `null` hasta que se marca la casilla por primera vez: entonces toma el día
+  // de la semana de «Desde». Después no lo vuelve a tocar nadie más que la
+  // persona, tampoco al cambiar «Desde».
+  const [dias, setDias] = useState<DiaDeLaSemana[] | null>(null);
+  // `null` mientras nadie la escriba: vale el fin de la temporada, que puede
+  // llegar después de marcar la casilla.
+  const [hastaEscrita, setHastaEscrita] = useState<string | null>(null);
+  // Los errores de la tanda salen al primer intento de crearla, como los del
+  // resto del formulario, y desde ahí siguen a lo escrito: el resumen y el
+  // botón se recalculan con cada cambio, y un error viejo los desmentiría.
+  const [tandaIntentada, setTandaIntentada] = useState(false);
   // Cuenta los envíos que no pasan la validación: cada uno lleva el foco al
   // primer campo con error, también si es el mismo campo que la vez anterior.
   const [rechazos, setRechazos] = useState(0);
@@ -104,12 +196,86 @@ function Formulario({ inicial, guardar, textoBoton }: FormularioProps) {
 
   useEffect(() => {
     if (rechazos > 0) {
-      form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      // El de «Días» es de todo el grupo, que no es un campo: el foco va a su
+      // primera casilla, que es donde se arregla.
+      form.current
+        ?.querySelector<HTMLElement>('[aria-invalid="true"], [data-invalido] input')
+        ?.focus();
     }
   }, [rechazos]);
 
   const cambiar = (cambio: Partial<FormularioEntrenamiento>) => {
     setFormulario((anterior) => ({ ...anterior, ...cambio }));
+  };
+
+  const repitiendo = tanda !== undefined && repetir;
+  const diasElegidos = dias ?? [];
+  const hasta = hastaEscrita ?? tanda?.finDeTemporada ?? '';
+
+  // Se recalcula en cada pintado, que es lo que mantiene al día el resumen y
+  // el botón. `plan` es `null` mientras falte algo por escribir.
+  const calcularTanda = (): { errores: ErroresDeRepeticion; plan: PlanDeLaTanda | null } => {
+    if (tanda === undefined || !repetir) {
+      return { errores: {}, plan: null };
+    }
+
+    const deRepeticion = validarRepeticion({
+      desde: formulario.fecha,
+      hasta,
+      dias: diasElegidos,
+      finDeTemporada: tanda.finDeTemporada,
+    });
+
+    if (
+      Object.keys(deRepeticion).length > 0 ||
+      diaDeLaFecha(formulario.fecha) === null ||
+      formulario.hora === ''
+    ) {
+      return { errores: deRepeticion, plan: null };
+    }
+
+    return {
+      errores: deRepeticion,
+      plan: planDeLaTanda({
+        fechas: fechasSemanales({ desde: formulario.fecha, hasta, dias: diasElegidos }),
+        hora: formulario.hora,
+        existentes: tanda.existentes,
+      }),
+    };
+  };
+
+  const { errores: deRepeticion, plan } = calcularTanda();
+  // El error del plan (demasiados o ninguno) va bajo «Hasta», que es el campo
+  // que decide cuántos salen.
+  const deTanda: ErroresDeRepeticion =
+    plan === null || plan.error === null ? deRepeticion : { ...deRepeticion, hasta: plan.error };
+  const erroresDeTanda: ErroresDeRepeticion = tandaIntentada ? deTanda : {};
+  const guardando = guardar.isPending || tanda?.crear.isPending === true;
+
+  const textoDelBoton = (): string => {
+    if (guardando) {
+      return repitiendo ? 'Creando…' : 'Guardando…';
+    }
+
+    if (!repitiendo) {
+      return textoBoton;
+    }
+
+    // Sin número mientras no se pueda crear: falta algo, son demasiados o no
+    // hay ninguno.
+    if (plan === null || plan.error !== null) {
+      return 'Crear entrenamientos';
+    }
+
+    return plan.nuevos.length === 1
+      ? 'Crear 1 entrenamiento'
+      : `Crear ${plan.nuevos.length} entrenamientos`;
+  };
+
+  const alFallar = (error: unknown) => {
+    const texto = mensajeDeErrorAlGuardar(error);
+    setFalloAlGuardar(texto);
+    anunciar(texto);
   };
 
   return (
@@ -124,6 +290,31 @@ function Formulario({ inicial, guardar, textoBoton }: FormularioProps) {
         const resultado = validarEntrenamiento(formulario);
         setErrores(resultado.errores);
 
+        if (tanda !== undefined && repetir) {
+          setTandaIntentada(true);
+
+          if (resultado.valores === null || plan === null || Object.keys(deTanda).length > 0) {
+            setRechazos((cuantos) => cuantos + 1);
+            anunciar('Revisa los campos marcados');
+            return;
+          }
+
+          // El lugar y el objetivo, los del formulario, iguales en todos.
+          const { location, focus } = resultado.valores;
+
+          tanda.crear.mutate(
+            plan.nuevos.map((scheduled_at) => ({ scheduled_at, location, focus })),
+            {
+              onSuccess: (cuantos) => {
+                anunciar(creados(cuantos));
+                void navigate(LISTA);
+              },
+              onError: alFallar,
+            },
+          );
+          return;
+        }
+
         if (resultado.valores === null) {
           setRechazos((cuantos) => cuantos + 1);
           anunciar('Revisa los campos marcados');
@@ -135,17 +326,13 @@ function Formulario({ inicial, guardar, textoBoton }: FormularioProps) {
             anunciar('Entrenamiento guardado.');
             void navigate(LISTA);
           },
-          onError: (error) => {
-            const texto = mensajeDeErrorAlGuardar(error);
-            setFalloAlGuardar(texto);
-            anunciar(texto);
-          },
+          onError: alFallar,
         });
       }}
     >
       <div className={styles.fechaHora}>
         <Field
-          label="Fecha"
+          label={repitiendo ? 'Desde' : 'Fecha'}
           type="date"
           required
           value={formulario.fecha}
@@ -165,6 +352,94 @@ function Formulario({ inicial, guardar, textoBoton }: FormularioProps) {
           }}
         />
       </div>
+
+      {tanda === undefined ? null : (
+        <div className={styles.repeticion}>
+          <label className={styles.opcion} htmlFor={`${idCampos}-repetir`}>
+            <input
+              id={`${idCampos}-repetir`}
+              className={styles.marca}
+              type="checkbox"
+              checked={repetir}
+              onChange={(evento) => {
+                setRepetir(evento.target.checked);
+                setTandaIntentada(false);
+
+                // Sin fecha de la que sacarlo, se queda sin elegir: lo tomará
+                // la próxima vez que se marque la casilla.
+                if (evento.target.checked && dias === null) {
+                  const deDesde = diaDeLaFecha(formulario.fecha);
+
+                  if (deDesde !== null) {
+                    setDias([deDesde]);
+                  }
+                }
+              }}
+            />
+            <span>Repetir cada semana</span>
+          </label>
+
+          {repitiendo ? (
+            <>
+              <fieldset
+                className={styles.dias}
+                aria-describedby={
+                  erroresDeTanda.dias === undefined ? undefined : `${idCampos}-dias-error`
+                }
+                data-invalido={erroresDeTanda.dias === undefined ? undefined : ''}
+              >
+                <legend className={styles.leyenda}>Días</legend>
+                <div className={styles.casillas}>
+                  {DIAS.map(({ dia, nombre }) => (
+                    <label key={dia} className={styles.opcion} htmlFor={`${idCampos}-dia-${dia}`}>
+                      <input
+                        id={`${idCampos}-dia-${dia}`}
+                        className={styles.marca}
+                        type="checkbox"
+                        checked={diasElegidos.includes(dia)}
+                        onChange={(evento) => {
+                          setDias(
+                            evento.target.checked
+                              ? [...diasElegidos, dia]
+                              : diasElegidos.filter((elegido) => elegido !== dia),
+                          );
+                        }}
+                      />
+                      <span>{nombre}</span>
+                    </label>
+                  ))}
+                </div>
+                {erroresDeTanda.dias === undefined ? null : (
+                  <p id={`${idCampos}-dias-error`} className={styles.error}>
+                    <Icon name="close" size="sm" />
+                    <span>{erroresDeTanda.dias}</span>
+                  </p>
+                )}
+              </fieldset>
+
+              <Field
+                label="Hasta"
+                type="date"
+                required
+                value={hasta}
+                error={erroresDeTanda.hasta}
+                onChange={(evento) => {
+                  setHastaEscrita(evento.target.value);
+                }}
+              />
+            </>
+          ) : null}
+
+          {/* Región viva propia, y no la del `AppLayout`: se recalcula con cada
+              cambio y tiene que leerse sin salir del formulario. Está desde
+              antes de marcar la casilla, vacía: una región que nace con el
+              texto puesto no siempre se anuncia. */}
+          <p className={styles.resumen} aria-live="polite">
+            {repitiendo ? resumenDeLaTanda(plan) : ''}
+          </p>
+        </div>
+      )}
+
       <Field
         label="Lugar"
         hint="El campo o la instalación. Se puede dejar vacío."
@@ -195,13 +470,8 @@ function Formulario({ inicial, guardar, textoBoton }: FormularioProps) {
       )}
 
       <div>
-        <Button
-          type="submit"
-          variant="primary"
-          className={styles.largo}
-          disabled={guardar.isPending}
-        >
-          {guardar.isPending ? 'Guardando…' : textoBoton}
+        <Button type="submit" variant="primary" className={styles.largo} disabled={guardando}>
+          {textoDelBoton()}
         </Button>
       </div>
     </form>
@@ -219,6 +489,13 @@ export function NuevoEntrenamientoPage() {
     equipoId: equipoId ?? '',
     temporadaId: temporadaId ?? '',
   });
+  // Lo de «Repetir cada semana». El fin de la temporada no se espera: si no
+  // llega, se repite igual, sin validar contra él.
+  const crearVarios = useCrearEntrenamientos({
+    equipoId: equipoId ?? '',
+    temporadaId: temporadaId ?? '',
+  });
+  const finDeTemporada = useFinDeTemporada(temporadaId);
 
   const contenido = () => {
     if (equipoId === null || clubId === null) {
@@ -267,6 +544,11 @@ export function NuevoEntrenamientoPage() {
           }}
           guardar={crear}
           textoBoton="Guardar entrenamiento"
+          tanda={{
+            existentes: entrenamientos.data.map((entrenamiento) => entrenamiento.scheduledAt),
+            finDeTemporada,
+            crear: crearVarios,
+          }}
         />
       </Card>
     );
