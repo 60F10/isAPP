@@ -5,6 +5,42 @@
 
 ---
 
+## Sesión 08/10/2026, noche — tanda de revisión y de pruebas en navegador: ✅ cerrada
+
+Misma conversación del pase a pro, con Raúl en el móvil. **Sin código de aplicación y sin base.**
+Rama `docs/docs-tanda-de-revision-y-e2e`.
+
+- **La T-228, la T-229 y la T-230 están en `main`** (PR #96, #97 y #98), con el CI en verde y 1.091
+  pruebas en 81 archivos. Sin revisar contra su traspaso: es la T-234.
+- **El MVP está completo en código.** En el DOC 08 solo queda sin hacer la T-302, que es la prueba
+  de campo del sábado 17 y no es código. Lo que falta es comprobarlo, no construirlo.
+- **Raúl delega la comprobación** y no estará en el ordenador el fin de semana. Seis tareas con
+  traspaso en `docs/traspasos/`, programadas en la nube, de una en una:
+
+  | Tarea     | Qué                                                               |
+  | :-------- | :---------------------------------------------------------------- |
+  | **T-234** | Revisión de los entrenamientos contra su traspaso, y sus arreglos |
+  | **T-231** | Los entrenamientos en el calendario y en Inicio (D06-42)          |
+  | **T-235** | Revisión de la T-305 y la T-306, y sus arreglos                   |
+  | **T-236** | Pruebas en navegador contra un Supabase local en GitHub Actions   |
+  | **T-237** | Pruebas en navegador: el día de partido, de principio a fin       |
+  | **T-238** | Pruebas en navegador: personas y entrenamientos, y quién lee qué  |
+
+- **Las pruebas en navegador van contra una base de verdad y nunca contra producción** (DOC 08
+  §6b). La propuesta inicial llevaba además una versión con la base simulada; se descarta: las
+  comprobaciones de accesibilidad van dentro de estas, y así no hay dos juegos que mantener.
+- **Decisión de arquitectura, tomada en esta sesión por encargo de Raúl:** `agenda` pasa a poder
+  importar de `training` por su barril (D06-42). La escribe la T-231 en el DOC 06 §4.2.
+- **Auditoría semanal programada**, los lunes: solo lee e informa. No hace commits ni toca la base.
+- **Personas, a 08/10.** Atteneri y Víctor ya son miembros, como delegados, con anotar y
+  estadísticas. Jhonatan está invitado como delegado, con pasar lista, y sin aceptar. Isaac sigue
+  sin `members.manage` (punto 4).
+- **Lo que sigue siendo de Raúl, y no se puede delegar:** pegar la T-227 y la línea de Realtime en
+  el SQL Editor, volver a cerrar el primer partido, descartar el aviso rechazado de su móvil,
+  probar en un móvil de verdad y publicar en pro, que puede pedir en una conversación.
+
+---
+
 ## Sesión 08/10/2026, noche — T-230: entrenamientos, repetir cada semana: ✅ cerrada
 
 Sesión programada, en la nube y sin Raúl delante, rama `feat/training-repetir-cada-semana`. Un
