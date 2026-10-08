@@ -557,17 +557,17 @@ Una sanción se descuenta cuando el jugador se pierde un partido **cerrado** de 
 
 ## 13. Entrenamientos
 
-| Regla | Enunciado                                                                                                                               |
-| :---- | :-------------------------------------------------------------------------------------------------------------------------------------- |
-| T-01  | La sesión pertenece a un equipo y una temporada, y aparece en el calendario                                                             |
-| T-02  | La asistencia admite tres estados: presente, ausente y retraso                                                                          |
-| T-03  | Cada jugador admite una observación por sesión, y la sesión una observación global                                                      |
-| T-04  | La asistencia no lleva índice de fiabilidad: la pasa el entrenador, es dato estructural                                                 |
-| T-05  | Las observaciones son texto libre y nunca recogen información de salud                                                                  |
-| T-06  | Los entrenamientos, su asistencia y sus observaciones solo los ve y los escribe quien tiene `training.manage` (decisión de Raúl, 08/10) |
-| T-07  | Un jugador sin marcar no tiene fila de asistencia: no cuenta ni como presente ni como ausente                                           |
-| T-08  | De qué parte una lista nueva, todos presentes o todos sin marcar, lo elige quien pasa lista                                             |
-| T-09  | Repetir cada semana crea entrenamientos sueltos: la tanda no existe como tal, y cada uno se edita y se borra por separado               |
+| Regla | Enunciado                                                                                                                                                                                                                                        |
+| :---- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T-01  | La sesión pertenece a un equipo y una temporada, y aparece en el calendario                                                                                                                                                                      |
+| T-02  | La asistencia admite tres estados: presente, ausente y retraso                                                                                                                                                                                   |
+| T-03  | Cada jugador admite una observación por sesión, y la sesión una observación global                                                                                                                                                               |
+| T-04  | La asistencia no lleva índice de fiabilidad: la pasa el entrenador, es dato estructural                                                                                                                                                          |
+| T-05  | Las observaciones son texto libre y nunca recogen información de salud                                                                                                                                                                           |
+| T-06  | El horario de los entrenamientos lo ve todo el club. La asistencia y las observaciones solo las ve quien tiene `training.manage` y el administrador de la plataforma, y solo las escribe quien tiene `training.manage` (decisión de Raúl, 08/10) |
+| T-07  | Un jugador sin marcar no tiene fila de asistencia: no cuenta ni como presente ni como ausente                                                                                                                                                    |
+| T-08  | De qué parte una lista nueva, todos presentes o todos sin marcar, lo elige quien pasa lista                                                                                                                                                      |
+| T-09  | Repetir cada semana crea entrenamientos sueltos: la tanda no existe como tal, y cada uno se edita y se borra por separado                                                                                                                        |
 
 ---
 

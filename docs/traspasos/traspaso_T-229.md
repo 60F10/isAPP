@@ -1,17 +1,19 @@
 # Traspaso T-229 — Entrenamientos: pasar lista
 
 > **Modelo y esfuerzo:** Opus, medio · **Rama:** `feat/training-pasar-lista` · **Depende de:** T-228 fusionada · **Sin migración**
-> Preparado el 08/10/2026. Si `src/modules/training/api/entrenamientos.ts` no existe, la T-228 no está: para y dilo.
+> Preparado el 08/10/2026 y corregido esa misma tarde: la observación del entrenamiento sale de esta tarea. Si `src/modules/training/api/entrenamientos.ts` no existe, la T-228 no está: para y dilo.
 
 ## Qué falta
 
-La T-228 deja crear entrenamientos, y su enlace «Pasar lista» lleva a una pantalla pendiente. Falta lo que Isaac pidió: marcar quién vino, quién faltó y quién llegó tarde, y apuntar una observación por jugador y otra del entrenamiento (DOC 04 §13, T-02 y T-03).
+La T-228 deja crear entrenamientos, y su enlace «Pasar lista» lleva a una pantalla pendiente. Falta lo que Isaac pidió: marcar quién vino, quién faltó y quién llegó tarde, y apuntar una observación por jugador (DOC 04 §13, T-02 y T-03).
+
+**La observación del entrenamiento no va aquí.** Raúl decidió el 08/10 que el horario lo ve todo el club, y esa observación vivía en la misma fila que el horario. Pasa a una tabla propia, con su migración, en la T-233.
 
 ## Qué hay que conseguir
 
 1. Quien tiene `training.manage` abre la lista de un entrenamiento y marca a cada jugador de la plantilla: presente, ausente o retraso.
 2. Elige en la propia pantalla de qué parte una lista nueva: todos presentes o todos sin marcar. El móvil recuerda lo elegido.
-3. Escribe una observación por jugador y una del entrenamiento.
+3. Escribe una observación por jugador.
 4. Guarda con un botón. Si se bloquea la pantalla, se recarga o falla el guardado, lo marcado sigue ahí.
 
 ## Reglas de esta sesión
@@ -30,13 +32,13 @@ La T-228 deja crear entrenamientos, y su enlace «Pasar lista» lleva a una pant
 
 ## La base, comprobada el 08/10
 
-| Punto                 | Cómo está                                                                                                                                              |
-| :-------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `training_attendance` | `id`, `session_id`, `player_id`, `status` (`present`, `absent`, `late`), `notes`, `created_by`, `created_at`, `updated_at`. Única por sesión y jugador |
-| Por defecto           | `status` nace en `present` si no se manda. **Mándalo siempre**                                                                                         |
-| Escribir              | `training_attendance_write` pide `training.manage` en el equipo de la sesión                                                                           |
-| Leer                  | Hoy, cualquier miembro. Con la T-227 aplicada, solo `training.manage`. La pantalla se comporta igual                                                   |
-| Observación global    | `training_sessions.notes`, que la T-228 lee y no escribe                                                                                               |
+| Punto                     | Cómo está                                                                                                                                              |
+| :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `training_attendance`     | `id`, `session_id`, `player_id`, `status` (`present`, `absent`, `late`), `notes`, `created_by`, `created_at`, `updated_at`. Única por sesión y jugador |
+| Por defecto               | `status` nace en `present` si no se manda. **Mándalo siempre**                                                                                         |
+| Escribir                  | `training_attendance_write` pide `training.manage` en el equipo de la sesión                                                                           |
+| Leer                      | Hoy, cualquier miembro. Con la T-227 aplicada, `training.manage` o administrador de la plataforma. La pantalla se comporta igual                       |
+| `training_sessions.notes` | **No se usa**: ni se lee ni se escribe                                                                                                                 |
 
 ## Decidido: los estados
 
@@ -69,13 +71,13 @@ En `src/modules/training/model/lista.ts`, puro y con sus pruebas.
 | :----------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `EstadoDeAsistencia`                                               | `'present' \| 'absent' \| 'late'`                                                                                                                                                         |
 | `Asistencia`                                                       | `playerId`, `nickname`, `status` y `notes`: una fila guardada                                                                                                                             |
-| `Cambios`                                                          | Lo tocado en esta visita: `estados` y `observaciones`, los dos por `playerId`, y `global`, que es `string \| undefined`                                                                   |
+| `Cambios`                                                          | Lo tocado en esta visita: `estados` y `observaciones`, los dos por `playerId`                                                                                                             |
 | `estadoDe(playerId, guardadas, cambios, partida)`                  | Lo tocado gana; si no, lo guardado; si no, `present` con `presentes` y `null` con `sin_marcar`                                                                                            |
 | `componerLista(plantilla, guardadas, cambios, partida)`            | Una línea por jugador de la plantilla, en su orden, con dorsal, apodo, estado y observación. Detrás, quien tiene fila guardada y ya no está en la plantilla, con `fueraDePlantilla: true` |
 | `recuento(lineas)`                                                 | `presentes`, `ausentes`, `retrasos` y `sinMarcar`                                                                                                                                         |
 | `filasAGuardar(lineas)`                                            | Una fila por jugador con estado: `player_id`, `status` y `notes`. La observación vacía va como `null`, con `limpiarTexto`. Los sin marcar no salen                                        |
 | `hayCambios(cambios)`                                              | Si hay algo tocado                                                                                                                                                                        |
-| `LARGO_OBSERVACION` y `LARGO_GLOBAL`                               | 280 y 500                                                                                                                                                                                 |
+| `LARGO_OBSERVACION`                                                | 280                                                                                                                                                                                       |
 | `interpretarBorrador(crudo, userId)` y `claveDeBorrador(sesionId)` | El borrador de `localStorage`. Nunca lanza: lo que no se entiende, o es de otra cuenta, devuelve `null`                                                                                   |
 
 Una observación escrita a un jugador sin marcar **no se guarda sola**: sin estado no hay fila. La pantalla lo avisa bajo el campo: «Márcalo para guardar la observación.»
@@ -90,8 +92,7 @@ En `src/modules/training/api/asistencia.ts`.
 | `guardarAsistencia(sesionId, userId, filas)` | **Dos `upsert` repetibles**, como `lineup/api/convocatoria.ts`. El primero crea las filas que faltan con `created_by` y `ignoreDuplicates: true`. El segundo escribe `status` y `notes` de todas, sin `created_by`, con `onConflict: 'session_id,player_id'`, y pide `player_id` de vuelta |
 | Si vuelven menos filas                       | `SIN_FILAS`: la base no dejó escribir alguna                                                                                                                                                                                                                                               |
 | Con cero filas                               | No llama a la base                                                                                                                                                                                                                                                                         |
-| `guardarObservacionGlobal(sesionId, texto)`  | `update` de `notes` en `training_sessions`, con la fila de vuelta y `SIN_FILAS`. Va en `api/entrenamientos.ts`                                                                                                                                                                             |
-| `hooks/useAsistencia.ts`                     | `useAsistencia(sesionId)` y `useGuardarLista(sesionId)`: guarda la asistencia y, si cambió, la observación global, en ese orden. Invalida `trainingKeys.all`                                                                                                                               |
+| `hooks/useAsistencia.ts`                     | `useAsistencia(sesionId)` y `useGuardarLista(sesionId)`, que guarda la asistencia. Invalida `trainingKeys.all`                                                                                                                                                                             |
 | Clave nueva                                  | `trainingKeys.asistencia(sesionId)`                                                                                                                                                                                                                                                        |
 
 La plantilla sale de `usePlantillaDeLectura(equipoId, temporadaId)` de `core`, que ya existe y no sale por el barril: **añádela a `core/index.ts`**, con el tipo `LecturaDePlantilla`. Trae apodo, dorsal y posición, ya ordenada, y solo a quien sigue en la plantilla.
@@ -109,7 +110,6 @@ La plantilla sale de `usePlantillaDeLectura(equipoId, temporadaId)` de `core`, q
 | Sin marcar              | Ningún radio marcado. `GrupoDeOpciones` pide hoy un `valor`: amplíalo a `valor: T \| null`, sin cambiar nada para quien ya lo usa                                                                      |
 | Observación del jugador | Un botón «Añadir observación» por jugador, que abre un `Field` de texto de 280 caracteres. Si ya tiene una, el campo sale abierto                                                                      |
 | Fuera de la plantilla   | Al final, bajo «Ya no están en la plantilla». Su estado y su observación se leen y no se cambian                                                                                                       |
-| Observación global      | Al final, un área de texto «Observación del entrenamiento», de 500 caracteres                                                                                                                          |
 | «Guardar lista»         | Un botón al final. Mientras guarda dice «Guardando…» y no responde a otro toque. Con jugadores sin marcar, una línea encima: «Quedan 3 sin marcar. Puedes guardar y terminar después.»                 |
 | Al guardar bien         | Anuncia «Lista guardada: 18 presentes, 2 ausentes y 1 retraso.», enseña «Guardada a las 18:42» junto al botón y **se queda en la pantalla**                                                            |
 | Si falla                | «No se ha podido guardar. Lo marcado sigue aquí: vuelve a intentarlo.», o el mensaje de `mensajeDeErrorAlGuardar` si la base dijo algo. Anunciado y con el foco en el mensaje                          |
@@ -131,7 +131,7 @@ La plantilla sale de `usePlantillaDeLectura(equipoId, temporadaId)` de `core`, q
 | :---------------------------------------------------------------------------------------- | :----------------------------------------------------- |
 | `src/modules/training/model/lista.ts`, `model/partida.ts` y sus `.test.ts` (nuevos)       | El modelo                                              |
 | `src/modules/training/api/asistencia.ts` y su `.test.ts` (nuevos)                         | Leer y guardar la asistencia                           |
-| `src/modules/training/api/entrenamientos.ts`, su `.test.ts` y `api/queryKeys.ts`          | `guardarObservacionGlobal` y la clave nueva            |
+| `src/modules/training/api/queryKeys.ts`                                                   | La clave nueva                                         |
 | `src/modules/training/hooks/useAsistencia.ts` (nuevo)                                     | Los hooks                                              |
 | `src/modules/training/routes/ListaPage.tsx`, su `.module.css` y `Lista.test.tsx` (nuevos) | La pantalla                                            |
 | `src/modules/training/index.ts`                                                           | Exporta `ListaPage`                                    |
@@ -158,7 +158,6 @@ Escríbelas primero y comprueba que fallan. Los dobles van en la frontera de `ap
 | `Lista.test.tsx`     | Al cambiar a «Todos sin marcar», los no tocados pierden la marca y el que se tocó la conserva. Lo elegido queda en `localStorage` |
 | `Lista.test.tsx`     | Marcar un ausente y guardar llama a `guardarAsistencia` con sus filas y anuncia el recuento                                       |
 | `Lista.test.tsx`     | Con jugadores sin marcar, se lee cuántos quedan y guardar no los manda                                                            |
-| `Lista.test.tsx`     | La observación global solo se guarda si cambió                                                                                    |
 | `Lista.test.tsx`     | Si guardar falla, se lee el mensaje, lo marcado sigue y el borrador sigue en `localStorage`                                       |
 | `Lista.test.tsx`     | Al volver a montar la pantalla con un borrador, lo recupera y lo dice. Tras guardar bien, el borrador ya no está                  |
 | `Lista.test.tsx`     | Se lee el aviso de salud                                                                                                          |
@@ -185,7 +184,7 @@ Escríbelas primero y comprueba que fallan. Los dobles van en la frontera de `ap
 | `docs/13_HANDOFF.md` | **No lo reescribas.** Sección corta encima de la primera «## Sesión», con el tamaño del inicial                                                                                                            |
 | `CLAUDE.md`          | Un párrafo «Desde la **T-229**…»: la A15, que sin marcar es sin fila, los dos `upsert`, la partida y el borrador en el móvil, y que de `players` solo se pide `nickname`. En «Siguientes tareas», la T-230 |
 
-Deuda que anotar: guardar son hasta tres peticiones sin transacción, y si falla la última la asistencia ya está guardada y la observación global no; sin red no se guarda, y lo marcado espera en el borrador del móvil; si dos entrenadores pasan la misma lista a la vez, gana el último que guarda, jugador a jugador; un jugador marcado no puede volver a «sin marcar»; la partida de la lista se guarda por móvil y no por persona; el borrador de un entrenamiento borrado se queda en el móvil; y nadie más que quien pasa lista ve la asistencia, tampoco el jugador ni su familia.
+Deuda que anotar: guardar son dos peticiones sin transacción, repetibles; la observación del entrenamiento no existe hasta la T-233; sin red no se guarda, y lo marcado espera en el borrador del móvil; si dos entrenadores pasan la misma lista a la vez, gana el último que guarda, jugador a jugador; un jugador marcado no puede volver a «sin marcar»; la partida de la lista se guarda por móvil y no por persona; el borrador de un entrenamiento borrado se queda en el móvil; y nadie más que quien pasa lista ve la asistencia, tampoco el jugador ni su familia.
 
 ## Cierre
 
@@ -195,4 +194,4 @@ Deuda que anotar: guardar son hasta tres peticiones sin transacción, y si falla
 
 ## Fuera de esta tarea
 
-Repetir cada semana (T-230), los entrenamientos en el calendario y en Inicio (T-231), el historial de asistencia por jugador (T-232), el modo sin conexión por la cola, las ausencias justificadas, que es un cuarto estado que la base no tiene, y cualquier cambio en la base.
+Repetir cada semana (T-230), los entrenamientos en el calendario y en Inicio (T-231), el historial de asistencia por jugador (T-232), la observación del entrenamiento (T-233), el modo sin conexión por la cola, las ausencias justificadas, que es un cuarto estado que la base no tiene, y cualquier cambio en la base.
