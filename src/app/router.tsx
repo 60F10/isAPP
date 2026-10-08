@@ -245,9 +245,9 @@ export const router = createBrowserRouter([
                   },
                   {
                     path: 'entrenamientos/:id/lista',
-                    element: (
-                      <PantallaPendiente id="A15" titulo="Lista de asistencia" tarea="la T-229" />
-                    ),
+                    lazy: async () => ({
+                      Component: (await import('@modules/training')).ListaPage,
+                    }),
                   },
                 ],
               },
