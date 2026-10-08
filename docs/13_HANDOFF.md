@@ -5,6 +5,42 @@
 
 ---
 
+## Sesión 08/10/2026 — pase a pro y plan de los entrenamientos: ✅ cerrada
+
+Sesión con Raúl en el móvil, rama `docs/docs-plan-de-entrenamientos`. **Sin código de aplicación y
+sin cambios en la base.**
+
+- **Pro está publicado.** `release` apunta a `a7f4918`, el mismo commit que `main`, con el CI en
+  verde. Lo empujó la sesión porque Raúl lo pidió expresamente; para todas las demás sigue valiendo
+  que solo publica él. Netlify lo dio por listo a las 19:56, hora canaria: 15 créditos. Entran 37
+  commits, todo lo del 04/10 al 07/10. El punto 13 queda cerrado.
+- **Los entrenamientos se adelantan** (DOC 08 §5b). Isaac los quiere cuanto antes y Raúl decide
+  hacerlos ya. La base estaba: `training_sessions` y `training_attendance`, vacías, con
+  `training.manage`, que hoy tienen Raúl e Isaac.
+- **Cuatro decisiones de Raúl:** las sesiones se crean sueltas, con «Entrenamiento de hoy» y
+  también repitiendo días fijos; de qué parte la lista lo elige el entrenador en la pantalla; la
+  asistencia y las observaciones solo las ve quien pasa lista (DOC 04 §13, T-06 a T-09); y las
+  tareas van programadas en la nube.
+- **Seis tareas, de la T-227 a la T-232.** Con traspaso en `docs/traspasos/`, la T-228 (sesiones),
+  la T-229 (pasar lista) y la T-230 (repetir cada semana), programadas para esta noche, de una en
+  una. La T-231 (calendario e Inicio) y la T-232 (historial) se escriben tras revisar estas.
+- **La T-227 es de Raúl.** El SQL está en `supabase/pendientes/entrenamientos_solo_quien_pasa_lista.sql`:
+  quita las dos políticas de lectura para miembros y deja la `for all` con `training.manage`. La
+  sesión intentó aplicarlo con la herramienta de Supabase y la llamada volvió pidiendo una
+  aprobación que no llegó (punto 81). **No está aplicado**, y no frena a las otras tareas.
+- **Un desajuste que se corrige de paso:** el DOC 04 §15.1 decía que `schedule.manage` crea
+  entrenamientos. En la base lo hace `training.manage`, y así queda escrito. La frase de la A07 la
+  cambia la T-228.
+- **Lo que sigue siendo de Raúl:** pegar la T-227; **invitar a Jhonatan**, el segundo entrenador,
+  desde «Personas», con `training.manage`; darle `members.manage` a Isaac (punto 4); la línea de
+  Realtime (punto 77); el cambio repetido (punto 65); y las pruebas en el móvil de lo del 07/10.
+- **Ojo al publicar a partir de ahora:** `main:release` se lleva todo lo que haya en `main`,
+  también los entrenamientos a medio hacer. Cada entrega queda completa y detrás de
+  `training.manage`, así que no rompe nada a quien no lo tiene.
+- **Sin revisar todavía:** la T-305 y la T-306 contra su traspaso. Están en `main` y en pro.
+
+---
+
 ## Sesión 07/10/2026, noche — T-306: arreglos de la A07, las invitaciones y «Unirse a un equipo»: ✅ cerrada
 
 Sesión programada, en la nube y sin Raúl delante, rama `fix/auth-arreglos-de-personas`, con la
@@ -900,6 +936,7 @@ Pendiente de hacer:
     `git push origin main:release`, 15 créditos. Pre, `main--gavetastats`, compila sola cada fusión
     a `main` desde que se quitó el `ignore` (punto 12); **el 04/10 no se pudo comprobar desde la
     sesión qué build sirve**.
+    **Cerrado el 08/10**: `release` está en `a7f4918`, igual que `main`.
 14. **Cómo entra alguien nuevo, cerrado el 04/10 (DOC 03, I1).** Tres puertas: la invitación a un
     correo, que esa cuenta ve y acepta al entrar con Google; **seguir, que es inmediato y no lo
     aprueba nadie**; y la solicitud de permisos, que acepta quien tiene `members.manage`. Un equipo
