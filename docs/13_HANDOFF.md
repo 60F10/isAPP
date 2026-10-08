@@ -5,6 +5,66 @@
 
 ---
 
+## Sesión 08/10/2026, noche — T-230: entrenamientos, repetir cada semana: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `feat/training-repetir-cada-semana`. Un
+solo commit. Sin migración ni SQL.
+
+- **«Repetir cada semana», solo en «Nuevo entrenamiento».** La casilla va bajo la hora. Al
+  marcarla, «Fecha» pasa a «Desde» y salen «Días», siete casillas en un `fieldset` con el día de
+  «Desde» marcado, y «Hasta», con el fin de la temporada. Debajo, una línea viva: «Se van a crear
+  5 entrenamientos, del mar, 13 oct al jue, 29 oct. 1 ya existe y no se repite.» El botón pasa a
+  «Crear 5 entrenamientos». Sin marcar, el alta es la de la T-228. La edición no cambia.
+- **El modelo, `training/model/repeticion.ts`**, puro: `diaDeLaFecha`, `fechasSemanales`,
+  `validarRepeticion` y `planDeLaTanda`. El calendario se recorre por fechas, y cada una pasa por
+  `aInstante` con su hora. Mirado en Chromium con la hora de Canarias: una tanda de octubre da
+  las 17:00 UTC antes del 25 y las 18:00 UTC después.
+- **Los datos.** `crearEntrenamientos` hace **un solo `insert`** con todas las filas, cada una con
+  `team_id`, `season_id` y `created_by`, y pide los `id` de vuelta para contar. `notes` sigue sin
+  nombrarse. `fetchFinDeTemporada` lee `seasons.ends_on`; si falla o no trae fila, no se valida
+  contra él.
+- Lint, formato, **1091 pruebas en 81 archivos** (eran 1048 en 80) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. **Paquete inicial: 179,23 kB comprimidos** con mi recorrido de las
+  importaciones estáticas desde `index.html` y `App-*.js`; `main` da 179,24 con el mismo
+  recorrido: **no sube**. El trozo `training-*.js` pasa de 7,43 a 9,29 kB.
+- **Mirado con un arnés temporal**, sin base: a 320 px y a 1024 px no hay desplazamiento
+  horizontal y todas las casillas miden 48 px de alto. A 320 px con el texto al 200 % las siete
+  bajan a una por línea y ninguna se sale; el desplazamiento que queda es el del `h1` de
+  `Pantalla` y el título de `Card`, el mismo de la T-228.
+- **Ocho cosas que el traspaso no decía. Para que Raúl las mire:**
+  1. **Con más de 150, el resumen dice «Son demasiados de una vez: como mucho, 150.»** en vez de
+     prometerlos, y el botón se queda en «Crear entrenamientos», sin número. Con cero dice «No se
+     va a crear ninguno.» El error sale bajo «Hasta» al pulsar.
+  2. **Los errores de la tanda salen al primer intento y desde ahí siguen a lo escrito.** Si no,
+     el error viejo desmentía al resumen, que se recalcula con cada cambio.
+  3. **«Hasta» sigue al fin de la temporada mientras nadie la escriba.** El alta no espera a esa
+     consulta, que no se reintenta: si llega después de marcar la casilla, se rellena igual.
+  4. **Los días se toman la primera vez que se marca la casilla.** Desmarcarla y volverla a marcar
+     conserva lo elegido.
+  5. **La región viva está desde antes de marcar la casilla**, vacía: una que nace con el texto
+     puesto no siempre se anuncia. Es propia del formulario, no la de `AppLayout`.
+  6. **Con el error en «Días», el foco va a la primera casilla**, y el `fieldset` lo lleva en
+     `aria-describedby`.
+  7. **`fechasSemanales` devuelve como mucho 1000 fechas**, para que un año mal escrito no ponga
+     al móvil a contar millones de días. Una lista que llega a ese tope sale como demasiados.
+  8. **`api/queryKeys.ts` tiene una clave más**, `finDeTemporada`. No estaba en la tabla de
+     archivos.
+- **Revisado con el subagente `revisor`** antes de subir. Arreglados los puntos 1, 2 y 5, y que
+  marcar la casilla sin fecha dejaba los días sin proponer para siempre. Sin tocar: el doble envío
+  en el mismo instante, que ya protege el botón desactivado, como en el resto de pantallas.
+- **Deuda.** La tanda no existe en la base: mover o borrar una serie entera es de uno en uno, y
+  arreglarlo pide una columna nueva y una migración. No hay festivos ni vacaciones, que se borran
+  a mano. El lugar y el objetivo son los mismos en toda la tanda. Dos personas que creen la misma
+  tanda a la vez la duplican, porque nada en la base impide dos entrenamientos a la misma hora.
+  Con cuatro días por semana desde octubre, la temporada entera ronda los 150; con cinco se pasa,
+  y hay que crearla en dos veces. El resumen dice cuántos ya existen, no cuáles. Y si la hora no
+  existe justo el día de «Desde», el alta lo da por fecha no válida en vez de saltárselo.
+- **Sin probar contra la base de verdad ni en un móvil.**
+- **Siguiente: la T-231**, los entrenamientos en el calendario y en Inicio. Sin traspaso todavía,
+  y pide antes decidir si `agenda` puede importar de `training` (DOC 06 §4.2).
+
+---
+
 ## Sesión 08/10/2026, noche — T-229: entrenamientos, pasar lista: ✅ cerrada
 
 Sesión programada, en la nube y sin Raúl delante, rama `feat/training-pasar-lista`. Un solo commit.

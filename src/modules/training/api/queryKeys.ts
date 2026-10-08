@@ -5,5 +5,7 @@ export const trainingKeys = {
   lista: (equipoId: string, temporadaId: string) =>
     [...trainingKeys.all, 'lista', equipoId, temporadaId] as const,
   sesion: (id: string) => [...trainingKeys.all, 'sesion', id] as const,
+  finDeTemporada: (temporadaId: string) =>
+    [...trainingKeys.all, 'fin-de-temporada', temporadaId] as const,
   asistencia: (sesionId: string) => [...trainingKeys.all, 'asistencia', sesionId] as const,
 };

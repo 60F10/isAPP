@@ -4,6 +4,9 @@
 // Lo que se vigila: que el alta lleve equipo, temporada y autor; que ninguna
 // consulta nombre `notes`, que es una columna que ve todo el club y no se usa;
 // y que cambiar y borrar sin fila de vuelta salgan como `SIN_FILAS`.
+//
+// Desde la T-230, también que la tanda de «Repetir cada semana» viaje en UN
+// solo `insert`: es lo que hace que entren todos o ninguno.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,8 +16,10 @@ import {
   actualizarEntrenamiento,
   borrarEntrenamiento,
   crearEntrenamiento,
+  crearEntrenamientos,
   fetchEntrenamiento,
   fetchEntrenamientos,
+  fetchFinDeTemporada,
 } from './entrenamientos';
 
 interface Paso {
@@ -173,6 +178,81 @@ describe('crearEntrenamiento', () => {
   });
 });
 
+describe('crearEntrenamientos', () => {
+  const DESTINO = { equipoId: 'eq-1', temporadaId: 'temp-1', userId: 'usuario-1' };
+  const LISTA = [
+    DATOS,
+    { ...DATOS, scheduled_at: '2026-10-15T17:00:00.000Z' },
+    { ...DATOS, scheduled_at: '2026-10-20T17:00:00.000Z' },
+  ];
+
+  it('hace una sola llamada a `insert`, con todas las filas, y dice cuántas se crearon', async () => {
+    red.respuesta = { data: [{ id: 'ent-1' }, { id: 'ent-2' }, { id: 'ent-3' }], error: null };
+
+    await expect(crearEntrenamientos(DESTINO, LISTA)).resolves.toBe(3);
+
+    expect(red.llamadas).toHaveLength(1);
+    expect(ultima().tabla).toBe('training_sessions');
+    expect(ultima().cadena.filter((p) => p.metodo === 'insert')).toHaveLength(1);
+
+    const [filas] = paso('insert') as [Record<string, unknown>[]];
+
+    expect(Array.isArray(filas)).toBe(true);
+    expect(filas).toHaveLength(3);
+    expect(filas.map((fila) => fila.scheduled_at)).toEqual([
+      '2026-10-13T17:00:00.000Z',
+      '2026-10-15T17:00:00.000Z',
+      '2026-10-20T17:00:00.000Z',
+    ]);
+
+    for (const fila of filas) {
+      expect(fila).toMatchObject({
+        team_id: 'eq-1',
+        season_id: 'temp-1',
+        created_by: 'usuario-1',
+        location: 'Campo de Fútbol Izquierdo Rodríguez',
+        focus: null,
+      });
+    }
+  });
+
+  it('deja pasar el error de la base: no se ha creado ninguno', async () => {
+    const error = { code: '42501', message: 'permission denied' };
+    red.respuesta = { data: null, error };
+
+    await expect(crearEntrenamientos(DESTINO, LISTA)).rejects.toBe(error);
+  });
+
+  it('con la lista vacía no llama a la base', async () => {
+    await expect(crearEntrenamientos(DESTINO, [])).resolves.toBe(0);
+    expect(red.llamadas).toHaveLength(0);
+  });
+});
+
+describe('fetchFinDeTemporada', () => {
+  it('lee `ends_on` de la temporada', async () => {
+    red.respuesta = { data: { ends_on: '2027-06-30' }, error: null };
+
+    await expect(fetchFinDeTemporada('temp-1')).resolves.toBe('2027-06-30');
+    expect(ultima().tabla).toBe('seasons');
+    expect(paso('select')).toEqual(['ends_on']);
+    expect(eqs()).toEqual([['id', 'temp-1']]);
+  });
+
+  it('sin fila, no hay fecha', async () => {
+    red.respuesta = { data: null, error: null };
+
+    await expect(fetchFinDeTemporada('temp-9')).resolves.toBeNull();
+  });
+
+  it('deja pasar el error de la base', async () => {
+    const error = { code: '42501', message: 'permission denied' };
+    red.respuesta = { data: null, error };
+
+    await expect(fetchFinDeTemporada('temp-1')).rejects.toBe(error);
+  });
+});
+
 describe('actualizarEntrenamiento', () => {
   it('cambia la fila por su `id` y la pide de vuelta', async () => {
     await expect(actualizarEntrenamiento('ent-1', DATOS)).resolves.toEqual(ENTRENAMIENTO);
@@ -215,7 +295,15 @@ describe('la columna `notes`', () => {
     await actualizarEntrenamiento('ent-1', DATOS);
     await borrarEntrenamiento('ent-1');
 
-    expect(red.llamadas).toHaveLength(5);
+    red.respuesta = { data: [{ id: 'ent-2' }], error: null };
+    await crearEntrenamientos({ equipoId: 'eq-1', temporadaId: 'temp-1', userId: 'usuario-1' }, [
+      DATOS,
+    ]);
+
+    red.respuesta = { data: { ends_on: '2027-06-30' }, error: null };
+    await fetchFinDeTemporada('temp-1');
+
+    expect(red.llamadas).toHaveLength(7);
     expect(JSON.stringify(red.llamadas)).not.toContain('notes');
 
     // Y tampoco llega de rebote: cada `select` nombra sus columnas, sin `*`.
@@ -223,6 +311,6 @@ describe('la columna `notes`', () => {
       llamada.cadena.filter((p) => p.metodo === 'select').map((p) => p.args[0]),
     );
 
-    expect(pedidas).toEqual([COLUMNAS, COLUMNAS, COLUMNAS, COLUMNAS, 'id']);
+    expect(pedidas).toEqual([COLUMNAS, COLUMNAS, COLUMNAS, COLUMNAS, 'id', 'id', 'ends_on']);
   });
 });
