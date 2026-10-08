@@ -29,27 +29,51 @@
   gap: var(--space-3);
 }
 
-/* «Nuevo partido» es la acción principal de la pantalla: relleno de acento.
-   Enlace con pinta de control: borde y peso, no solo color (1.4.1). 48 px de
+/* «Nuevo partido» y «Entrenamientos», uno al lado del otro cuando caben y uno
+   debajo del otro a 320 px (T-228). */
+.enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+}
+
+/* Enlaces con pinta de control: borde y peso, no solo color (1.4.1). 48 px de
    alto, como cualquier objetivo táctil del proyecto. */
-.nuevo {
+.nuevo,
+.otro {
   display: inline-flex;
   align-items: center;
   min-block-size: var(--tap-min);
   padding: var(--space-2) var(--space-4);
 
-  background-color: var(--color-accent);
-  border: 1px solid var(--color-accent);
   border-radius: var(--radius-md);
-  color: var(--color-text-on-accent);
   font: inherit;
   font-weight: var(--font-weight-semibold);
   text-decoration: none;
+  /* «Entrenamientos» no cabe entera a 320 px con el texto al 200 %: antes de
+     sacar la pantalla de su ancho, se parte. */
+  overflow-wrap: anywhere;
   cursor: pointer;
   touch-action: manipulation;
 }
 
-.nuevo:focus-visible {
+/* «Nuevo partido» es la acción principal de la pantalla: relleno de acento. */
+.nuevo {
+  background-color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+/* «Entrenamientos» lleva a otra pantalla: sin relleno, como los enlaces de
+   cada partido. */
+.otro {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-accent-ink);
+}
+
+.nuevo:focus-visible,
+.otro:focus-visible {
   outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
 }

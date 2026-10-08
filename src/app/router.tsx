@@ -156,6 +156,17 @@ export const router = createBrowserRouter([
                 lazy: async () => ({ Component: (await import('@modules/agenda')).CalendarioPage }),
               },
 
+              // --- Entrenamientos (T-228). Sin permiso, como el calendario:
+              // el horario lo ve cualquiera con función en el equipo, y la RLS
+              // decide qué filas devuelve. Crear, editar y pasar lista cuelgan
+              // de `training.manage`, más abajo.
+              {
+                path: 'entrenamientos',
+                lazy: async () => ({
+                  Component: (await import('@modules/training')).EntrenamientosPage,
+                }),
+              },
+
               // --- schedule.manage -----------------------------------------
               {
                 element: <RequirePermission permission="schedule.manage" />,
@@ -221,9 +232,21 @@ export const router = createBrowserRouter([
                 element: <RequirePermission permission="training.manage" />,
                 children: [
                   {
+                    path: 'entrenamientos/nuevo',
+                    lazy: async () => ({
+                      Component: (await import('@modules/training')).NuevoEntrenamientoPage,
+                    }),
+                  },
+                  {
+                    path: 'entrenamientos/:id/editar',
+                    lazy: async () => ({
+                      Component: (await import('@modules/training')).EditarEntrenamientoPage,
+                    }),
+                  },
+                  {
                     path: 'entrenamientos/:id/lista',
                     element: (
-                      <PantallaPendiente id="A15" titulo="Lista de asistencia" tarea={TRAS_MVP} />
+                      <PantallaPendiente id="A15" titulo="Lista de asistencia" tarea="la T-229" />
                     ),
                   },
                 ],
@@ -240,7 +263,10 @@ export const router = createBrowserRouter([
                 ],
               },
 
-              // --- stats.view. Todo el bloque B, que va después del MVP. ----
+              // --- stats.view. Todo el bloque B, que va después del MVP. La
+              // B04, el historial de asistencia, ya no está aquí: `/entrenamientos`
+              // es desde la T-228 el horario, y el historial tendrá su ruta
+              // en otra tarea (T-232).
               {
                 element: <RequirePermission permission="stats.view" />,
                 children: [
@@ -248,12 +274,6 @@ export const router = createBrowserRouter([
                     path: 'partidos/:id/informe',
                     element: (
                       <PantallaPendiente id="B03" titulo="Informe del partido" tarea={TRAS_MVP} />
-                    ),
-                  },
-                  {
-                    path: 'entrenamientos',
-                    element: (
-                      <PantallaPendiente id="B04" titulo="Entrenamientos" tarea={TRAS_MVP} />
                     ),
                   },
                   {

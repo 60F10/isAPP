@@ -39,6 +39,12 @@ describe('esDestinoActual', () => {
     }
   });
 
+  it('los entrenamientos cuelgan de «Agenda» (T-228)', () => {
+    for (const ruta of ['/entrenamientos', '/entrenamientos/x/lista', '/entrenamientos/nuevo']) {
+      expect(marcados(ruta)).toEqual(['Agenda']);
+    }
+  });
+
   it('«/mascota» no marca «Más»', () => {
     expect(marcados('/mascota')).toEqual([]);
   });

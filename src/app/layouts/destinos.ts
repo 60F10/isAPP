@@ -28,7 +28,7 @@ export const DESTINOS: readonly Destino[] = [
     icono: 'team',
     tambien: ['/equipos', '/club', '/jugadores'],
   },
-  { to: '/calendario', texto: 'Agenda', icono: 'plus' },
+  { to: '/calendario', texto: 'Agenda', icono: 'plus', tambien: ['/entrenamientos'] },
   { to: '/estadisticas', texto: 'Datos', icono: 'reliability' },
   {
     to: '/mas',
