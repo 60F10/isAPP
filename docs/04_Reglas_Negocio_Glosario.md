@@ -1,6 +1,6 @@
 # DOC 04 — Reglas de negocio y glosario
 
-> **Versión:** 1.3 — 04/10/2026 (§15.3: cómo se llega a miembro y a seguidor, decisión I1) · 1.2 — 26/09/2026 (§4.2: valores del cadete confirmados por Isaac y su liga, T-203) · 1.1 — 12/09/2026 (correcciones de la auditoría A-01, A-03, A-04, A-07, A-08 y A-11) · anterior 1.0 — 11/09/2026
+> **Versión:** 1.4 — 08/10/2026 (§13: T-06 a T-09, decisiones de Raúl sobre los entrenamientos; §15.1: crear entrenamientos es de `training.manage`) · 1.3 — 04/10/2026 (§15.3: cómo se llega a miembro y a seguidor, decisión I1) · 1.2 — 26/09/2026 (§4.2: valores del cadete confirmados por Isaac y su liga, T-203) · 1.1 — 12/09/2026 (correcciones de la auditoría A-01, A-03, A-04, A-07, A-08 y A-11) · anterior 1.0 — 11/09/2026
 > **Depende de:** DOC 03 (decisiones), DOC 01 (backlog), DOC 02 (pantallas)
 > **Alimenta a:** DOC 05 (modelo de datos), DOC 06 (arquitectura), DOC 08 (tareas), DOC 09 (observabilidad), DOC 11 (RGPD)
 
@@ -557,13 +557,17 @@ Una sanción se descuenta cuando el jugador se pierde un partido **cerrado** de 
 
 ## 13. Entrenamientos
 
-| Regla | Enunciado                                                                               |
-| :---- | :-------------------------------------------------------------------------------------- |
-| T-01  | La sesión pertenece a un equipo y una temporada, y aparece en el calendario             |
-| T-02  | La asistencia admite tres estados: presente, ausente y retraso                          |
-| T-03  | Cada jugador admite una observación por sesión, y la sesión una observación global      |
-| T-04  | La asistencia no lleva índice de fiabilidad: la pasa el entrenador, es dato estructural |
-| T-05  | Las observaciones son texto libre y nunca recogen información de salud                  |
+| Regla | Enunciado                                                                                                                               |
+| :---- | :-------------------------------------------------------------------------------------------------------------------------------------- |
+| T-01  | La sesión pertenece a un equipo y una temporada, y aparece en el calendario                                                             |
+| T-02  | La asistencia admite tres estados: presente, ausente y retraso                                                                          |
+| T-03  | Cada jugador admite una observación por sesión, y la sesión una observación global                                                      |
+| T-04  | La asistencia no lleva índice de fiabilidad: la pasa el entrenador, es dato estructural                                                 |
+| T-05  | Las observaciones son texto libre y nunca recogen información de salud                                                                  |
+| T-06  | Los entrenamientos, su asistencia y sus observaciones solo los ve y los escribe quien tiene `training.manage` (decisión de Raúl, 08/10) |
+| T-07  | Un jugador sin marcar no tiene fila de asistencia: no cuenta ni como presente ni como ausente                                           |
+| T-08  | De qué parte una lista nueva, todos presentes o todos sin marcar, lo elige quien pasa lista                                             |
+| T-09  | Repetir cada semana crea entrenamientos sueltos: la tanda no existe como tal, y cada uno se edita y se borra por separado               |
 
 ---
 
@@ -601,13 +605,13 @@ Los permisos se guardan como filas, no como un rol rígido. El rol es una planti
 | `team.manage`        | Editar el equipo y sus datos                                   |
 | `roster.manage`      | Crear y editar jugadores e inscripciones                       |
 | `competition.manage` | Crear competiciones y editar su reglamento                     |
-| `schedule.manage`    | Crear y editar partidos y entrenamientos                       |
+| `schedule.manage`    | Crear y editar partidos                                        |
 | `lineup.manage`      | Guardar la convocatoria                                        |
 | `match.live.write`   | Registrar eventos durante el partido                           |
 | `event.approve`      | Aprobar y rechazar eventos, y editar los ajenos                |
 | `match.close`        | Cerrar y reabrir el partido, y confirmar el resultado del acta |
 | `discipline.manage`  | Sanciones, arrestos y disponibilidad                           |
-| `training.manage`    | Pasar lista y escribir observaciones                           |
+| `training.manage`    | Crear entrenamientos, pasar lista y escribir observaciones     |
 | `stats.view`         | Consultar estadísticas del equipo                              |
 | `members.manage`     | Invitar personas y asignar permisos                            |
 

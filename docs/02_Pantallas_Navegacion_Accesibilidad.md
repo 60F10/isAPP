@@ -1,6 +1,6 @@
 # DOC 02 — Pantallas, navegación y accesibilidad
 
-> **Versión:** 1.5 — 07/10/2026 (T-304: «Mi equipo» y «Más» entran en el inventario y la barra deja de apuntar a la primera pantalla de cada rama) · 1.4 — 07/10/2026 (T-301c: «Unirse a un equipo», A01b, entra en el inventario) · 1.3 — 07/10/2026 (T-301b: la invitación se acepta en Inicio) · 1.2 — 25/09/2026 (§3.1: la decisión de los destinos, tras la T-107) · 1.1 — 19/09/2026 (columna «Fase» al día con el recorte del DOC 08 §7) · 1.0 — 08/09/2026
+> **Versión:** 1.6 — 08/10/2026 (los entrenamientos se adelantan: A15a y A15b entran en el inventario, la A15 deja de ser de después de la liga y la B04 cambia de ruta) · 1.5 — 07/10/2026 (T-304: «Mi equipo» y «Más» entran en el inventario y la barra deja de apuntar a la primera pantalla de cada rama) · 1.4 — 07/10/2026 (T-301c: «Unirse a un equipo», A01b, entra en el inventario) · 1.3 — 07/10/2026 (T-301b: la invitación se acepta en Inicio) · 1.2 — 25/09/2026 (§3.1: la decisión de los destinos, tras la T-107) · 1.1 — 19/09/2026 (columna «Fase» al día con el recorte del DOC 08 §7) · 1.0 — 08/09/2026
 > **Depende de:** DOC 01 (backlog)
 > **Alimenta a:** DOC 06 (arquitectura frontend), DOC 07 (sistema de diseño), DOC 08 (tareas)
 
@@ -20,37 +20,39 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
 
 ### Bloque A — Entrada de datos · prioridad 1
 
-| ID       | Pantalla                   | Ruta                                       | Quién entra              | Fase      | Épicas          |
-| :------- | :------------------------- | :----------------------------------------- | :----------------------- | :-------- | :-------------- |
-| **A01**  | Acceso                     | `/login`                                   | Todos                    | MVP       | E1-01           |
-| **A01b** | Unirse a un equipo         | `/unirse`                                  | Todos                    | MVP       | E1-04→08        |
-| **A02**  | Inicio                     | `/`                                        | Todos                    | MVP       | E4-04           |
-| **A02b** | Mi equipo                  | `/equipo`                                  | Todos                    | MVP       | —               |
-| **A03**  | Club                       | `/club`                                    | Entrenador, Admin        | MVP       | E2-01           |
-| **A04**  | Equipos                    | `/equipos`                                 | Entrenador, Admin        | MVP       | E2-02           |
-| **A05**  | Plantilla                  | `/equipos/:id/plantilla`                   | Entrenador, Delegado     | MVP       | E2-03, E2-04    |
-| **A06**  | Ficha de jugador (edición) | `/jugadores/:id/editar`                    | Entrenador               | MVP       | E2-04→06, E6-04 |
-| **A07**  | Personas y permisos        | `/equipos/:id/personas`                    | Entrenador               | MVP       | E1-04→08        |
-| **A08**  | Competiciones y reglamento | `/competiciones` · `/competiciones/:id`    | Entrenador               | MVP       | E3 completa     |
-| **A09**  | Calendario                 | `/calendario`                              | Todos                    | MVP       | E4-01→04        |
-| **A10**  | Alta / edición de partido  | `/partidos/nuevo` · `/partidos/:id/editar` | Entrenador, Delegado     | MVP       | E4-02, E4-03    |
-| **A11**  | Convocatoria y alineación  | `/partidos/:id/convocatoria`               | Entrenador               | MVP       | E7-01→06        |
-| **A12**  | **Partido en directo** ⭐  | `/partidos/:id/directo`                    | Con permiso de escritura | MVP       | E8 completa     |
-| **A13**  | Cierre y post-partido      | `/partidos/:id/cierre`                     | Entrenador               | MVP       | E10 completa    |
-| **A14**  | Mis aportaciones           | `/mis-aportaciones`                        | Con permiso de escritura | MVP       | E9-06           |
-| **A15**  | Entrenamiento en directo   | `/entrenamientos/:id/lista`                | Entrenador, Delegado     | Post-liga | E5-02→04        |
-| **A16**  | Disciplina y sanciones     | `/disciplina`                              | Entrenador               | Post-liga | E6 completa     |
+| ID       | Pantalla                        | Ruta                                                   | Quién entra              | Fase       | Épicas          |
+| :------- | :------------------------------ | :----------------------------------------------------- | :----------------------- | :--------- | :-------------- |
+| **A01**  | Acceso                          | `/login`                                               | Todos                    | MVP        | E1-01           |
+| **A01b** | Unirse a un equipo              | `/unirse`                                              | Todos                    | MVP        | E1-04→08        |
+| **A02**  | Inicio                          | `/`                                                    | Todos                    | MVP        | E4-04           |
+| **A02b** | Mi equipo                       | `/equipo`                                              | Todos                    | MVP        | —               |
+| **A03**  | Club                            | `/club`                                                | Entrenador, Admin        | MVP        | E2-01           |
+| **A04**  | Equipos                         | `/equipos`                                             | Entrenador, Admin        | MVP        | E2-02           |
+| **A05**  | Plantilla                       | `/equipos/:id/plantilla`                               | Entrenador, Delegado     | MVP        | E2-03, E2-04    |
+| **A06**  | Ficha de jugador (edición)      | `/jugadores/:id/editar`                                | Entrenador               | MVP        | E2-04→06, E6-04 |
+| **A07**  | Personas y permisos             | `/equipos/:id/personas`                                | Entrenador               | MVP        | E1-04→08        |
+| **A08**  | Competiciones y reglamento      | `/competiciones` · `/competiciones/:id`                | Entrenador               | MVP        | E3 completa     |
+| **A09**  | Calendario                      | `/calendario`                                          | Todos                    | MVP        | E4-01→04        |
+| **A10**  | Alta / edición de partido       | `/partidos/nuevo` · `/partidos/:id/editar`             | Entrenador, Delegado     | MVP        | E4-02, E4-03    |
+| **A11**  | Convocatoria y alineación       | `/partidos/:id/convocatoria`                           | Entrenador               | MVP        | E7-01→06        |
+| **A12**  | **Partido en directo** ⭐       | `/partidos/:id/directo`                                | Con permiso de escritura | MVP        | E8 completa     |
+| **A13**  | Cierre y post-partido           | `/partidos/:id/cierre`                                 | Entrenador               | MVP        | E10 completa    |
+| **A14**  | Mis aportaciones                | `/mis-aportaciones`                                    | Con permiso de escritura | MVP        | E9-06           |
+| **A15a** | Entrenamientos                  | `/entrenamientos`                                      | Con `training.manage`    | Adelantada | E4-01, E5-01    |
+| **A15b** | Alta / edición de entrenamiento | `/entrenamientos/nuevo` · `/entrenamientos/:id/editar` | Con `training.manage`    | Adelantada | E4-01, E5-01    |
+| **A15**  | Lista de asistencia             | `/entrenamientos/:id/lista`                            | Con `training.manage`    | Adelantada | E5-02→04        |
+| **A16**  | Disciplina y sanciones          | `/disciplina`                                          | Entrenador               | Post-liga  | E6 completa     |
 
 ### Bloque B — Consulta de datos · prioridad 2
 
-| ID      | Pantalla                    | Ruta                        | Quién entra          | Fase      | Épicas         |
-| :------ | :-------------------------- | :-------------------------- | :------------------- | :-------- | :------------- |
-| **B01** | Panel de equipo             | `/estadisticas`             | Todos según permiso  | Post-liga | E11-01, E11-04 |
-| **B02** | Estadísticas de jugador     | `/estadisticas/jugador/:id` | Todos según permiso  | Post-liga | E11-02         |
-| **B03** | Informe de partido          | `/partidos/:id/informe`     | Todos según permiso  | Post-liga | E11-03, E11-08 |
-| **B04** | Historial de entrenamientos | `/entrenamientos`           | Entrenador, Delegado | Post-liga | E5-05          |
-| **B05** | Comparador de jugadores     | `/estadisticas/comparar`    | Entrenador           | V1.1      | E11-06         |
-| **B06** | Vista de invitado           | `/publico/:token`           | Invitado             | V1.1      | E11-07         |
+| ID      | Pantalla                | Ruta                         | Quién entra           | Fase       | Épicas         |
+| :------ | :---------------------- | :--------------------------- | :-------------------- | :--------- | :------------- |
+| **B01** | Panel de equipo         | `/estadisticas`              | Todos según permiso   | Post-liga  | E11-01, E11-04 |
+| **B02** | Estadísticas de jugador | `/estadisticas/jugador/:id`  | Todos según permiso   | Post-liga  | E11-02         |
+| **B03** | Informe de partido      | `/partidos/:id/informe`      | Todos según permiso   | Post-liga  | E11-03, E11-08 |
+| **B04** | Historial de asistencia | `/entrenamientos/asistencia` | Con `training.manage` | Adelantada | E5-05          |
+| **B05** | Comparador de jugadores | `/estadisticas/comparar`     | Entrenador            | V1.1       | E11-06         |
+| **B06** | Vista de invitado       | `/publico/:token`            | Invitado              | V1.1       | E11-07         |
 
 ### Bloque C — Sistema
 
@@ -64,6 +66,8 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
 | **C06** | Más                 | `/mas`              | Todos       | MVP  | —                     |
 
 **Total MVP: 22 pantallas**, con la A01b, que entra el 07/10 con la T-301c, y con «Mi equipo» (A02b) y «Más» (C06), que entran el 07/10 con la T-304. De ellas, una sola concentra el riesgo: **A12, el partido en directo**.
+
+**Adelantadas el 08/10.** Raúl decide hacer los entrenamientos ya (DOC 08 §5b): la A15 gana dos pantallas hermanas, la A15a y la A15b, y las tres piden `training.manage`, que es quien pasa lista. La B04 deja `/entrenamientos` a la lista de sesiones y pasa a `/entrenamientos/asistencia`.
 
 **Eran 21 hasta el 12/09**, cuando el DOC 08 §7 sacó del MVP el entrenamiento en directo (A15) y la disciplina (A16). Esta tabla se quedó desfasada aquel día y se corrige ahora. El Bloque B nunca contó en esos 21 —era «MVP tardío»— y también pasa a post-liga: el principio del §1 manda, y sin dos partidos reales metidos de extremo a extremo un panel esconde fallos en vez de enseñarlos.
 
@@ -96,7 +100,10 @@ Consecuencia directa: las pantallas del **Bloque A** entran en el MVP; las del *
      │        ├─ /directo    ◄───┘  (flujo lineal del día de partido)
      │        ├─ /cierre     ◄───┘
      │        └─ /informe            (Bloque B)
-     │   └─ /entrenamientos ─ /entrenamientos/:id/lista
+     │   └─ /entrenamientos ─ /entrenamientos/nuevo
+     │                      ├─ /entrenamientos/:id/editar
+     │                      ├─ /entrenamientos/:id/lista
+     │                      └─ /entrenamientos/asistencia   (Bloque B)
      │
      ├─ DATOS
      │   ├─ /estadisticas
