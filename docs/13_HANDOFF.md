@@ -18,16 +18,34 @@ sin cambios en la base.**
   hacerlos ya. La base estaba: `training_sessions` y `training_attendance`, vacías, con
   `training.manage`, que hoy tienen Raúl e Isaac.
 - **Cuatro decisiones de Raúl:** las sesiones se crean sueltas, con «Entrenamiento de hoy» y
-  también repitiendo días fijos; de qué parte la lista lo elige el entrenador en la pantalla; la
-  asistencia y las observaciones solo las ve quien pasa lista (DOC 04 §13, T-06 a T-09); y las
-  tareas van programadas en la nube.
-- **Seis tareas, de la T-227 a la T-232.** Con traspaso en `docs/traspasos/`, la T-228 (sesiones),
-  la T-229 (pasar lista) y la T-230 (repetir cada semana), programadas para esta noche, de una en
-  una. La T-231 (calendario e Inicio) y la T-232 (historial) se escriben tras revisar estas.
-- **La T-227 es de Raúl.** El SQL está en `supabase/pendientes/entrenamientos_solo_quien_pasa_lista.sql`:
-  quita las dos políticas de lectura para miembros y deja la `for all` con `training.manage`. La
-  sesión intentó aplicarlo con la herramienta de Supabase y la llamada volvió pidiendo una
-  aprobación que no llegó (punto 81). **No está aplicado**, y no frena a las otras tareas.
+  también repitiendo días fijos; de qué parte la lista lo elige el entrenador en la pantalla;
+  **el horario lo ve todo el club, y la asistencia y las observaciones, solo los entrenadores,
+  los directivos y el administrador** (DOC 04 §13, T-06 a T-09); y las tareas van programadas en
+  la nube.
+- **Quién ve qué se corrigió a media tarde.** La primera versión cerraba la sesión entera a
+  `training.manage`; Raúl dijo que el horario es de todos. La PR #94 llevaba la primera y esta
+  sesión la corrige en otra PR, antes de que arrancara ninguna tarea: se retrasaron las tres.
+- **Siete tareas, de la T-227 a la T-233.** Con traspaso en `docs/traspasos/`, la T-228
+  (sesiones), la T-229 (pasar lista) y la T-230 (repetir cada semana), programadas para esta
+  noche, de una en una: 21:25, 22:55 y 00:25, hora canaria. La T-231 (calendario e Inicio), la
+  T-232 (historial) y la T-233 (observación del entrenamiento) se escriben tras revisar estas.
+- **La observación del entrenamiento se queda fuera esta noche.** Vivía en
+  `training_sessions.notes`, en la misma fila que el horario. Va a una tabla propia, con
+  migración: es la T-233. La T-229 guarda la asistencia y la observación de cada jugador.
+- **La T-227 es de Raúl.** El SQL está en `supabase/pendientes/entrenamientos_quien_ve_que.sql`:
+  abre el horario al club, cierra la asistencia a `training.manage` y al administrador, y deja
+  `notes` sin uso. La sesión intentó aplicar la primera versión con la herramienta de Supabase
+  y la llamada volvió pidiendo una aprobación que no llegó (punto 81). **No está aplicado**, y
+  no frena a las otras tareas.
+- **Los directivos no existen en la aplicación.** Ni como rol ni como permiso. Verán la
+  asistencia cuando Raúl los invite con `training.manage`; leer sin escribir pide un permiso
+  nuevo, sin tarea (DOC 05 §14.10).
+- **El primer partido está sin cerrar.** Raúl lo reabrió el 08/10 y descartó el cambio repetido
+  desde la A13: quedan seis aprobados y uno descartado, y el partido está en `finished`. Falta
+  volver a cerrarlo. El punto 65 queda resuelto en cuanto lo cierre.
+- **Dos cosas vistas en pro con el móvil de Raúl:** la banda de sincronización dice «1 anotación
+  sin guardar» encima de un rechazo que ya no se va a reintentar, y confunde; y tras desinstalar
+  la aplicación, Chrome no volvió a ofrecer instalarla por su cuenta. Sin tarea las dos.
 - **Un desajuste que se corrige de paso:** el DOC 04 §15.1 decía que `schedule.manage` crea
   entrenamientos. En la base lo hace `training.manage`, y así queda escrito. La frase de la A07 la
   cambia la T-228.
@@ -35,8 +53,8 @@ sin cambios en la base.**
   desde «Personas», con `training.manage`; darle `members.manage` a Isaac (punto 4); la línea de
   Realtime (punto 77); el cambio repetido (punto 65); y las pruebas en el móvil de lo del 07/10.
 - **Ojo al publicar a partir de ahora:** `main:release` se lleva todo lo que haya en `main`,
-  también los entrenamientos a medio hacer. Cada entrega queda completa y detrás de
-  `training.manage`, así que no rompe nada a quien no lo tiene.
+  también los entrenamientos a medio hacer. Cada entrega queda completa, y lo que escribe va detrás
+  de `training.manage`.
 - **Sin revisar todavía:** la T-305 y la T-306 contra su traspaso. Están en `main` y en pro.
 
 ---

@@ -1,7 +1,7 @@
 # Traspaso T-228 — Entrenamientos: las sesiones
 
 > **Modelo y esfuerzo:** Opus, medio · **Rama:** `feat/training-sesiones` · **Depende de:** nada · **Sin migración**
-> Preparado el 08/10/2026 sobre `main` en `a7f4918` (PR #93). Si `src/modules/training/` ya existe, otra sesión la tiene o la tuvo: para y dilo.
+> Preparado el 08/10/2026 sobre `main` en `a7f4918` (PR #93) y corregido esa misma tarde: el horario lo ve todo el club. Si `src/modules/training/` ya existe, otra sesión la tiene o la tuvo: para y dilo.
 
 ## Qué falta
 
@@ -11,10 +11,10 @@ Esta es la primera de tres entregas: aquí, las sesiones. Pasar lista es la T-22
 
 ## Qué hay que conseguir
 
-1. Quien tiene `training.manage` abre «Entrenamientos» y ve los del equipo activo en la temporada en curso, en dos listas: próximos y pasados.
-2. Da de alta un entrenamiento con fecha, hora, lugar y objetivo, lo edita y lo borra.
+1. **Cualquiera con función en el equipo** abre «Entrenamientos» y ve el horario del equipo activo en la temporada en curso, en dos listas: próximos y pasados. Raúl lo decidió el 08/10: el horario es de todo el club.
+2. Quien tiene `training.manage` da de alta un entrenamiento con fecha, hora, lugar y objetivo, lo edita y lo borra.
 3. Con un toque en «Entrenamiento de hoy» lo crea para ahora mismo y sale hacia su lista de asistencia.
-4. Llega a «Entrenamientos» desde el calendario, y la barra marca «Agenda».
+4. Se llega a «Entrenamientos» desde el calendario, y la barra marca «Agenda».
 
 ## Reglas de esta sesión
 
@@ -32,13 +32,14 @@ Esta es la primera de tres entregas: aquí, las sesiones. Pasar lista es la T-22
 
 ## La base, comprobada el 08/10
 
-| Punto               | Cómo está                                                                                                                                                   |
-| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `training_sessions` | `id`, `team_id`, `season_id`, `scheduled_at` (`timestamptz`), `location`, `focus`, `notes`, `created_by`, `created_at`, `updated_at`. Vacía                 |
-| Escribir            | La política `training_sessions_write` pide `training.manage` en el equipo, para insertar, cambiar y borrar                                                  |
-| Leer                | Hoy, cualquier miembro del equipo. Cuando Raúl aplique la T-227 (DOC 05 §14.10), solo `training.manage`. **La pantalla se comporta igual en los dos casos** |
-| Borrar              | Se lleva en cascada las filas de `training_attendance` de esa sesión                                                                                        |
-| Quién tiene permiso | Raúl e Isaac. `schedule.manage` no interviene, aunque el DOC 04 lo dijera hasta hoy                                                                         |
+| Punto               | Cómo está                                                                                                                                                                                          |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `training_sessions` | `id`, `team_id`, `season_id`, `scheduled_at` (`timestamptz`), `location`, `focus`, `notes`, `created_by`, `created_at`, `updated_at`. Vacía                                                        |
+| Escribir            | La política `training_sessions_write` pide `training.manage` en el equipo, para insertar, cambiar y borrar                                                                                         |
+| Leer                | Hoy, cualquier miembro del equipo. Cuando Raúl aplique la T-227 (DOC 05 §14.10), cualquiera con función en el club. **La pantalla se comporta igual en los dos casos**. Un seguidor no lee ninguna |
+| Borrar              | Se lleva en cascada las filas de `training_attendance` de esa sesión                                                                                                                               |
+| Quién tiene permiso | Raúl e Isaac. `schedule.manage` no interviene, aunque el DOC 04 lo dijera hasta hoy                                                                                                                |
+| La columna `notes`  | **No se usa.** La fila la ve todo el club, así que ahí no va ninguna observación. No la leas ni la escribas: ni en `COLUMNAS`, ni en el tipo, ni en ninguna consulta                               |
 
 ## Decidido: rutas y guardia
 
@@ -49,7 +50,7 @@ Esta es la primera de tres entregas: aquí, las sesiones. Pasar lista es la T-22
 | `/entrenamientos/:id/editar` | A15b «Editar entrenamiento»              | `EditarEntrenamientoPage`                            |
 | `/entrenamientos/:id/lista`  | A15 «Lista de asistencia», **sin hacer** | Sigue en `PantallaPendiente`, con `tarea="la T-229"` |
 
-Las cuatro cuelgan del bloque `training.manage` de `router.tsx`, que ya existe. Las tres nuevas van perezosas, por el barril de `@modules/training`. **Quita `entrenamientos` del bloque `stats.view`**, donde hoy pinta la B04 pendiente: el historial de asistencia tendrá su ruta en otra tarea.
+**`/entrenamientos` va sin guardia de permiso**, solo con sesión, junto a `/calendario`: el horario lo ve cualquiera con función en el equipo. Las otras tres cuelgan del bloque `training.manage` de `router.tsx`, que ya existe. Las tres nuevas van perezosas, por el barril de `@modules/training`. **Quita `entrenamientos` del bloque `stats.view`**, donde hoy pinta la B04 pendiente: el historial de asistencia tendrá su ruta en otra tarea.
 
 ## Decidido: el modelo
 
@@ -57,7 +58,7 @@ Todo en `src/modules/training/model/entrenamiento.ts`, puro y con sus pruebas.
 
 | Pieza                                        | Qué hace                                                                                                                                                                |
 | :------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Entrenamiento`                              | `id`, `teamId`, `seasonId`, `scheduledAt`, `location`, `focus` y `notes`. Los tres últimos, `string \| null`                                                            |
+| `Entrenamiento`                              | `id`, `teamId`, `seasonId`, `scheduledAt`, `location` y `focus`. Los dos últimos, `string \| null`. **Sin `notes`**                                                     |
 | `LARGO_LUGAR` y `LARGO_OBJETIVO`             | 120 y 200. Son largos de interfaz: el esquema no los limita                                                                                                             |
 | `validarEntrenamiento(formulario)`           | Recibe `fecha`, `hora`, `lugar` y `objetivo` como texto. Devuelve los errores por campo y, sin errores, los datos listos para la base. Misma forma que `validarPartido` |
 | Qué valida                                   | Fecha y hora obligatorias y reales, con `aInstante`. Lugar y objetivo, opcionales y dentro de su largo; vacíos se guardan como `null`, con `limpiarTexto`               |
@@ -83,27 +84,28 @@ Todo en `src/modules/training/model/entrenamiento.ts`, puro y con sus pruebas.
 | :--------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `api/queryKeys.ts`           | `trainingKeys`: `all`, `lista(equipoId, temporadaId)` y `sesion(id)`                                                                                                                           |
 | `api/entrenamientos.ts`      | `fetchEntrenamientos(equipoId, temporadaId)`, `fetchEntrenamiento(id)`, `crearEntrenamiento(destino, datos)`, `actualizarEntrenamiento(id, datos)` y `borrarEntrenamiento(id)`                 |
-| Columnas que pide            | `id, team_id, season_id, scheduled_at, location, focus, notes`, y ninguna más                                                                                                                  |
+| Columnas que pide            | `id, team_id, season_id, scheduled_at, location, focus`, y ninguna más. **`notes` no**                                                                                                         |
 | `crearEntrenamiento`         | `destino` es `{ equipoId, temporadaId, userId }` y rellena `team_id`, `season_id` y `created_by`. `datos` es `{ scheduled_at, location, focus }`. Devuelve el entrenamiento creado             |
-| `notes`                      | Se lee y **no se escribe aquí**: es la observación global, de la T-229                                                                                                                         |
+| `notes`                      | Ni se lee ni se escribe. La observación del entrenamiento tendrá su tabla en otra tarea (T-233)                                                                                                |
 | `hooks/useEntrenamientos.ts` | `useEquipoDeTrabajo()`, `useEntrenamientos`, `useEntrenamiento`, `useCrearEntrenamiento`, `useActualizarEntrenamiento` y `useBorrarEntrenamiento`. Las mutaciones invalidan `trainingKeys.all` |
 | `useEquipoDeTrabajo()`       | `equipoId`, `clubId` y `temporadaId` del equipo activo, de `useAuth()`. Es el `useEquipoActivo` de `agenda/hooks/usePartidos.ts`, que desde aquí no se puede importar                          |
 | El campo de casa             | `useClub(clubId)` de `@modules/core`, y su `homeVenue`                                                                                                                                         |
 
 ## Decidido: «Entrenamientos» (A15a)
 
-| Punto                  | Decisión                                                                                                                                                                       |
-| :--------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Título                 | `<Pantalla id="A15a" titulo="Entrenamientos">`                                                                                                                                 |
-| «Entrenamiento de hoy» | Si `entrenamientoDeHoy` devuelve uno, un enlace «Pasar lista de hoy» a su `/entrenamientos/:id/lista`. Si no, un botón «Entrenamiento de hoy»                                  |
-| Qué hace el botón      | Crea uno con `instanteDeAhora`, el lugar de `propuestaDeAlta` y sin objetivo, y navega a `/entrenamientos/:id/lista`. Mientras crea dice «Creando…» y no responde a otro toque |
-| Si el botón falla      | El mensaje de `mensajeDeErrorAlGuardar`, anunciado, con el foco en él. No navega                                                                                               |
-| «Nuevo entrenamiento»  | Enlace a `/entrenamientos/nuevo`, junto al anterior                                                                                                                            |
-| Tarjeta «Próximos»     | Vacía: «No hay entrenamientos programados.»                                                                                                                                    |
-| Tarjeta «Pasados»      | Los diez más recientes y, si hay más, un botón «Ver los N anteriores» que enseña el resto. Vacía: «Todavía no hay ninguno esta temporada.»                                     |
-| Cada fila              | Día y hora en una línea, con los dos formatos de `ResumenDePartido.tsx`: «jue, 8 oct · 18:00». Debajo, el lugar y el objetivo, si los tiene. Enlaces «Pasar lista» y «Editar»  |
-| Nombre de los enlaces  | Cada «Pasar lista» y cada «Editar» lleva el día en su nombre accesible: «Pasar lista: jue, 8 oct · 18:00»                                                                      |
-| Estados                | Los de `CalendarioPage`: sin equipo, sin temporada, «Cargando…» y el fallo con «Reintentar»                                                                                    |
+| Punto                  | Decisión                                                                                                                                                                                                                                           |
+| :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Título                 | `<Pantalla id="A15a" titulo="Entrenamientos">`                                                                                                                                                                                                     |
+| Quién hace qué         | El horario lo lee cualquiera. «Entrenamiento de hoy», «Nuevo entrenamiento», «Pasar lista» y «Editar» solo salen con `useHasPermission('training.manage') === true`. Sin el permiso, la pantalla es de solo lectura y no dice nada de lo que falta |
+| «Entrenamiento de hoy» | Si `entrenamientoDeHoy` devuelve uno, un enlace «Pasar lista de hoy» a su `/entrenamientos/:id/lista`. Si no, un botón «Entrenamiento de hoy»                                                                                                      |
+| Qué hace el botón      | Crea uno con `instanteDeAhora`, el lugar de `propuestaDeAlta` y sin objetivo, y navega a `/entrenamientos/:id/lista`. Mientras crea dice «Creando…» y no responde a otro toque                                                                     |
+| Si el botón falla      | El mensaje de `mensajeDeErrorAlGuardar`, anunciado, con el foco en él. No navega                                                                                                                                                                   |
+| «Nuevo entrenamiento»  | Enlace a `/entrenamientos/nuevo`, junto al anterior                                                                                                                                                                                                |
+| Tarjeta «Próximos»     | Vacía: «No hay entrenamientos programados.»                                                                                                                                                                                                        |
+| Tarjeta «Pasados»      | Los diez más recientes y, si hay más, un botón «Ver los N anteriores» que enseña el resto. Vacía: «Todavía no hay ninguno esta temporada.»                                                                                                         |
+| Cada fila              | Día y hora en una línea, con los dos formatos de `ResumenDePartido.tsx`: «jue, 8 oct · 18:00». Debajo, el lugar y el objetivo, si los tiene. Enlaces «Pasar lista» y «Editar»                                                                      |
+| Nombre de los enlaces  | Cada «Pasar lista» y cada «Editar» lleva el día en su nombre accesible: «Pasar lista: jue, 8 oct · 18:00»                                                                                                                                          |
+| Estados                | Los de `CalendarioPage`: sin equipo, sin temporada, «Cargando…» y el fallo con «Reintentar»                                                                                                                                                        |
 
 ## Decidido: alta y edición (A15b)
 
@@ -121,11 +123,11 @@ Todo en `src/modules/training/model/entrenamiento.ts`, puro y con sus pruebas.
 
 ## Decidido: cómo se llega
 
-| Punto            | Decisión                                                                                                                                                                                                                        |
-| :--------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Calendario       | En `CalendarioPage.tsx`, un enlace «Entrenamientos» a `/entrenamientos` junto a «Nuevo partido», solo con `useHasPermission('training.manage') === true`. Actualiza el comentario de cabecera, que dice que no salen            |
-| La barra         | En `app/layouts/destinos.ts`, «Agenda» gana `tambien: ['/entrenamientos']`                                                                                                                                                      |
-| Textos de la A07 | En `auth/model/personas.ts`: `schedule.manage` pasa a «Crear y editar partidos» y `training.manage` a «Crear entrenamientos, pasar lista y escribir observaciones». Es lo que dice la base, y el DOC 04 §15.1 ya está corregido |
+| Punto            | Decisión                                                                                                                                                                                                                                                                                                                |
+| :--------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Calendario       | En `CalendarioPage.tsx`, un enlace «Entrenamientos» a `/entrenamientos` junto a «Nuevo partido». **Lo ve cualquiera con función en el equipo**; no sale si la membresía activa es de seguidor (`seguidor: true` en `useAuth().teams`), que no puede leerlos. Actualiza el comentario de cabecera, que dice que no salen |
+| La barra         | En `app/layouts/destinos.ts`, «Agenda» gana `tambien: ['/entrenamientos']`                                                                                                                                                                                                                                              |
+| Textos de la A07 | En `auth/model/personas.ts`: `schedule.manage` pasa a «Crear y editar partidos» y `training.manage` a «Crear entrenamientos, pasar lista y escribir observaciones». Es lo que dice la base, y el DOC 04 §15.1 ya está corregido                                                                                         |
 
 ## Archivos
 
@@ -147,25 +149,26 @@ Todo en `src/modules/training/model/entrenamiento.ts`, puro y con sus pruebas.
 
 Escríbelas primero y comprueba que fallan. Los dobles van en la frontera de `api/` y en `AuthContext`, como en `Agenda.test.tsx`. La prueba de `api/` usa el doble del cliente de `agenda/api/partidos.test.ts`.
 
-| Archivo                   | Caso                                                                                                                                        |
-| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------ |
-| `instante.test.ts`        | Las pruebas de `aInstante` y `partesDeInstante`, movidas sin cambiar                                                                        |
-| `entrenamiento.test.ts`   | `validarEntrenamiento`: sin fecha, sin hora, un 31 de febrero, las 25:00, un lugar de 121 caracteres; y uno bueno, con lugar vacío a `null` |
-| `entrenamiento.test.ts`   | Una fecha de ayer pasa                                                                                                                      |
-| `entrenamiento.test.ts`   | `separarEntrenamientos`: el de hoy a las 09:00, con `ahora` a las 20:00, sale en próximos; el de ayer, en pasados; los dos órdenes          |
-| `entrenamiento.test.ts`   | `entrenamientoDeHoy`: con dos hoy, el primero; sin ninguno, `null`                                                                          |
-| `entrenamiento.test.ts`   | `propuestaDeAlta`: hora y lugar del más reciente; sin ninguno, el campo de casa; sin campo de casa, vacío                                   |
-| `entrenamientos.test.ts`  | `crearEntrenamiento` manda `team_id`, `season_id` y `created_by`, y no manda `notes`                                                        |
-| `entrenamientos.test.ts`  | `actualizarEntrenamiento` y `borrarEntrenamiento` lanzan `SIN_FILAS` con cero filas de vuelta                                               |
-| `Entrenamientos.test.tsx` | La lista enseña próximos y pasados, cada fila con «Pasar lista» y «Editar»                                                                  |
-| `Entrenamientos.test.tsx` | Sin ninguno hoy, «Entrenamiento de hoy» crea uno y navega a su lista. Con uno hoy, sale «Pasar lista de hoy» y no el botón                  |
-| `Entrenamientos.test.tsx` | Si crear falla, se lee el mensaje y no se navega                                                                                            |
-| `Entrenamientos.test.tsx` | Con doce pasados se ven diez, y «Ver los 2 anteriores» enseña el resto                                                                      |
-| `Entrenamientos.test.tsx` | El alta sin hora enseña el error bajo el campo y no llama a `crearEntrenamiento`                                                            |
-| `Entrenamientos.test.tsx` | La edición trae lo guardado, guarda y vuelve a la lista                                                                                     |
-| `Entrenamientos.test.tsx` | Borrar pregunta antes; «No, dejarlo» no borra; «Sí, borrar» borra y vuelve a la lista                                                       |
-| `destinos.test.ts`        | `/entrenamientos` y `/entrenamientos/x/lista` marcan «Agenda»                                                                               |
-| `Agenda.test.tsx`         | El enlace «Entrenamientos» sale con `training.manage` y no sale sin él                                                                      |
+| Archivo                   | Caso                                                                                                                                                  |
+| :------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `instante.test.ts`        | Las pruebas de `aInstante` y `partesDeInstante`, movidas sin cambiar                                                                                  |
+| `entrenamiento.test.ts`   | `validarEntrenamiento`: sin fecha, sin hora, un 31 de febrero, las 25:00, un lugar de 121 caracteres; y uno bueno, con lugar vacío a `null`           |
+| `entrenamiento.test.ts`   | Una fecha de ayer pasa                                                                                                                                |
+| `entrenamiento.test.ts`   | `separarEntrenamientos`: el de hoy a las 09:00, con `ahora` a las 20:00, sale en próximos; el de ayer, en pasados; los dos órdenes                    |
+| `entrenamiento.test.ts`   | `entrenamientoDeHoy`: con dos hoy, el primero; sin ninguno, `null`                                                                                    |
+| `entrenamiento.test.ts`   | `propuestaDeAlta`: hora y lugar del más reciente; sin ninguno, el campo de casa; sin campo de casa, vacío                                             |
+| `entrenamientos.test.ts`  | `crearEntrenamiento` manda `team_id`, `season_id` y `created_by`, y ninguna consulta nombra `notes`                                                   |
+| `entrenamientos.test.ts`  | `actualizarEntrenamiento` y `borrarEntrenamiento` lanzan `SIN_FILAS` con cero filas de vuelta                                                         |
+| `Entrenamientos.test.tsx` | Con `training.manage`, la lista enseña próximos y pasados, cada fila con «Pasar lista» y «Editar»                                                     |
+| `Entrenamientos.test.tsx` | Sin `training.manage`, la lista enseña el mismo horario y no salen ni «Entrenamiento de hoy», ni «Nuevo entrenamiento», ni «Pasar lista», ni «Editar» |
+| `Entrenamientos.test.tsx` | Sin ninguno hoy, «Entrenamiento de hoy» crea uno y navega a su lista. Con uno hoy, sale «Pasar lista de hoy» y no el botón                            |
+| `Entrenamientos.test.tsx` | Si crear falla, se lee el mensaje y no se navega                                                                                                      |
+| `Entrenamientos.test.tsx` | Con doce pasados se ven diez, y «Ver los 2 anteriores» enseña el resto                                                                                |
+| `Entrenamientos.test.tsx` | El alta sin hora enseña el error bajo el campo y no llama a `crearEntrenamiento`                                                                      |
+| `Entrenamientos.test.tsx` | La edición trae lo guardado, guarda y vuelve a la lista                                                                                               |
+| `Entrenamientos.test.tsx` | Borrar pregunta antes; «No, dejarlo» no borra; «Sí, borrar» borra y vuelve a la lista                                                                 |
+| `destinos.test.ts`        | `/entrenamientos` y `/entrenamientos/x/lista` marcan «Agenda»                                                                                         |
+| `Agenda.test.tsx`         | El enlace «Entrenamientos» sale con función en el equipo, tenga o no `training.manage`, y no sale con una membresía de seguidor                       |
 
 ## Pasos
 
@@ -183,20 +186,20 @@ Escríbelas primero y comprueba que fallan. Los dobles van en la frontera de `ap
 
 ## Documentación: edita, no reescribas
 
-| Documento            | Edición                                                                                                                                                                                                                                                 |
-| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `docs/08_TAREAS.md`  | La fila de la T-228 pasa a ✅. Un párrafo de cuatro líneas en el §5b. Sube la versión un decimal                                                                                                                                                        |
-| `docs/13_HANDOFF.md` | **No lo reescribas.** Sección corta encima de la primera «## Sesión», con el tamaño del inicial                                                                                                                                                         |
-| `CLAUDE.md`          | Un párrafo «Desde la **T-228**…» tras el de la T-211: el módulo `training`, sus tres rutas con `training.manage`, que no importa de `agenda` y que `aInstante` y `partesDeInstante` viven en `shared/lib/instante.ts`. En «Siguientes tareas», la T-229 |
+| Documento            | Edición                                                                                                                                                                                                                                                                                                                       |
+| :------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/08_TAREAS.md`  | La fila de la T-228 pasa a ✅. Un párrafo de cuatro líneas en el §5b. Sube la versión un decimal                                                                                                                                                                                                                              |
+| `docs/13_HANDOFF.md` | **No lo reescribas.** Sección corta encima de la primera «## Sesión», con el tamaño del inicial                                                                                                                                                                                                                               |
+| `CLAUDE.md`          | Un párrafo «Desde la **T-228**…» tras el de la T-211: el módulo `training`, que el horario lo ve cualquiera y escribir pide `training.manage`, que `training_sessions.notes` no se usa, que no importa de `agenda` y que `aInstante` y `partesDeInstante` viven en `shared/lib/instante.ts`. En «Siguientes tareas», la T-229 |
 
-Deuda que anotar: sin red no se crea ni se edita nada, porque va en línea y no por la cola; `useEquipoDeTrabajo` repite el `useEquipoActivo` de `agenda`; el formato del día está escrito dos veces, aquí y en `ResumenDePartido`; un entrenamiento no tiene duración ni hora de fin, porque la tabla no las tiene; y hasta la T-229, «Pasar lista» lleva a una pantalla pendiente.
+Deuda que anotar: un seguidor que escriba la dirección a mano ve la lista vacía, sin que nada le diga que no puede leerla; sin red no se crea ni se edita nada, porque va en línea y no por la cola; `useEquipoDeTrabajo` repite el `useEquipoActivo` de `agenda`; el formato del día está escrito dos veces, aquí y en `ResumenDePartido`; un entrenamiento no tiene duración ni hora de fin, porque la tabla no las tiene; y hasta la T-229, «Pasar lista» lleva a una pantalla pendiente.
 
 ## Cierre
 
 - Commit y título de la PR: `feat(training): add training sessions with a quick start for today`
-- En «Cómo lo pruebo» de la PR: con la cuenta de Raúl, «Agenda» → «Entrenamientos» → «Nuevo entrenamiento», guardarlo y verlo en «Próximos»; editarlo y borrarlo; y «Entrenamiento de hoy», que crea uno y abre la lista pendiente. Con una cuenta sin `training.manage`, el calendario no enseña el enlace.
+- En «Cómo lo pruebo» de la PR: con la cuenta de Raúl, «Agenda» → «Entrenamientos» → «Nuevo entrenamiento», guardarlo y verlo en «Próximos»; editarlo y borrarlo; y «Entrenamiento de hoy», que crea uno y abre la lista pendiente. Con una cuenta del equipo sin `training.manage`, el calendario enseña el enlace y la lista sale sin ningún botón.
 - Al terminar, di en cuatro líneas: número de la PR, pruebas en verde, inicial comprimido y si quedó fusionada.
 
 ## Fuera de esta tarea
 
-Pasar lista y la observación global (T-229), repetir cada semana (T-230), los entrenamientos dentro del calendario y de Inicio (T-231), el historial de asistencia (T-232), el modo sin conexión, las notificaciones y cualquier cambio en la base.
+Pasar lista (T-229), la observación del entrenamiento (T-233), repetir cada semana (T-230), los entrenamientos dentro del calendario y de Inicio (T-231), el historial de asistencia (T-232), el modo sin conexión, las notificaciones y cualquier cambio en la base.
