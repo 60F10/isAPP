@@ -8,46 +8,64 @@
 // no se puede hacer no se enseña. Cada partido lo pinta `ResumenDePartido`
 // (T-213), que es quien lee esos permisos; aquí solo queda el de programar.
 //
-// Los entrenamientos (E4-01) no salen dentro del calendario todavía (T-231),
-// pero desde la T-228 tienen su pantalla, `/entrenamientos`, y aquí está el
-// enlace. Lo ve cualquiera con función en el equipo, que el horario es de todo
-// el club; quien solo lo sigue no, porque la base no le deja leerlos. `agenda`
-// no importa nada de `training`: es solo una dirección.
+// LOS ENTRENAMIENTOS SALEN DENTRO DEL CALENDARIO (E4-01, T-231, D06-42). Los
+// de hoy a catorce días van en «Por jugar», mezclados con los partidos por
+// fecha; «Jugados» sigue siendo solo de partidos. El horario entero y los
+// pasados están en su pantalla, `/entrenamientos`, con el enlace «Todos los
+// entrenamientos». `agenda` los lee de `training` por su barril.
+//
+// Los ve cualquiera con función en el equipo, que el horario es de todo el
+// club. Quien solo sigue al equipo no: la base no le deja leerlos, así que ni
+// se piden ni se enlazan.
+//
+// LOS ENTRENAMIENTOS NO MANDAN SOBRE EL CALENDARIO. La pantalla espera a los
+// partidos, como siempre, y los entrenamientos aparecen cuando llegan, sin
+// mover el foco. Si su consulta falla, los partidos salen igual y una línea
+// bajo la tarjeta lo dice.
 
 import { Link } from 'react-router';
 
 import { useAuth, useHasPermission } from '@modules/auth';
+import { useEntrenamientos } from '@modules/training';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Pantalla } from '@shared/ui/Pantalla';
 
+import { ResumenDeEntrenamiento } from '../components/ResumenDeEntrenamiento';
 import { ResumenDePartido } from '../components/ResumenDePartido';
 import { useCalendario, useEquipoActivo } from '../hooks/usePartidos';
+import { mezclarAgenda, tieneFuncion } from '../model/agenda';
 import { separarCalendario } from '../model/partido';
 
 import styles from './CalendarioPage.module.css';
 
-import type { Partido } from '../model/partido';
+import type { EntradaDeAgenda } from '../model/agenda';
 
 interface ListaProps {
   titulo: string;
   vacio: string;
-  partidos: readonly Partido[];
+  entradas: readonly EntradaDeAgenda[];
   equipo: string;
 }
 
-function Lista({ titulo, vacio, partidos, equipo }: ListaProps) {
+function Lista({ titulo, vacio, entradas, equipo }: ListaProps) {
   return (
     <Card title={titulo} headingLevel={2}>
-      {partidos.length === 0 ? (
+      {entradas.length === 0 ? (
         <p className={styles.nota}>{vacio}</p>
       ) : (
         <ul className={styles.lista}>
-          {partidos.map((partido) => (
-            <li key={partido.id} className={styles.fila}>
-              <ResumenDePartido partido={partido} equipo={equipo} />
-            </li>
-          ))}
+          {entradas.map((entrada) =>
+            entrada.tipo === 'partido' ? (
+              <li key={`partido-${entrada.partido.id}`} className={styles.fila}>
+                <ResumenDePartido partido={entrada.partido} equipo={equipo} />
+              </li>
+            ) : (
+              <li key={`entrenamiento-${entrada.entrenamiento.id}`} className={styles.fila}>
+                <ResumenDeEntrenamiento entrenamiento={entrada.entrenamiento} />
+              </li>
+            ),
+          )}
         </ul>
       )}
     </Card>
@@ -62,9 +80,9 @@ export function CalendarioPage() {
   const programa = useHasPermission('schedule.manage') === true;
   // Con función en el equipo activo, y no solo siguiéndolo (T-301c).
   const { teams, activeTeamId } = useAuth();
-  const conFuncion =
-    teams !== null &&
-    teams.some((membresia) => membresia.team.id === activeTeamId && membresia.seguidor !== true);
+  const conFuncion = tieneFuncion(teams, activeTeamId);
+  // Sin función, la consulta se queda apagada: un seguidor no puede leerlos.
+  const entrenamientos = useEntrenamientos(conFuncion ? equipoId : null, temporadaId);
 
   const contenido = () => {
     if (equipoId === null) {
@@ -106,6 +124,9 @@ export function CalendarioPage() {
     }
 
     const { proximos, jugados } = separarCalendario(calendario.data);
+    // Mientras los entrenamientos no llegan, o si fallan, la mezcla son solo
+    // los partidos, en su orden de siempre.
+    const porJugar = mezclarAgenda(proximos, entrenamientos.data ?? [], new Date());
 
     return (
       <>
@@ -116,13 +137,16 @@ export function CalendarioPage() {
               ? 'No hay partidos programados. Añade el primero con «Nuevo partido».'
               : 'No hay partidos programados.'
           }
-          partidos={proximos}
+          entradas={porJugar}
           equipo={equipoNombre}
         />
+        {entrenamientos.isError ? (
+          <p className={styles.nota}>No se han podido cargar los entrenamientos.</p>
+        ) : null}
         <Lista
           titulo="Jugados"
           vacio="Todavía no se ha jugado ninguno esta temporada."
-          partidos={jugados}
+          entradas={jugados.map((partido) => ({ tipo: 'partido', partido }))}
           equipo={equipoNombre}
         />
       </>
@@ -140,7 +164,7 @@ export function CalendarioPage() {
           ) : null}
           {conFuncion ? (
             <Link className={styles.otro} to="/entrenamientos">
-              Entrenamientos
+              Todos los entrenamientos
             </Link>
           ) : null}
         </div>
