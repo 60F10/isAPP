@@ -1,0 +1,75 @@
+name: E2E
+
+# Pruebas en navegador contra un Supabase LOCAL (T-236).
+#
+# La base nace en este trabajo, recibe las migraciones del repositorio desde
+# cero y muere con él. NUNCA toca el proyecto real: aquí no hay ni su URL ni
+# una clave suya, y este flujo no lee ningún secreto de GitHub.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Un push nuevo sobre la misma rama cancela la ejecución anterior.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  navegador:
+    name: Pruebas en navegador
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v5
+
+      # La misma versión que fija `package-lock.json` para `npm run db:types`.
+      - name: Preparar la CLI de Supabase
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      # Solo lo que la aplicación usa: base, API, autenticación y Realtime.
+      # Al arrancar aplica `supabase/migrations/` entero, desde cero: si una
+      # migración no se repite, este paso falla y lo dice.
+      - name: Arrancar el Supabase local
+        id: arranque
+        run: >-
+          supabase start
+          -x storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      # Solo los nombres de las variables y la URL de la API: las claves son
+      # las de una base de usar y tirar, pero no hay motivo para pasearlas.
+      - name: Estado del Supabase local
+        run: |
+          supabase status -o env | cut -d= -f1
+          supabase status -o env | grep '^API_URL='
+
+      # DIAGNÓSTICO, SOLO SI EL ARRANQUE FALLA. `supabase start` se para en la
+      # primera migración que no entra y de las siguientes no dice nada. Aquí
+      # se levanta la base sola, sin migraciones, y se prueba cada archivo en
+      # su propia transacción, para saber de una vez cuáles se repiten y
+      # cuáles no. No arregla nada: el trabajo sigue en rojo.
+      - name: 'Diagnóstico: qué migraciones se repiten'
+        if: failure() && steps.arranque.conclusion == 'failure'
+        run: |
+          supabase stop --no-backup || true
+          printf '\n[db.migrations]\nenabled = false\n' >> supabase/config.toml
+          supabase db start
+          for archivo in supabase/migrations/*.sql; do
+            if docker exec -i supabase_db_sasi-e2e \
+                 psql -U postgres -d postgres -q -1 -v ON_ERROR_STOP=1 -f - < "$archivo" \
+                 > /tmp/salida.txt 2>&1; then
+              echo "SE REPITE     $(basename "$archivo")"
+            else
+              echo "NO SE REPITE  $(basename "$archivo")"
+              grep -v 'NOTICE' /tmp/salida.txt | head -n 20
+            fi
+          done

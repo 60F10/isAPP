@@ -1,0 +1,24 @@
+# Configuración del Supabase LOCAL (T-236, DOC 10).
+#
+# Solo la lee la CLI de Supabase al levantar la base de las pruebas en
+# navegador, dentro de GitHub Actions (`.github/workflows/e2e.yml`). No toca
+# el proyecto real: aquí no hay ni su URL, ni su identificador, ni una clave.
+#
+# Mínima a propósito: lo que no se nombra se queda con el valor por defecto
+# de la CLI. Las migraciones de `supabase/migrations/` se aplican solas y
+# desde cero cada vez que arranca.
+
+# Nombre del proyecto local: con él nombra la CLI sus contenedores.
+project_id = "sasi-e2e"
+
+# La API local sale por HTTPS, con el certificado autofirmado de la CLI.
+# `src/shared/lib/env.ts` rechaza una `VITE_SUPABASE_URL` que no sea https, y
+# la aplicación no se toca para probarla: se le da lo que pide.
+[api.tls]
+enabled = true
+
+# SIN SIEMBRA AUTOMÁTICA. `supabase/seed.sql` es la siembra de producción y
+# pide una cuenta de Google que aquí no existe. Los datos de las pruebas los
+# pone la preparación de Playwright, con `e2e/siembra.sql`.
+[db.seed]
+enabled = false
