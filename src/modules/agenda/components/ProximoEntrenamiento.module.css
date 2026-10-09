@@ -1,0 +1,70 @@
+/* El bloque va debajo del próximo partido, dentro de la misma tarjeta: una
+   raya y aire lo separan, como las filas del calendario. Todo en columna: a
+   320 px o con el texto al 200 % no hay nada que desborde en horizontal
+   (1.4.10). */
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--color-border-subtle);
+}
+
+/* Un encabezado de verdad, para saltar a él con el lector de pantalla, pero
+   con el tamaño del texto: el título de la tarjeta es «Próximo evento». */
+.titulo {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+  font-size: inherit;
+  font-weight: var(--font-weight-medium);
+}
+
+/* El día y la hora son lo que se viene a mirar: con peso. */
+.cuando {
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.detalle {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+  margin-block-start: var(--space-2);
+}
+
+/* DEUDA (T-231): el enlace con pinta de control de `ResumenDePartido`,
+   copiado. Borde y peso, no solo color (1.4.1), y 48 px de alto. */
+.accion {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  /* «Todos los entrenamientos» no cabe entera a 320 px con el texto al 200 %:
+     antes de sacar la pantalla de su ancho, se parte. */
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.accion:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}

@@ -5,6 +5,64 @@
 
 ---
 
+## Sesión 09/10/2026, madrugada — T-231: los entrenamientos en el calendario y en Inicio: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `feat/agenda-entrenamientos-en-el-calendario`.
+Un solo commit. Sin migración ni SQL.
+
+- **El calendario.** «Por jugar» mezcla los partidos con los entrenamientos de hoy a catorce
+  días, por fecha y con el partido delante si coinciden. Cada entrenamiento dice «Entrenamiento»,
+  su día y su hora, y debajo el lugar y el objetivo. «Jugados» sigue siendo solo de partidos.
+  Con `training.manage`, cada uno lleva «Pasar lista», con el día en su nombre accesible.
+- **Inicio.** Debajo del próximo partido, «Próximo entrenamiento»: el primero de hoy a siete días,
+  con «Hoy» si es hoy, el lugar, «Pasar lista» con `training.manage` y «Todos los
+  entrenamientos». Sin ninguno, mientras carga o si la consulta falla, no pinta nada.
+- **`agenda` importa de `training` por su barril (D06-42)**, escrita en el DOC 06 §4.2. El modelo,
+  `agenda/model/agenda.ts`, es puro: `mezclarAgenda`, `proximoEntrenamiento`, `esHoy` y
+  `tieneFuncion`. Los partidos no se filtran ni cambian de orden: la ventana es solo de
+  entrenamientos. `ResumenDePartido`, `ProximoPartido` y `model/partido.ts` no se han tocado.
+- **Un fallo de los entrenamientos no tumba el calendario**: los partidos salen y, bajo la
+  tarjeta, «No se han podido cargar los entrenamientos.». A quien solo sigue al equipo ni se le
+  piden, en el calendario y en Inicio.
+- Lint, formato, **1114 pruebas en 82 archivos** (eran 1091 en 81) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. **Paquete inicial: 179,22 kB comprimidos** con el recorrido de
+  siempre; `main` da 179,23: **no sube**. **El trozo `agenda-*.js` pasa de 5,81 a 6,61 kB**, y su
+  CSS de 1,00 a 1,15.
+- **Mirado con un arnés temporal**, sin base, con la hora de Canarias: a 320 px y a 1024 px no
+  hay desplazamiento horizontal y todos los enlaces miden 48 px de alto. A 320 px con el texto al
+  200 %, «Pasar lista» y «Todos los entrenamientos» se parten y caben.
+- **Seis cosas que el traspaso no decía, o decía de dos maneras. Para que Raúl las mire:**
+  1. **Dos pruebas que ya existían han cambiado una palabra.** El traspaso pide que pasen sin
+     tocarlas y, a la vez, que el enlace «Entrenamientos» diga «Todos los entrenamientos»: las
+     dos que buscan ese enlace por su nombre buscan ahora el nuevo. Nada más de ellas cambia.
+  2. **El enlace sigue arriba, junto a «Nuevo partido».** El traspaso lo nombra «debajo de la
+     tarjeta», pero solo manda cambiarle el texto, y moverlo cambiaba el orden del foco.
+  3. **`separarEntrenamientos` sale del barril y `agenda` no la llama.** Un `model/` no importa
+     barriles en tiempo de ejecución (`CLAUDE.md`), y llamarla desde el modelo arrastraba las
+     pantallas de `training` a una prueba de lógica pura. La ventana la corta `agenda`. Si se
+     prefiere, la exportación se quita en una línea.
+  4. **Abrir Inicio o el calendario descarga ahora también el trozo de `training`**, 9,44 kB
+     comprimidos y 1,28 de CSS: `agenda` importa su barril, que lleva sus pantallas. Es el coste
+     de la D06-42 tal como está decidida. El service worker lo precachea igual que antes.
+  5. **En Inicio, el seguidor tampoco pide los entrenamientos.** El traspaso solo lo decía del
+     calendario; la base le contesta lo mismo en los dos sitios.
+  6. **«Próximo entrenamiento» es un encabezado de nivel 3**, bajo el «Próximo evento» de la
+     tarjeta, con el tamaño del texto: se llega a él con el lector de pantalla.
+- **Deuda.** Los entrenamientos pasados no salen en el calendario, solo en su pantalla. El
+  calendario hace dos consultas donde antes hacía una. Quien entrena dos veces el mismo día ve
+  dos filas seguidas sin agrupar. La línea del fallo no pasa por la región viva, como el resto
+  de errores de carga. La fila del entrenamiento y sus enlaces repiten el CSS de
+  `ResumenDePartido`. «Hoy» y la ventana se calculan al pintar: una pantalla abierta de un día
+  para otro no cambia sola.
+- **Ya estaba así, y no es de esta tarea:** a 320 px con el texto al 200 %, «Convocatoria», en
+  `ResumenDePartido`, y dos accesos rápidos de Inicio se salen unos píxeles de su tarjeta.
+- **Sin probar en un móvil ni contra la base de verdad.** Para probarlo: con la cuenta de Raúl,
+  crear un entrenamiento para mañana y verlo en el calendario entre los partidos y en Inicio; con
+  una cuenta sin `training.manage`, verlo sin «Pasar lista».
+- La T-234, la revisión de los entrenamientos, sigue sin hacer, y no mira esta tarea.
+
+---
+
 ## Sesión 08/10/2026, noche — tanda de revisión y de pruebas en navegador: ✅ cerrada
 
 Misma conversación del pase a pro, con Raúl en el móvil. **Sin código de aplicación y sin base.**

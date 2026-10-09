@@ -4,3 +4,13 @@
 export { EditarEntrenamientoPage, NuevoEntrenamientoPage } from './routes/EntrenamientoPage';
 export { EntrenamientosPage } from './routes/EntrenamientosPage';
 export { ListaPage } from './routes/ListaPage';
+
+// Para `agenda`, que enseña los entrenamientos cercanos en el calendario y el
+// próximo en Inicio (T-231, D06-42). `training` sigue sin importar de `agenda`.
+// Hoy `agenda` usa el hook y el tipo; `separarEntrenamientos` sale porque así
+// lo fija la D06-42, pero `agenda/model` corta su propia ventana y no la llama:
+// un `model/` no importa barriles en tiempo de ejecución.
+export { useEntrenamientos } from './hooks/useEntrenamientos';
+export { separarEntrenamientos } from './model/entrenamiento';
+
+export type { Entrenamiento } from './model/entrenamiento';

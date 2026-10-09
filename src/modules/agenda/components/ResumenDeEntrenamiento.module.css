@@ -1,0 +1,62 @@
+/* DEUDA (T-231): las mismas reglas que `ResumenDePartido.module.css`, para que
+   partidos y entrenamientos se lean con el mismo ritmo en la misma lista. Son
+   dos filas hermanas; si aparece una tercera, la fila sale a un componente
+   común. */
+
+/* Todo en columna: a 320 px o con el texto al 200 % no hay nada que desborde
+   en horizontal (1.4.10). */
+.resumen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.cuando {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* «Entrenamiento», con el peso del enfrentamiento de un partido: es lo que
+   dice qué es la fila, y lo dice en palabras. */
+.tipo {
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+}
+
+.detalle {
+  max-inline-size: 60ch;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tap-gap);
+  margin-block-start: var(--space-2);
+}
+
+/* Enlace con pinta de control: borde y peso, no solo color (1.4.1). 48 px de
+   alto, como cualquier objetivo táctil del proyecto. */
+.accion {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.accion:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}

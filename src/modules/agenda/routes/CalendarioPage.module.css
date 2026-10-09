@@ -6,8 +6,8 @@
   list-style: none;
 }
 
-/* Cada partido, un bloque separado por una raya. Lo de dentro lo pinta
-   `ResumenDePartido` (T-213). */
+/* Cada partido o entrenamiento, un bloque separado por una raya. Lo de dentro
+   lo pintan `ResumenDePartido` (T-213) y `ResumenDeEntrenamiento` (T-231). */
 .fila {
   padding-block: var(--space-3);
   border-block-end: 1px solid var(--color-border-subtle);
@@ -29,8 +29,8 @@
   gap: var(--space-3);
 }
 
-/* «Nuevo partido» y «Entrenamientos», uno al lado del otro cuando caben y uno
-   debajo del otro a 320 px (T-228). */
+/* «Nuevo partido» y «Todos los entrenamientos», uno al lado del otro cuando
+   caben y uno debajo del otro a 320 px (T-228). */
 .enlaces {
   display: flex;
   flex-wrap: wrap;
@@ -50,8 +50,8 @@
   font: inherit;
   font-weight: var(--font-weight-semibold);
   text-decoration: none;
-  /* «Entrenamientos» no cabe entera a 320 px con el texto al 200 %: antes de
-     sacar la pantalla de su ancho, se parte. */
+  /* «Todos los entrenamientos» no cabe entera a 320 px con el texto al 200 %:
+     antes de sacar la pantalla de su ancho, se parte. */
   overflow-wrap: anywhere;
   cursor: pointer;
   touch-action: manipulation;
@@ -64,8 +64,8 @@
   color: var(--color-text-on-accent);
 }
 
-/* «Entrenamientos» lleva a otra pantalla: sin relleno, como los enlaces de
-   cada partido. */
+/* «Todos los entrenamientos» lleva a otra pantalla: sin relleno, como los
+   enlaces de cada partido. */
 .otro {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
