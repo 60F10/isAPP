@@ -5,6 +5,60 @@
 
 ---
 
+## Sesión 09/10/2026, tarde — T-234: revisión de los entrenamientos y sus arreglos: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `fix/training-arreglos-de-la-revision`. Un
+solo commit. Sin migración ni SQL, y sin tocar rutas, guardias ni permisos.
+
+- **Cómo se revisó.** Una pasada del subagente `revisor` por tarea, con su traspaso y su commit
+  (`c4e2012`, `4ce89e8` y `9cc4d44`), y cada hallazgo comprobado a mano, abriendo el archivo y la
+  línea. Además, la tabla «Qué mirar» del traspaso, punto por punto.
+
+  | Tarea     | Veredicto                                                                                                                                                                                           | Pruebas de su tabla |
+  | :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------ |
+  | **T-228** | Hace lo que pedía. Un fallo de arreglo claro: una relectura fallida quitaba el formulario del alta y de la edición, con lo escrito dentro                                                           | Las 18, todas       |
+  | **T-229** | Hace lo que pedía, salvo lo que ella misma dijo que cambiaba (`Cambios` no siempre vuelve a vacío, para no perder lo que no viajó). Un fallo de accesibilidad: el aviso de la observación, sin atar | Las 17, todas       |
+  | **T-230** | Hace lo que pedía. Sin arreglos                                                                                                                                                                     | Las 12, todas       |
+
+- **Lo que se miró y está bien.** Ninguna consulta de `training` nombra `training_sessions.notes`.
+  De `players` solo se pide `nickname`, sin `full_name` ni `select('*')`. La lista enseña el aviso
+  de salud. Sin marcar no hay fila, y `status` viaja en los dos `upsert`, el primero con
+  `created_by`. Cada `update` y cada `delete` pide la fila de vuelta y lanza `SIN_FILAS`. Sin
+  `training.manage` no sale nada que escriba; `/entrenamientos` va sin guardia y las otras tres
+  rutas, con ella. Todo `localStorage` va dentro de `try`, y el borrador de otra cuenta no se
+  recupera. Cada fecha de la tanda pasa por `aInstante` con su hora. `training` no importa de
+  `agenda`, y sus `model/` no importan barriles. Nada de `training` entra en el arranque.
+- **Tres arreglos, cada uno con su prueba delante, que fallaba antes:**
+  1. **«Nuevo entrenamiento» no pierde lo escrito.** La pantalla decidía con `isError`, que
+     TanStack Query pone a cierto también cuando falla una relectura con el dato ya en la caché:
+     al volver la red con mala cobertura y el horario o el club caducados, el formulario se
+     cambiaba por «No se ha podido cargar lo necesario» y lo escrito se iba con él. Ahora mira si
+     hay dato, como ya hacía la A15.
+  2. **«Editar entrenamiento», lo mismo.** El formulario y «Borrar entrenamiento» siguen ahí.
+  3. **«Márcalo para guardar la observación.» va atado a su campo** con `aria-describedby`: lo oye
+     quien llega al campo con el lector de pantalla, y no solo quien lo ve debajo. Era deuda de la
+     T-229, porque `Field` no dejaba pasar ese atributo. **`shared/ui/Field.tsx` suma ahora el que
+     le llegue de fuera** a su ayuda y a su error: son tres líneas, y ningún `Field` de la
+     aplicación lo pasaba, así que nada más cambia.
+- **Una prueba más, que no es un arreglo:** si la primera carga de la edición falla, se dice y
+  «Reintentar» la trae. Vigila que el arreglo 2 no se haya llevado ese camino.
+- **Ojo al probar relecturas.** TanStack Query avisa a React en una tarea aparte: una prueba que
+  no la espera ve la pantalla de antes y pasa sin que el fallo esté arreglado. El ayudante
+  `releer` de `Entrenamientos.test.tsx` la espera, y lo dice.
+- Lint, formato, **1117 pruebas en 82 archivos** (eran 1114) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. **Paquete inicial: 180,64 kB comprimidos** con mi recorrido de las
+  importaciones estáticas desde `index.html` y `App-*.js`; `main` da 180,63 con el mismo
+  recorrido, que no es idéntico al de la sección de la T-231. El trozo `training-*.js` pasa de
+  9,50 a 9,52 kB.
+- **Para Raúl, cuatro puntos nuevos, del 84 al 87**, al final de «Lo que sigue abierto». Ninguno
+  frena la prueba de campo.
+- **`CLAUDE.md` no se ha tocado**, como manda el traspaso: ningún arreglo cambia una regla suya.
+  Su párrafo «Siguientes tareas» sigue nombrando la T-234 como pendiente.
+- **Sin probar contra la base de verdad ni en un móvil.** Los tres arreglos se han visto solo en
+  las pruebas, con jsdom.
+
+---
+
 ## Sesión 09/10/2026 — la tanda, pausada por créditos y vuelta a programar: ✅ cerrada
 
 Misma conversación, con Raúl en el móvil. **Sin código de aplicación y sin base.**
@@ -1608,6 +1662,40 @@ Pendiente de hacer:
     ya no vale desaparece con la tarjeta; y el foco cae en `body` al dar de baja, revocar,
     aceptar, cancelar y tras un fallo. **Es la T-306.**
     **Cerrado el 07/10 con la T-306.**
+
+84. **Una relectura que falla quita de la pantalla lo que ya estaba pintado, en casi toda la
+    aplicación** (revisión de los entrenamientos, T-234). Las pantallas deciden con `isError`, que
+    es cierto también cuando falla una relectura con el dato ya en la caché. La T-234 lo arregla
+    en el alta y la edición de entrenamientos, que perdían lo escrito; la A15 ya lo hacía bien.
+    **Sin tocar:** la A15a, que pierde el horario ya pintado y sus botones hasta «Reintentar»
+    —su traspaso pedía «los estados de `CalendarioPage`»—, y el resto de módulos. Leyendo el
+    código, sin reproducirlo con una prueba: el alta y la edición de partido (A10) y la
+    convocatoria (A11) tienen el mismo patrón y el formulario dentro, así que pueden perder lo
+    escrito o lo marcado igual. Dos salidas: una tarea que lo cambie pantalla a pantalla, con la
+    A10 y la A11 primero, o dejarlo donde solo se pierde la vista y no el dato.
+
+85. **Guardar una lista sin nadie marcado dice «Lista guardada: 0 presentes…» y «Guardada a
+    las…»** sin haber escrito nada en la base (revisión de la T-229). Pasa con la partida en
+    «Todos sin marcar» y sin tocar a nadie; el traspaso permite guardar con jugadores sin marcar
+    y no dice nada de este caso, y una prueba lo da por bueno. Tres salidas: desactivar el botón
+    mientras no haya nadie marcado, decir «No hay nadie marcado: no se ha guardado nada», o
+    dejarlo. De paso: el anuncio de guardado cuenta también a quien ya no está en la plantilla,
+    cuya fila no viaja en ese guardado.
+
+86. **«Objetivo de la sesión» es texto libre que ve todo el club**, y su ayuda no pide dejar fuera
+    nombres ni salud (revisión de la T-228). La lista sí lo dice de sus observaciones. Dos
+    salidas: añadir media frase a la ayuda, o dejarlo, que es un campo para lo que se va a
+    trabajar.
+
+87. **Flecos de los entrenamientos que se quedan como están** (revisión, T-234). Con un solo
+    pasado de resto el botón dice «Ver el anterior», y no «Ver los 1 anteriores» como saldría del
+    traspaso. «Más reciente», en lo que propone el alta, es el de fecha más alta: tras crear una
+    tanda es el último de la temporada, y si ese no tiene lugar se propone vacío y no el campo de
+    casa. Una hora imposible se dice bajo «Fecha». Marcar «Repetir cada semana» con «Desde» vacía
+    deja los días sin proponer hasta desmarcar y volver a marcar. Tras guardar, un toque hecho
+    con el guardado en camino que coincide con lo guardado deja «Descartar cambios» sin nada que
+    descartar. Y `fechasSemanales` cuenta días sumando 24 horas a una medianoche UTC, que no es
+    el instante de ningún entrenamiento: cumple la regla de no sumar milisegundos a un instante.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;

@@ -18,14 +18,27 @@ interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'classN
   className?: string;
 }
 
-export function Field({ label, hint, error, id, className, required, ...rest }: FieldProps) {
+export function Field({
+  label,
+  hint,
+  error,
+  id,
+  className,
+  required,
+  'aria-describedby': descritoPor,
+  ...rest
+}: FieldProps) {
   const generated = useId();
   const inputId = id ?? `field${generated}`;
   const hintId = `${inputId}-hint`;
   const errorId = `${inputId}-error`;
 
+  // Lo que describe al campo desde fuera se suma a la ayuda y al error, en vez
+  // de perderse: un aviso que la pantalla pinta bajo el campo también lo oye
+  // quien llega a él con el lector de pantalla (T-234).
   const describedBy =
-    [hint ? hintId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined;
+    [hint ? hintId : '', error ? errorId : '', descritoPor ?? ''].filter(Boolean).join(' ') ||
+    undefined;
 
   return (
     <div className={[styles.field, className].filter(Boolean).join(' ')}>
