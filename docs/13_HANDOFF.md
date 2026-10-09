@@ -5,6 +5,27 @@
 
 ---
 
+## Sesión 09/10/2026 — la tanda, pausada por créditos y vuelta a programar: ✅ cerrada
+
+Misma conversación, con Raúl en el móvil. **Sin código de aplicación y sin base.**
+
+- **De la tanda del 08/10 solo corrió la T-231**, que está en `main` (PR #100). La T-234 arrancó a
+  las 23:00 y falló a los siete segundos, sin dejar rama ni PR. Raúl pausó el resto esa noche para
+  guardar créditos para el trabajo: la T-235, la T-236, la T-237 y la T-238 no llegaron a arrancar.
+- **Vuelven a programarse el 09/10 por la tarde**, en este orden, que es el de lo que más importa
+  para la prueba de campo: T-234, T-236, T-237, T-235 y T-238. Si los créditos de la semana no
+  llegan, se cae lo último.
+- **Sale la T-239**, para el sábado 10: arregla lo que las pruebas en navegador destapen y tenga
+  arreglo claro, con el día de partido primero. Si no destapan nada, no hace nada.
+- **Siguen en la nube, no en el ordenador de Raúl.** Lo que gasta es lo que el modelo lee y
+  escribe, no dónde está la carpeta. Lo único que ganaría en local es el andamio de las pruebas
+  en navegador, y para eso hace falta Docker en ese ordenador, encendido y con la aplicación de
+  Claude abierta todo el fin de semana.
+- **Paradas, a propósito:** la auditoría semanal y el repaso automático de esta conversación.
+  Despertar una conversación tan larga gasta créditos que hoy hacen falta para las tareas.
+
+---
+
 ## Sesión 09/10/2026, madrugada — T-231: los entrenamientos en el calendario y en Inicio: ✅ cerrada
 
 Sesión programada, en la nube y sin Raúl delante, rama `feat/agenda-entrenamientos-en-el-calendario`.
