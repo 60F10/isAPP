@@ -4,6 +4,9 @@ dev-dist
 coverage
 package-lock.json
 .husky/_
+e2e/.estado
+e2e/.resultados
+e2e/.informe
 
 # Generado por `npm run db:types`. Prettier lo reformatearía entero y cada
 # regeneración traería 3.500 líneas de diff falso (DOC 06 §7.3).

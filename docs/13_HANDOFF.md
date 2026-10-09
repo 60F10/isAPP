@@ -5,6 +5,87 @@
 
 ---
 
+## Sesión 09/10/2026, noche — T-236: pruebas en navegador contra una base de verdad, el andamio: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `test/platform-pruebas-en-navegador`, PR #105.
+Un solo commit. **Es la segunda vuelta de la T-236**: la primera fue la #103.
+
+- **El hallazgo de la primera vuelta.** Paró en el paso 3, como mandaba su traspaso: la migración
+  `20260919040657_endurecimiento_permisos_funciones.sql` no se repetía desde cero. Su primera
+  sentencia revoca de `public.rls_auto_enable()`, la función del disparador de eventos
+  `ensure_rls`, que en producción instaló la plataforma: ninguna migración la crea y el Supabase
+  local no la trae, así que fallaba con 42883. Las otras ocho sí se repetían.
+- **La decisión de Raúl, del 09/10: las dos cosas.** El revoke de esa migración va ahora dentro de
+  una condición, y solo se lanza si la función existe: **es la única migración aplicada que se ha
+  retocado**, y solo esa sentencia (DOC 05 §14.3). Y la base de pruebas tiene `ensure_rls`, como
+  producción: lo pone `e2e/plataforma.sql`, una copia mantenida a mano del ejemplo de Supabase,
+  que solo aplica el flujo E2E. **A producción no se le vuelve a aplicar nada.**
+- **Las nueve migraciones se repiten desde cero.** Comprobado en GitHub Actions y, antes, en un
+  PostgreSQL 16 de la sesión, por los dos caminos: sin la función, el revoke no se lanza; con la
+  función creada antes, como en producción, la deja sin `EXECUTE` para `anon` y `authenticated`.
+- **El andamio.** Flujo «E2E» (`.github/workflows/e2e.yml`), en cada pull request y en cada
+  fusión a `main`: Supabase local con base, API, autenticación y Realtime; `e2e/plataforma.sql`,
+  con `postgres`, que la base local sí deja; compilación contra esa base; Chromium; y el informe
+  de Playwright como artefacto, en verde y en rojo. Lo demás, en `e2e/` y en
+  `playwright.config.ts`. `ci.yml` no se ha tocado, y `src/` tampoco: ni un archivo.
+- **Cuánto tarda: entre dos minutos y medio y cinco.** Las dos veces que corrió antes de fijar
+  la máquina, 2 min 37 s y 4 min 42 s. Arrancar el Supabase local es 1 min 15 s, casi todo
+  descargar imágenes; compilar, 10 s; y **las pruebas, 15 s**. La diferencia es instalar Chromium
+  con sus bibliotecas, que tardó 19 s una vez y 2 min 46 s la otra, y no se guarda en caché.
+- **Veintiséis pruebas: 25 pasan y 1 queda en `test.fixme`.**
+
+  | Archivo                 | Pruebas | Qué miran                                                                                                     |
+  | :---------------------- | ------: | :------------------------------------------------------------------------------------------------------------ |
+  | `entrada.spec.ts`       |      14 | Quién ve qué: el entrenador, el anotador y el seguidor, cada uno con su sesión, y seis rutas sin sesión       |
+  | `base.spec.ts`          |       2 | Lo que decide la base, con `supabase-js` desde Node: el nombre real no sale, y un seguidor no apunta eventos  |
+  | `accesibilidad.spec.ts` |      10 | `axe` y el desplazamiento horizontal en Inicio, Calendario, «Equipo», «Más» y Ajustes, a 360 y a 320 de ancho |
+
+- **Qué destaparon.** Contra la base de verdad, lo que se miró está bien: `select('*')` sobre
+  `players` falla con 42501 y pedir `nickname` da los catorce; la inserción de un seguidor en
+  `match_events` no entra y la misma, del anotador, entra y queda `pending`; el anotador no ve
+  «Gestión» y `/equipos` lo manda a «Sin permiso»; sin sesión, todo lleva al acceso.
+  **`axe` no encuentra ninguna infracción grave ni crítica** en las cinco pantallas, a los dos
+  anchos, y nada se desplaza de lado: no hay ninguna regla excluida. **Lo único que no se cumple
+  es el primer caso de la tabla del traspaso**: Inicio no le dice su equipo a quien tiene función
+  en él. Queda en `test.fixme` y en el punto 92.
+- **Dos cosas que las pruebas enseñaron al escribirlas**, y que valen para la T-237 y la T-238.
+  El marco de la aplicación no deja crecer el documento: lo que se desplaza es la caja del
+  contenido, así que mirar el ancho de la página no ve nada, y `sinDesplazamientoHorizontal` mira
+  todas las cajas que pueden desplazarse. Y que algo **no** esté no prueba nada mientras los
+  permisos cargan, porque entonces tampoco está: antes se espera a algo que sí tenga que estar.
+- **Cuatro subidas de las doce**: una en la primera vuelta y tres en esta. El código salió en
+  verde a la primera; la segunda trajo esta documentación y dos arreglos de la revisión; y la
+  tercera, lo que tarda de verdad y la máquina fijada.
+- **Revisado antes de fusionar**, con una pasada del subagente `revisor` sobre el diff entero.
+  Sin secretos, sin rastro del proyecto real y sin más datos que «Jugador 1» a «Jugador 14». Dos
+  arreglos: que el seguidor no vea «Nuevo partido» no probaba nada sin su control, y ahora hay
+  una prueba en la que el entrenador sí lo ve; y `crearPartido` deja el partido a nombre del
+  entrenador (`created_by`), que iba vacío.
+- **La máquina del flujo va fijada a `ubuntu-24.04`.** GitHub avisa en el propio trabajo de que
+  `ubuntu-latest` pasa a Ubuntu 26 desde el 19 de octubre, dos días después de la prueba de
+  campo. Este flujo depende de lo que trae la máquina, y una subida de versión lo puede poner en
+  rojo sin que nadie haya tocado nada. `ci.yml` sigue en `ubuntu-latest`: no se ha tocado.
+- **Cómo, sin Docker.** Esta sesión no puede levantar el Supabase local, pero sí un PostgreSQL
+  16, y GoTrue y PostgREST se descargan sueltos. Con eso y un intermediario TLS de veinte líneas
+  se montó una pila de ensayo, y las veintiséis pruebas se escribieron y se pasaron contra ella
+  antes de gastar una subida. **Es un ensayo, no la prueba**: no tiene Kong ni Realtime, y lo que
+  vale es el flujo. La receta está en el proyecto de Claude, `claude/ensayo_e2e_sin_docker.md`,
+  para la T-237 y la T-238. No está en el repositorio.
+- Lint, formato, **1128 pruebas en 82 archivos**, las mismas, y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. **El paquete inicial no cambia**: no se ha tocado `src/`.
+  `@playwright/test` y `@axe-core/playwright` entran como dependencias de desarrollo, y no
+  descargan ningún navegador al instalar: el `npm ci` de Netlify no engorda con Chromium.
+- **`CLAUDE.md`**: el párrafo «Desde la T-236…», `npm run e2e` en la tabla y «Siguientes tareas».
+  De paso, «ocho migraciones aplicadas» pasa a nueve, que son las que hay desde el 07/10.
+- **Para Raúl, dos puntos nuevos, el 92 y el 93**, al final de «Lo que sigue abierto». Ninguno
+  frena la prueba de campo.
+- **Lo que queda sin probar.** El botón «Entrar con Google» y la vuelta por `/auth/callback`;
+  Safari; el service worker y el modo sin conexión, que van bloqueados en las pruebas; y todo lo
+  que no sea entrar y mirar: el día de partido es la T-237, y las personas y los entrenamientos,
+  la T-238.
+
+---
+
 ## Sesión 09/10/2026, noche — T-235: revisión de la T-305 y la T-306, y sus arreglos: ✅ cerrada
 
 Sesión programada, en la nube y sin Raúl delante, rama `fix/auth-arreglos-de-la-segunda-revision`.
@@ -1808,6 +1889,33 @@ Pendiente de hacer:
     T-301a; hoy solo la usan llamadas a esas funciones. `InvitacionesPendientes` lleva el foco a
     su mensaje con un efecto propio y no con `useFocoAlFallar`. Y la clase de texto solo para
     lector sigue copiada en tres módulos.
+
+92. **Inicio no le dice su equipo a quien tiene función en él** (pruebas en navegador, T-236).
+    El nombre del equipo solo sale en Inicio en dos sitios: la tarjeta «Equipo que sigues», que
+    es de quien solo lo sigue, y la del próximo partido, cuando hay uno por jugar. El entrenador
+    y el anotador, sin partidos en el calendario, abren Inicio y no leen en ningún sitio con qué
+    equipo están; se lo dice «Equipo», como título. Con un solo equipo no molesta. Quien tenga
+    función en dos no sabe de cuál es el Inicio que mira, y hoy ninguna pantalla llama a
+    `setActiveTeam` para cambiarlo. La prueba está escrita y en `test.fixme`
+    (`e2e/entrada.spec.ts`): quien lo arregle le quita el `fixme`. Salidas: una línea con el
+    nombre bajo el título de Inicio; el nombre en el marco, que lo enseñaría en todas las
+    pantallas; o dejarlo así y borrar la prueba. Es de la T-239 o de la capa visual, y no frena
+    la prueba de campo.
+93. **Deuda de las pruebas en navegador** (T-236). No se pueden lanzar en una sesión en la nube
+    ni, sin Docker, en el ordenador de desarrollo: un cambio se comprueba subiendo la rama. El
+    acceso con Google queda sin probar. La base de pruebas tiene lo de `supabase/migrations/` y
+    no lo de `supabase/pendientes/`: Realtime sin publicar y los entrenamientos con la RLS de
+    hoy, igual que producción mientras Raúl no los aplique. Solo se prueba Chromium, y el móvil
+    de Isaac es otro navegador. `e2e/plataforma.sql` es una copia mantenida a mano de lo que en
+    producción pone la plataforma: si Supabase cambia su función, la copia no se entera. Y cuatro
+    flecos del flujo: la CLI descarga la imagen de `storage-api` aunque va excluida, y son 28 s
+    de cada ejecución; las claves de fábrica del Supabase local salen en el registro de
+    `supabase start`, que son las mismas en cualquier instalación y no abren nada de verdad;
+    `supabase/setup-cli@v1` corre en una versión de Node que GitHub ya da por retirada, con
+    aviso y sin fallo; y la tabla de migraciones del DOC 05 §14 lista ocho y son nueve, que le
+    falta la del 07/10. Dos más, de lo que tarda y de dónde corre: instalar Chromium va de 19 s a
+    casi tres minutos y no se guarda en caché; y la máquina está fijada a `ubuntu-24.04`, así que
+    subirla a Ubuntu 26 es una decisión, con su prueba, y no algo que pase solo.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;

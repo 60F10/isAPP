@@ -12,6 +12,7 @@
     "prepare": "husky",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "e2e": "playwright test",
     "db:types": "supabase gen types typescript --project-id rsbahpngpkvafnhejjfj > src/types/database.types.ts"
   },
   "dependencies": {
@@ -23,8 +24,10 @@
     "react-router": "^7.18.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
+    "@playwright/test": "^1.64.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
