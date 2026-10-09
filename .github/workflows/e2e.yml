@@ -30,6 +30,15 @@ jobs:
       - name: Descargar el código
         uses: actions/checkout@v5
 
+      - name: Preparar Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
       # La misma versión que fija `package-lock.json` para `npm run db:types`.
       - name: Preparar la CLI de Supabase
         uses: supabase/setup-cli@v1
@@ -45,12 +54,131 @@ jobs:
           supabase start
           -x storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
 
+      # LO QUE EN PRODUCCIÓN PONE LA PLATAFORMA (decisión de Raúl del 09/10).
+      # La función `rls_auto_enable()` y el disparador de eventos `ensure_rls`
+      # no los crea ninguna migración y el Supabase local no los trae:
+      # `e2e/plataforma.sql` los pone, para que la base de pruebas se parezca
+      # a la de verdad. Después se comprueba que el disparador está y que
+      # `anon` no puede llamar a la función; si algo no cuadra, el paso falla.
+      #
+      # Va con `postgres`, que es quien aplica las migraciones: la base local
+      # le deja crear el disparador de eventos, y no hace falta
+      # `supabase_admin`.
+      - name: Poner lo que en producción pone la plataforma
+        run: |
+          docker exec -i supabase_db_sasi-e2e \
+            psql -U postgres -d postgres -1 -v ON_ERROR_STOP=1 -f - < e2e/plataforma.sql
+
+          consultar() {
+            docker exec -i supabase_db_sasi-e2e \
+              psql -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c "$1"
+          }
+
+          disparador="$(consultar "select count(*) from pg_event_trigger where evtname = 'ensure_rls'")"
+          anon="$(consultar "select has_function_privilege('anon', 'public.rls_auto_enable()', 'execute')")"
+          echo "Disparadores ensure_rls: $disparador · anon puede ejecutar la función: $anon"
+
+          if [ "$disparador" != "1" ] || [ "$anon" != "f" ]; then
+            echo "La base de pruebas no ha quedado como producción."
+            exit 1
+          fi
+
       # Solo los nombres de las variables y la URL de la API: las claves son
       # las de una base de usar y tirar, pero no hay motivo para pasearlas.
       - name: Estado del Supabase local
         run: |
           supabase status -o env | cut -d= -f1
           supabase status -o env | grep '^API_URL='
+
+      # La URL y las claves de la base LOCAL, para los pasos que siguen. Salen
+      # de `supabase status`, no de ningún secreto: son las de una base que
+      # muere con este trabajo. Aun así se enmascaran en el registro.
+      #
+      # La API local va por HTTPS con el certificado autofirmado de la CLI
+      # (`[api.tls]` en `supabase/config.toml`), porque la aplicación rechaza
+      # una URL que no sea https. Se le pide el certificado a la propia API y
+      # se le da a Node con `NODE_EXTRA_CA_CERTS`, para que `supabase-js` se
+      # fíe de él sin apagar la comprobación. Al navegador se lo dice
+      # `ignoreHTTPSErrors`, en `playwright.config.ts`.
+      - name: Entorno de las pruebas
+        run: |
+          supabase status -o env > "$RUNNER_TEMP/estado.env"
+          valor() {
+            { grep -E "^$1=" "$RUNNER_TEMP/estado.env" || true; } \
+              | head -n 1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'
+          }
+
+          api="$(valor API_URL)"
+          base="$(valor DB_URL)"
+          anon="$(valor ANON_KEY)"
+          servicio="$(valor SERVICE_ROLE_KEY)"
+
+          for par in "API_URL=$api" "DB_URL=$base" "ANON_KEY=$anon" "SERVICE_ROLE_KEY=$servicio"; do
+            if [ -z "${par#*=}" ]; then
+              echo "supabase status no ha dado ${par%%=*}."
+              exit 1
+            fi
+          done
+
+          echo "::add-mask::$anon"
+          echo "::add-mask::$servicio"
+
+          servidor="${api#https://}"
+          openssl s_client -connect "${servidor%%/*}" < /dev/null 2> /dev/null \
+            | openssl x509 -outform PEM > "$RUNNER_TEMP/api-local.crt"
+          openssl x509 -in "$RUNNER_TEMP/api-local.crt" -noout -subject -enddate
+
+          {
+            echo "E2E_SUPABASE_URL=$api"
+            echo "E2E_DB_URL=$base"
+            echo "E2E_ANON_KEY=$anon"
+            echo "E2E_SERVICE_ROLE_KEY=$servicio"
+            echo "NODE_EXTRA_CA_CERTS=$RUNNER_TEMP/api-local.crt"
+          } >> "$GITHUB_ENV"
+
+      # La preparación siembra los datos con `psql`. Las máquinas de GitHub lo
+      # traen; si un día no, se instala el cliente.
+      - name: Comprobar que hay psql
+        run: |
+          if ! command -v psql > /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+
+      # Vitest y `tsc -b` no ven `e2e/`: sus tipos se comprueban aquí.
+      - name: Tipos de las pruebas
+        run: npx tsc -p e2e
+
+      # La aplicación se compila CONTRA LA BASE LOCAL: su URL y su clave
+      # anónima quedan dentro del paquete que sirve `vite preview`.
+      - name: Compilar la aplicación contra la base local
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ env.E2E_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ env.E2E_ANON_KEY }}
+          VITE_APP_ENV: production
+
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      # La preparación crea a las tres personas y siembra los datos; después
+      # corren las pruebas, de una en una (`playwright.config.ts`).
+      - name: Pruebas en navegador
+        id: pruebas
+        run: npm run e2e
+
+      # El informe se sube siempre que las pruebas hayan llegado a correr, en
+      # verde o en rojo: de las que fallan trae la traza y la captura.
+      - name: Subir el informe de Playwright
+        if: ${{ !cancelled() && steps.pruebas.conclusion != 'skipped' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: informe-de-playwright
+          path: e2e/.informe
+          retention-days: 7
+          include-hidden-files: true
+          if-no-files-found: warn
 
       # DIAGNÓSTICO, SOLO SI EL ARRANQUE FALLA. `supabase start` se para en la
       # primera migración que no entra y de las siguientes no dice nada. Aquí

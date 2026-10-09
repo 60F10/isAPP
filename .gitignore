@@ -26,6 +26,11 @@ registerSW.js
 supabase/.temp/
 supabase/.branches/
 
+# --- Pruebas en navegador (Playwright): sesiones, resultados e informe ---
+e2e/.estado/
+e2e/.resultados/
+e2e/.informe/
+
 # --- Netlify ---
 .netlify/
 
