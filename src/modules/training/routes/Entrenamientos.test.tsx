@@ -11,7 +11,7 @@
 // 2099, escritas en el campo: el 3, el 10, el 17 y el 24 son martes.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -124,10 +124,10 @@ function montar(ruta: string, permisos: AppPermission[] = ['training.manage']) {
     { initialEntries: [ruta] },
   );
 
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
+    <QueryClientProvider client={cliente}>
       <AuthContext value={auth(permisos)}>
         <AnnounceContext value={{ anunciar }}>
           <RouterProvider router={router} />
@@ -136,7 +136,24 @@ function montar(ruta: string, permisos: AppPermission[] = ['training.manage']) {
     </QueryClientProvider>,
   );
 
-  return { anunciar, router };
+  return { anunciar, router, cliente };
+}
+
+/**
+ * Vuelve a pedir todo lo que hay en la caché y espera a que conteste, como
+ * cuando el móvil recupera la red con el dato caducado. Si la petición falla,
+ * la consulta se queda en error con el dato de antes dentro.
+ */
+async function releer(cliente: QueryClient): Promise<void> {
+  await act(async () => {
+    await cliente.invalidateQueries();
+    // TanStack Query avisa a React en una tarea aparte: sin esperarla, la
+    // pantalla seguiría pintada con el estado de antes y la prueba no vería
+    // nada de lo que la relectura cambia.
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  });
 }
 
 async function tarjeta(titulo: string): Promise<HTMLElement> {
@@ -421,6 +438,25 @@ describe('A15b · Nuevo entrenamiento', () => {
     );
     expect(within(datos).getByLabelText(/^Objetivo de la sesión/)).toHaveValue('Presión alta');
     expect(screen.getByRole('heading', { level: 1, name: 'Nuevo entrenamiento' })).toBeVisible();
+  });
+
+  it('si una relectura falla con el alta abierta, el formulario sigue con lo escrito (T-234)', async () => {
+    api.fetchEntrenamientos.mockResolvedValue([entrenamiento('ent-ayer', dia(-1))]);
+    const { cliente } = montar('/entrenamientos/nuevo');
+
+    const datos = await tarjeta('Datos del entrenamiento');
+    await userEvent.type(within(datos).getByLabelText(/^Objetivo de la sesión/), 'Presión alta');
+
+    // La cobertura se va: el horario y el club se vuelven a pedir y fallan.
+    api.fetchEntrenamientos.mockRejectedValue(new TypeError('Failed to fetch'));
+    core.fetchClub.mockRejectedValue(new TypeError('Failed to fetch'));
+    await releer(cliente);
+
+    expect(api.fetchEntrenamientos).toHaveBeenCalledTimes(2);
+    expect(core.fetchClub).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/^No se ha podido cargar/)).toBeNull();
+    expect(screen.getByLabelText(/^Objetivo de la sesión/)).toHaveValue('Presión alta');
+    expect(screen.getByRole('button', { name: 'Guardar entrenamiento' })).toBeEnabled();
   });
 });
 
@@ -850,6 +886,39 @@ describe('A15b · Editar entrenamiento', () => {
     ).toBeInTheDocument();
     expect(api.borrarEntrenamiento).toHaveBeenCalledWith('ent-1');
     expect(anunciar).toHaveBeenCalledWith('Entrenamiento borrado.');
+  });
+
+  it('si una relectura falla con la edición abierta, el formulario sigue con lo escrito (T-234)', async () => {
+    api.fetchEntrenamiento.mockResolvedValue(entrenamiento('ent-1', dia(1)));
+    const { cliente } = montar('/entrenamientos/ent-1/editar');
+
+    const datos = await tarjeta('Datos del entrenamiento');
+    await userEvent.type(within(datos).getByLabelText(/^Objetivo de la sesión/), 'Salida de balón');
+
+    api.fetchEntrenamiento.mockRejectedValue(new TypeError('Failed to fetch'));
+    await releer(cliente);
+
+    expect(api.fetchEntrenamiento).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/^No se ha podido cargar/)).toBeNull();
+    expect(screen.getByLabelText(/^Objetivo de la sesión/)).toHaveValue('Salida de balón');
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Borrar entrenamiento' })).toBeInTheDocument();
+  });
+
+  it('si la primera carga falla, lo dice y deja reintentar (T-234)', async () => {
+    api.fetchEntrenamiento.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    api.fetchEntrenamiento.mockResolvedValue(entrenamiento('ent-1', dia(1)));
+    montar('/entrenamientos/ent-1/editar');
+
+    expect(
+      await screen.findByText(
+        'No se ha podido cargar el entrenamiento. Suele ser falta de cobertura.',
+      ),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await tarjeta('Datos del entrenamiento')).toBeInTheDocument();
   });
 
   it('si no existe o no se puede ver, lo dice y deja volver', async () => {

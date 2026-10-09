@@ -510,11 +510,15 @@ export function NuevoEntrenamientoPage() {
       return <p className={styles.nota}>El club no tiene ninguna temporada en curso.</p>;
     }
 
-    if (entrenamientos.isPending || club.isPending) {
-      return <p className={styles.nota}>Cargando…</p>;
-    }
+    // Se mira si hay dato, y no si la última petición falló, como en la A15
+    // (T-234): el horario y el club solo proponen la hora y el lugar. Si una
+    // relectura falla con el formulario ya abierto —el móvil recupera la red
+    // con mala cobertura—, quitarlo de la pantalla se llevaría lo escrito.
+    if (entrenamientos.data === undefined || club.data === undefined) {
+      if (!entrenamientos.isError && !club.isError) {
+        return <p className={styles.nota}>Cargando…</p>;
+      }
 
-    if (entrenamientos.isError || club.isError) {
       return (
         <div className={styles.bloque}>
           <p className={styles.nota}>
@@ -656,11 +660,13 @@ export function EditarEntrenamientoPage() {
   const actualizar = useActualizarEntrenamiento(entrenamientoId);
 
   const contenido = () => {
-    if (entrenamiento.isPending) {
-      return <p className={styles.nota}>Cargando…</p>;
-    }
+    // Se mira si hay dato, y no si la última petición falló (T-234): una
+    // relectura que falla con la edición abierta no puede llevarse lo escrito.
+    if (entrenamiento.data === undefined) {
+      if (!entrenamiento.isError) {
+        return <p className={styles.nota}>Cargando…</p>;
+      }
 
-    if (entrenamiento.isError) {
       return (
         <div className={styles.bloque}>
           <p className={styles.nota}>

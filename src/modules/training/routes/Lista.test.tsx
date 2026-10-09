@@ -510,6 +510,11 @@ describe('ListaPage · la observación', () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Observación de Tito' }), 'Pendiente');
 
     expect(screen.getByText('Márcalo para guardar la observación.')).toBeInTheDocument();
+    // Atado al campo (T-234): quien llega a él con el lector de pantalla lo
+    // oye, y no solo quien lo ve escrito debajo.
+    expect(
+      screen.getByRole('textbox', { name: 'Observación de Tito' }),
+    ).toHaveAccessibleDescription('Márcalo para guardar la observación.');
 
     await userEvent.click(screen.getByRole('button', { name: 'Guardar lista' }));
     await screen.findByText(/^Guardada a las/);
@@ -521,6 +526,9 @@ describe('ListaPage · la observación', () => {
     await userEvent.click(radio(await asistenciaDe('Tito'), 'Presente'));
 
     expect(screen.queryByText('Márcalo para guardar la observación.')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('textbox', { name: 'Observación de Tito' }),
+    ).not.toHaveAccessibleDescription();
   });
 });
 

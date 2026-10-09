@@ -144,6 +144,8 @@ function Jugador({ linea, alMarcar, alObservar }: JugadorProps) {
   const [abierta, setAbierta] = useState(false);
   const recienAbierta = useRef(false);
   const conCampo = abierta || linea.notes !== '';
+  // Sin estado no hay fila donde guardar la observación.
+  const sinDondeGuardar = linea.status === null && linea.notes.trim() !== '';
 
   // El botón «Añadir observación» desaparece al pulsarlo: el foco va al campo
   // que acaba de salir, que es donde se va a escribir (2.4.3).
@@ -178,14 +180,18 @@ function Jugador({ linea, alMarcar, alObservar }: JugadorProps) {
             maxLength={LARGO_OBSERVACION}
             autoComplete="off"
             value={linea.notes}
+            // El aviso va atado al campo: quien llega a él con el lector de
+            // pantalla lo oye, y no solo quien lo ve escrito debajo (1.3.1).
+            aria-describedby={sinDondeGuardar ? `${idCampo}-aviso` : undefined}
             onChange={(evento) => {
               setAbierta(true);
               alObservar(linea.playerId, evento.target.value);
             }}
           />
-          {/* Sin estado no hay fila donde guardar la observación. */}
-          {linea.status === null && linea.notes.trim() !== '' ? (
-            <p className={styles.aviso}>Márcalo para guardar la observación.</p>
+          {sinDondeGuardar ? (
+            <p id={`${idCampo}-aviso`} className={styles.aviso}>
+              Márcalo para guardar la observación.
+            </p>
           ) : null}
         </>
       ) : (
