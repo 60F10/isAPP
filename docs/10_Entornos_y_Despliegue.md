@@ -1,6 +1,6 @@
 # DOC 10 — Entornos y despliegue
 
-> **Versión:** 0.8 — 27/09/2026 (§2.2: pre tampoco compiló con la #55, con el panel bien) · 0.7 — 27/09/2026 (§2.1, §2.2 y §4.5: los paneles de Netlify y de Supabase, comprobados por Raúl el 26/09; se retira la hipótesis de la rama de producción) · 0.6 — 26/09/2026 (§2.2: pre no compiló con la primera fusión; §2.1: el patrón del §4.5 ya cubre pre) · 0.5 — 26/09/2026 (§2.1 y §2.2: pre en `main`, pro en `release` y los créditos de Netlify, decisión de Raúl) · 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
+> **Versión:** 0.9 — 09/10/2026 (§2.3: un tercer entorno, el de las pruebas en navegador, que nace y muere en cada ejecución de GitHub Actions) · 0.8 — 27/09/2026 (§2.2: pre tampoco compiló con la #55, con el panel bien) · 0.7 — 27/09/2026 (§2.1, §2.2 y §4.5: los paneles de Netlify y de Supabase, comprobados por Raúl el 26/09; se retira la hipótesis de la rama de producción) · 0.6 — 26/09/2026 (§2.2: pre no compiló con la primera fusión; §2.1: el patrón del §4.5 ya cubre pre) · 0.5 — 26/09/2026 (§2.1 y §2.2: pre en `main`, pro en `release` y los créditos de Netlify, decisión de Raúl) · 0.4 — 20/09/2026 (§4.5 y §5: la vuelta del acceso y los datos de arranque, con la T-105) · 0.3 — 19/09/2026 (§2.1, los minutos de compilación de Netlify) · 0.2 — 12/09/2026 · **Parcial a propósito** (0.1 el 11/09; el 12/09 se añade §5.1, copias de seguridad)
 > **Depende de:** DOC 05 (modelo de datos), DOC 06 (arquitectura frontend), DOC 15 (convenciones de Git)
 >
 > Esta versión registra **la configuración real de los servicios externos** tal como quedó al montar Supabase. El resto del documento —deploy previews, checklist de publicación, procedimiento de vuelta atrás— está por escribir; ver §7.
@@ -59,6 +59,24 @@ Todo dentro del presupuesto de 0 € del proyecto. La región de Supabase es Irl
 **Reactivar los builds no lanza ninguna compilación por sí solo**: hace falta un push después.
 
 **Lo que no se tocó, y por qué.** Las vistas previas de las pull requests se quedan: el DOC 14 §5 las señala como lo que «te deja probar en el móvil sin tocar producción», y ahora además no cuestan nada.
+
+### 2.3 El entorno de pruebas: nace y muere en GitHub Actions
+
+**Desde la T-236 (09/10/2026) hay un tercer entorno, y no se parece a los otros dos: no tiene URL, no lo ve nadie y dura dos minutos y medio.** El flujo «E2E» (`.github/workflows/e2e.yml`) lo levanta en cada pull request y en cada fusión a `main`, lo recorre con un navegador y lo tira.
+
+| Qué           | En el entorno de pruebas                                                                                  |
+| :------------ | :-------------------------------------------------------------------------------------------------------- |
+| Base de datos | Un Supabase local, con la CLI, dentro de la máquina de GitHub. Vacío al nacer                             |
+| Esquema       | `supabase/migrations/` aplicado desde cero, más `e2e/plataforma.sql` (DOC 05 §14.3)                       |
+| Datos         | `e2e/siembra.sql`: un club, un equipo y catorce jugadores inventados. `supabase/seed.sql` no se aplica    |
+| Aplicación    | Compilada en el propio trabajo contra esa base, servida con `vite preview` en `127.0.0.1`                 |
+| Cuentas       | Tres, de prueba, con correos `@e2e.test` y contraseñas aleatorias que no se guardan                       |
+| Claves        | Las de fábrica del Supabase local, las mismas en cualquier instalación. Salen de `supabase status`        |
+| Coste         | 0 créditos de Netlify: no despliega nada. Gasta minutos de GitHub Actions, unos dos y medio por ejecución |
+
+**No comparte nada con producción ni con pre.** Ni la URL, ni una clave, ni un dato: el flujo no lee ningún secreto de GitHub y este repositorio no tiene ninguno del proyecto real. Lo que pase ahí dentro no llega a ningún sitio.
+
+**Lo que no es:** un sitio donde probar una migración antes de aplicarla a producción. Tiene lo que hay en `supabase/migrations/`, no lo que espera en `supabase/pendientes/`. Y no tiene Google: el acceso de verdad se sigue probando en pre.
 
 ---
 

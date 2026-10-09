@@ -39,9 +39,23 @@
 -- A una función de disparador de eventos no la llama nadie por RPC: la
 -- invoca el motor al final de cada DDL, y esa invocación no comprueba
 -- EXECUTE. `postgres` y `service_role` conservan el suyo.
+--
+-- RETOCADA EL 09/10/2026, EN LA T-236 Y POR DECISIÓN DE RAÚL. El revoke
+-- va ahora dentro de un bloque que solo lo lanza si la función existe,
+-- para que esta migración se repita en un Supabase limpio: allí la
+-- plataforma no instala `ensure_rls` y la sentencia sin condición
+-- fallaba con 42883. Producción aplicó el 19/09 la versión sin
+-- condición y allí el efecto es el mismo, porque la función existe.
+-- Nada de esto se vuelve a aplicar a producción.
 -- =====================================================================
 
-revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end
+$$;
 
 
 -- =====================================================================
