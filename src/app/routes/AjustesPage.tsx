@@ -24,6 +24,7 @@ import { useAuth } from '@modules/auth/hooks/authContext';
 import { useDejarDeSeguir } from '@modules/auth/hooks/useSolicitudes';
 import { mensajeDeLaBase } from '@modules/auth/model/solicitudes';
 import { useAnnounce } from '@shared/hooks/announceContext';
+import { useFocoAlFallar } from '@shared/hooks/useFocoAlFallar';
 import {
   aplicarPreferencias,
   guardarPreferencias,
@@ -78,6 +79,9 @@ export function AjustesPage() {
   const sinAcceso = teams === null && errorContexto !== null;
   const dejarDeSeguir = useDejarDeSeguir();
   const [falloAlDejar, setFalloAlDejar] = useState<string | null>(null);
+  // «Dejar de seguir» se desactiva mientras dura la petición y suelta el foco:
+  // si falla, va al mensaje (T-235).
+  const mensajeAlDejar = useFocoAlFallar<HTMLParagraphElement>(falloAlDejar);
   // La línea del equipo desaparece al dejar de seguirlo, y el foco con ella
   // (2.4.3): pasa al título de la tarjeta.
   const tituloDeEquipos = useRef<HTMLHeadingElement>(null);
@@ -249,7 +253,11 @@ export function AjustesPage() {
             ))}
           </ul>
         )}
-        {falloAlDejar === null ? null : <p className={styles.fallo}>{falloAlDejar}</p>}
+        {falloAlDejar === null ? null : (
+          <p ref={mensajeAlDejar} className={styles.fallo} tabIndex={-1}>
+            {falloAlDejar}
+          </p>
+        )}
         <p>
           <Link to="/unirse">Seguir a otro equipo</Link>
         </p>

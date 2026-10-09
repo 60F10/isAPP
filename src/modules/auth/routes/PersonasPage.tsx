@@ -34,6 +34,7 @@ import { useParams } from 'react-router';
 
 import { useAnnounce } from '@shared/hooks/announceContext';
 import { useAhora } from '@shared/hooks/useAhora';
+import { useFocoAlFallar } from '@shared/hooks/useFocoAlFallar';
 import { mensajeDeErrorAlGuardar } from '@shared/lib/guardado';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
@@ -164,24 +165,6 @@ function CasillasDePermisos({ marcados, alCambiar, bloqueado }: CasillasDePermis
   );
 }
 
-/**
- * Lleva el foco al mensaje de error cuando aparece (2.4.3). El botón que lo
- * tenía estaba desactivado mientras se guardaba, y al reactivarse el foco ya
- * se había ido a `body`. Devuelve el `ref` del elemento del mensaje, que
- * tiene que llevar `tabIndex={-1}`.
- */
-function useFocoAlFallar<T extends HTMLElement>(fallo: string | null): RefObject<T | null> {
-  const mensaje = useRef<T>(null);
-
-  useEffect(() => {
-    if (fallo !== null) {
-      mensaje.current?.focus();
-    }
-  }, [fallo]);
-
-  return mensaje;
-}
-
 /** Marca o desmarca un permiso sin tocar el conjunto anterior. */
 function conCambio(
   marcados: ReadonlySet<AppPermission>,
@@ -241,6 +224,12 @@ function FilaMiembro({ teamId, miembro, esUnoMismo }: FilaMiembroProps) {
   const ocupado = guardar.isPending || cambiarActivo.isPending;
   // Lo último que trae la lista, para volver a sembrar el formulario con ello.
   const ultimo = useRef(miembro);
+  // Tras un conflicto, la lista recargada puede llegar a la pantalla un
+  // instante después del aviso: esta marca hace que el formulario se siembre
+  // otra vez cuando llegue. SE APAGA EN CUANTO LA PERSONA TOCA EL FORMULARIO
+  // (T-235): si la recarga trajo lo mismo, la marca se quedaba puesta, y la
+  // siguiente recarga con un cambio ajeno borraba sin avisar lo que se
+  // hubiera marcado desde entonces.
   const resembrar = useRef(false);
 
   useEffect(() => {
@@ -409,7 +398,15 @@ function FilaMiembro({ teamId, miembro, esUnoMismo }: FilaMiembroProps) {
       >
         <p className={styles.nombre}>{nombre}</p>
 
-        <GrupoDeOpciones leyenda="Rol" opciones={OPCIONES_DE_ROL} valor={rol} alCambiar={setRol} />
+        <GrupoDeOpciones
+          leyenda="Rol"
+          opciones={OPCIONES_DE_ROL}
+          valor={rol}
+          alCambiar={(nuevo) => {
+            resembrar.current = false;
+            setRol(nuevo);
+          }}
+        />
 
         <div>
           <Button
@@ -422,6 +419,7 @@ function FilaMiembro({ teamId, miembro, esUnoMismo }: FilaMiembroProps) {
                 plantilla.add('members.manage');
               }
 
+              resembrar.current = false;
               setMarcados(plantilla);
               anunciar(`Marcados los permisos de ${NOMBRES_DE_ROL[rol].toLowerCase()}`);
             }}
@@ -433,6 +431,7 @@ function FilaMiembro({ teamId, miembro, esUnoMismo }: FilaMiembroProps) {
         <CasillasDePermisos
           marcados={marcados}
           alCambiar={(permiso, marcado) => {
+            resembrar.current = false;
             setMarcados((antes) => conCambio(antes, permiso, marcado));
           }}
           bloqueado={
@@ -982,6 +981,11 @@ interface SolicitudesProps extends DeEquipoProps {
  * SIN SOLICITUDES NO PINTA NADA, ni el título: es lo normal casi siempre.
  * Tampoco mientras carga ni si la consulta falla: es un aviso, y el resto de
  * la pantalla no depende de él.
+ *
+ * CON UN FALLO A LA VISTA, LA TARJETA SE QUEDA aunque la lista haya quedado
+ * vacía (T-235), como la de invitaciones de Inicio: el fallo más corriente es
+ * que otra persona ya resolvió la solicitud, la lista se recarga sin ella, y
+ * el mensaje —que tiene el foco— se iría con la tarjeta.
  */
 function Solicitudes({ teamId, focoAlVaciarse }: SolicitudesProps) {
   const anunciar = useAnnounce();
@@ -994,7 +998,8 @@ function Solicitudes({ teamId, focoAlVaciarse }: SolicitudesProps) {
   // La fila resuelta se lleva el foco con ella (2.4.3): pasa al título de esta
   // tarjeta, o al de «Miembros» si era la última.
   const recolocarFoco = useRef(false);
-  const cuantas = solicitudes.data === undefined ? 0 : solicitudes.data.length;
+  const lista = solicitudes.data ?? [];
+  const cuantas = lista.length;
 
   useEffect(() => {
     if (!recolocarFoco.current) {
@@ -1005,53 +1010,74 @@ function Solicitudes({ teamId, focoAlVaciarse }: SolicitudesProps) {
     (cuantas === 0 ? focoAlVaciarse.current : titulo.current)?.focus();
   }, [cuantas, focoAlVaciarse]);
 
-  if (solicitudes.data === undefined || solicitudes.data.length === 0) {
+  if (fallo === null && cuantas === 0) {
     return null;
   }
 
   return (
     <Card title="Solicitudes de permisos" headingLevel={2} headingRef={titulo}>
-      <p className={styles.nota}>
-        Personas que quieren anotar en este equipo. Hasta que aceptes, no tienen ningún permiso.
-      </p>
-      <ul className={styles.lista}>
-        {solicitudes.data.map((solicitud) => {
-          const nombre = nombreDePersona(solicitud.nombre);
-
-          return (
-            <FilaSolicitud
-              key={solicitud.id}
-              solicitud={solicitud}
-              ocupado={resolver.isPending}
-              alResolver={(decision) => {
-                setFallo(null);
-                resolver.mutate(
-                  { requestId: solicitud.id, decision },
-                  {
-                    onSuccess: () => {
-                      recolocarFoco.current = true;
-                      anunciar(
-                        decision.aprobar
-                          ? `${nombre} ya forma parte del equipo`
-                          : `Solicitud de ${nombre} rechazada`,
-                      );
-                    },
-                    onError: (error) => {
-                      const mensaje = mensajeDeLaBase(error);
-                      setFallo(mensaje);
-                      anunciar(mensaje);
-                    },
-                  },
-                );
-              }}
-            />
-          );
-        })}
-      </ul>
-      {fallo === null ? null : (
-        <p ref={mensaje} className={styles.fallo} tabIndex={-1}>
-          {fallo}
+      {cuantas === 0 ? null : (
+        <p className={styles.nota}>
+          Personas que quieren anotar en este equipo. Hasta que aceptes, no tienen ningún permiso.
         </p>
+      )}
+      {cuantas === 0 ? null : (
+        <ul className={styles.lista}>
+          {lista.map((solicitud) => {
+            const nombre = nombreDePersona(solicitud.nombre);
+
+            return (
+              <FilaSolicitud
+                key={solicitud.id}
+                solicitud={solicitud}
+                ocupado={resolver.isPending}
+                alResolver={(decision) => {
+                  setFallo(null);
+                  resolver.mutate(
+                    { requestId: solicitud.id, decision },
+                    {
+                      onSuccess: () => {
+                        recolocarFoco.current = true;
+                        anunciar(
+                          decision.aprobar
+                            ? `${nombre} ya forma parte del equipo`
+                            : `Solicitud de ${nombre} rechazada`,
+                        );
+                      },
+                      onError: (error) => {
+                        const mensaje = mensajeDeLaBase(error);
+                        setFallo(mensaje);
+                        anunciar(mensaje);
+                      },
+                    },
+                  );
+                }}
+              />
+            );
+          })}
+        </ul>
+      )}
+      {fallo === null ? null : (
+        <div className={styles.bloque}>
+          <p ref={mensaje} className={styles.fallo} tabIndex={-1}>
+            {fallo}
+          </p>
+          {/* Sin solicitudes, la tarjeta está solo por el mensaje: «Cerrar» se
+              la lleva, y el foco pasa al título de «Miembros». */}
+          {cuantas === 0 ? (
+            <div>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setFallo(null);
+                  focoAlVaciarse.current?.focus();
+                }}
+              >
+                Cerrar
+              </Button>
+            </div>
+          ) : null}
+        </div>
       )}
     </Card>
   );

@@ -35,7 +35,8 @@ const INVITACION: InvitacionRecibida = {
   expiresAt: '2026-10-21T10:00:00Z',
 };
 
-function montar() {
+/** `conTitulo` pinta el `h1` de la pantalla, que es a donde va el foco al quedarse sin tarjeta. */
+function montar(conTitulo = false) {
   const anunciar = vi.fn();
   const reintentarContexto = vi.fn();
   const auth: AuthState = {
@@ -57,6 +58,7 @@ function montar() {
     >
       <AuthContext value={auth}>
         <AnnounceContext value={{ anunciar }}>
+          {conTitulo ? <h1 tabIndex={-1}>Inicio</h1> : null}
           <InvitacionesPendientes />
         </AnnounceContext>
       </AuthContext>
@@ -155,6 +157,50 @@ describe('InvitacionesPendientes', () => {
     await vi.waitFor(() => {
       expect(container).toBeEmptyDOMElement();
     });
+  });
+
+  it('«Cerrar» con la lista vacía se lleva la tarjeta, y el foco va al `h1` de la pantalla', async () => {
+    api.misInvitaciones.mockResolvedValueOnce([INVITACION]).mockResolvedValue([]);
+    api.aceptarInvitacion.mockRejectedValue({
+      code: 'P0002',
+      message: 'La invitación ya no está vigente.',
+    });
+    const usuario = userEvent.setup();
+    montar(true);
+
+    await usuario.click(
+      await screen.findByRole('button', { name: 'Aceptar la invitación a Cadete A' }),
+    );
+    await screen.findByText('La invitación ya no está vigente.');
+    // La lista ya ha vuelto vacía: la tarjeta sigue solo por el mensaje.
+    await vi.waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: /Aceptar la invitación/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    await usuario.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Invitaciones' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { level: 1, name: 'Inicio' })).toHaveFocus();
+  });
+
+  it('«Cerrar» con invitaciones en la lista deja el foco en el título de la tarjeta', async () => {
+    api.misInvitaciones.mockResolvedValue([INVITACION]);
+    api.aceptarInvitacion.mockRejectedValue({ code: 'PGRST301', message: 'JWT expired' });
+    const usuario = userEvent.setup();
+    montar(true);
+
+    await usuario.click(
+      await screen.findByRole('button', { name: 'Aceptar la invitación a Cadete A' }),
+    );
+    await screen.findByText('No se ha podido completar. Vuelve a intentarlo.');
+
+    await usuario.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Invitaciones' })).toHaveFocus();
   });
 
   it('un error que no viene de las funciones de la base no se enseña tal cual', async () => {

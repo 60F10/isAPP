@@ -78,4 +78,12 @@ describe('mensajeDeLaBase', () => {
     expect(mensajeDeLaBase({ code: 'PGRST301', message: 'JWT expired' })).toBe(generico);
     expect(mensajeDeLaBase(new Error('Failed to fetch'))).toBe(generico);
   });
+
+  it('sin red, tal como lo devuelve el cliente de Supabase, da el texto genérico', () => {
+    // `postgrest-js` no deja pasar el `TypeError` de `fetch`: lo devuelve como
+    // un objeto con el código vacío y el mensaje en inglés.
+    expect(mensajeDeLaBase({ code: '', message: 'TypeError: Failed to fetch' })).toBe(
+      'No se ha podido completar. Vuelve a intentarlo.',
+    );
+  });
 });

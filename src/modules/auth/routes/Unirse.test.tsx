@@ -321,3 +321,85 @@ describe('Unirse a un equipo', () => {
     });
   });
 });
+
+describe('Unirse a un equipo · arreglos de la segunda revisión (T-235)', () => {
+  it('tras «Dejar de seguir», la fila ofrece «Seguir» aunque el contexto no haya vuelto', async () => {
+    const usuario = userEvent.setup();
+    montar([SIGUE_AL_CADETE]);
+
+    const fila = within(await filaDe('Cadete A'));
+    await usuario.click(fila.getByRole('button', { name: 'Dejar de seguir a Cadete A' }));
+
+    expect(await fila.findByRole('button', { name: 'Seguir a Cadete A' })).toBeInTheDocument();
+    expect(fila.queryByText('Siguiendo')).not.toBeInTheDocument();
+
+    // Y se puede volver a seguir sin esperar a nadie.
+    await usuario.click(fila.getByRole('button', { name: 'Seguir a Cadete A' }));
+
+    expect(
+      await fila.findByRole('button', { name: 'Dejar de seguir a Cadete A' }),
+    ).toBeInTheDocument();
+    expect(fila.getByText('Siguiendo')).toBeInTheDocument();
+  });
+
+  it('si «Seguir» falla, el foco está en el mensaje', async () => {
+    api.seguirEquipo.mockRejectedValue({
+      code: 'P0002',
+      message: 'Ese equipo no admite seguidores.',
+    });
+    const usuario = userEvent.setup();
+    montar();
+
+    const fila = within(await filaDe('Cadete A'));
+    await usuario.click(fila.getByRole('button', { name: 'Seguir a Cadete A' }));
+
+    const mensaje = await screen.findByText('Ese equipo no admite seguidores.');
+
+    await vi.waitFor(() => {
+      expect(mensaje).toHaveFocus();
+    });
+  });
+
+  it('si enviar la solicitud falla, el foco está en el mensaje', async () => {
+    api.solicitarAcceso.mockRejectedValue({
+      code: '23505',
+      message: 'Ya tienes una solicitud pendiente en ese equipo',
+    });
+    const usuario = userEvent.setup();
+    montar();
+
+    const fila = within(await filaDe('Cadete A'));
+    await usuario.click(
+      fila.getByRole('button', { name: 'Quiero anotar: pedir permisos en Cadete A' }),
+    );
+    await usuario.click(fila.getByRole('button', { name: 'Enviar' }));
+
+    const mensaje = await fila.findByText('Ya tienes una solicitud pendiente en ese equipo');
+
+    await vi.waitFor(() => {
+      expect(mensaje).toHaveFocus();
+    });
+  });
+
+  it('si «Cancelar» una solicitud falla, el foco está en el mensaje', async () => {
+    api.misSolicitudes.mockResolvedValue([
+      { id: 'sol-1', teamId: 'eq-1', status: 'pending', createdAt: '2026-10-06T10:00:00Z' },
+    ]);
+    api.cancelarSolicitud.mockRejectedValue({
+      code: 'P0002',
+      message: 'Esa solicitud ya no está pendiente.',
+    });
+    const usuario = userEvent.setup();
+    montar();
+
+    await usuario.click(
+      await screen.findByRole('button', { name: 'Cancelar la solicitud a Cadete A' }),
+    );
+
+    const mensaje = await screen.findByText('Esa solicitud ya no está pendiente.');
+
+    await vi.waitFor(() => {
+      expect(mensaje).toHaveFocus();
+    });
+  });
+});
