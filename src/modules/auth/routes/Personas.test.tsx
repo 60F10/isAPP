@@ -603,3 +603,99 @@ describe('A07 · arreglos de la revisión (T-306)', () => {
     });
   });
 });
+
+describe('A07 · arreglos de la segunda revisión (T-235)', () => {
+  it('al confirmar la baja, el foco va al nombre de esa persona', async () => {
+    const usuario = userEvent.setup();
+    montar();
+
+    const miembros = within(await tarjeta('Miembros'));
+    await usuario.click(await miembros.findByRole('button', { name: 'Editar a Isaac' }));
+    await usuario.click(miembros.getByRole('button', { name: 'Dar de baja' }));
+    await usuario.click(miembros.getByRole('button', { name: 'Sí, dar de baja' }));
+
+    await vi.waitFor(() => {
+      expect(api.cambiarActivo).toHaveBeenCalledWith('eq-1', 'tm-2', false);
+    });
+    await vi.waitFor(() => {
+      expect(miembros.getByText('Isaac')).toHaveFocus();
+    });
+  });
+
+  it('si resolver una solicitud falla y la lista vuelve vacía, la tarjeta sigue con el mensaje y «Cerrar»', async () => {
+    solicitudes.solicitudesDelEquipo.mockResolvedValueOnce([SOLICITUD]).mockResolvedValue([]);
+    solicitudes.resolverSolicitud.mockRejectedValue({
+      code: 'P0002',
+      message: 'Esa solicitud ya está resuelta.',
+    });
+    const usuario = userEvent.setup();
+    montar();
+
+    const pedidas = within(await tarjeta('Solicitudes de permisos'));
+    await usuario.click(pedidas.getByRole('button', { name: 'Rechazar a Dani' }));
+    await usuario.click(pedidas.getByRole('button', { name: 'Sí, rechazar' }));
+
+    const mensaje = await screen.findByText('Esa solicitud ya está resuelta.');
+
+    // Otra persona ya la había resuelto: la lista se recarga y vuelve vacía.
+    await vi.waitFor(() => {
+      expect(solicitudes.solicitudesDelEquipo).toHaveBeenCalledTimes(2);
+    });
+    await vi.waitFor(() => {
+      expect(screen.queryByText('Dani')).not.toBeInTheDocument();
+    });
+
+    expect(mensaje).toBeInTheDocument();
+    expect(mensaje).toHaveFocus();
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Solicitudes de permisos' }),
+    ).toBeInTheDocument();
+
+    await usuario.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+    await vi.waitFor(() => {
+      expect(
+        screen.queryByRole('heading', { level: 2, name: 'Solicitudes de permisos' }),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { level: 2, name: 'Miembros' })).toHaveFocus();
+  });
+
+  it('tras un conflicto, lo que se marca después no lo borra una recarga de la lista', async () => {
+    api.guardarPermisos.mockRejectedValueOnce({ code: '23505' });
+    const usuario = userEvent.setup();
+    const { client } = montar();
+
+    const miembros = within(await tarjeta('Miembros'));
+    await usuario.click(await miembros.findByRole('button', { name: 'Editar a Isaac' }));
+    await usuario.click(
+      miembros.getByRole('checkbox', { name: 'Aprobar y rechazar eventos, y editar los ajenos' }),
+    );
+    await usuario.click(miembros.getByRole('button', { name: 'Guardar' }));
+    await miembros.findByText(/Otra persona ha cambiado estos permisos\./);
+
+    // Revisa la lista y marca otro permiso.
+    const casilla = miembros.getByRole('checkbox', {
+      name: 'Aprobar y rechazar eventos, y editar los ajenos',
+    });
+    expect(casilla).not.toBeChecked();
+    await usuario.click(casilla);
+    expect(casilla).toBeChecked();
+
+    // Antes de guardar, la lista se recarga con otro cambio ajeno en esa persona.
+    api.fetchMiembros.mockResolvedValue([{ ...MIEMBROS[0] }, { ...MIEMBROS[1], role: 'scout' }]);
+    await client.invalidateQueries({ queryKey: authKeys.all });
+    await vi.waitFor(() => {
+      expect(api.fetchMiembros).toHaveBeenCalledTimes(3);
+    });
+    // TanStack Query avisa a React en una tarea aparte: sin esperarla, la
+    // prueba vería la pantalla de antes.
+    await new Promise((resolver) => {
+      setTimeout(resolver, 20);
+    });
+
+    expect(
+      miembros.getByRole('checkbox', { name: 'Aprobar y rechazar eventos, y editar los ajenos' }),
+    ).toBeChecked();
+  });
+});

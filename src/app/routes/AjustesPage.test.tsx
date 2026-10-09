@@ -247,6 +247,38 @@ describe('AjustesPage', () => {
     expect(anunciar).toHaveBeenCalledWith('Has dejado de seguir a Cadete A');
   });
 
+  it('si «Dejar de seguir» falla, lo dice y el foco está en el mensaje', async () => {
+    dejarDeSeguir.mockRejectedValue({ code: 'P0002', message: 'No sigues a ese equipo.' });
+    const usuario = userEvent.setup();
+    montar(true, false, {
+      activeTeamId: 'eq-1',
+      teams: [
+        {
+          teamMemberId: null,
+          role: null,
+          team: {
+            id: 'eq-1',
+            clubId: 'club-1',
+            name: 'Cadete A',
+            category: 'Cadete',
+            crestUrl: null,
+            primaryColor: null,
+          },
+          permissions: new Set(),
+          seguidor: true,
+        },
+      ],
+    });
+
+    await usuario.click(screen.getByRole('button', { name: 'Dejar de seguir a Cadete A' }));
+
+    const mensaje = await screen.findByText('No sigues a ese equipo.');
+
+    await vi.waitFor(() => {
+      expect(mensaje).toHaveFocus();
+    });
+  });
+
   it('con teams nulo y errorContexto: la tarjeta no dice «Cargando…» y ofrece «Reintentar»', async () => {
     const reintentarContexto = vi.fn();
     const { anunciar } = montar(true, false, {

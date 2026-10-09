@@ -5,6 +5,75 @@
 
 ---
 
+## Sesión 09/10/2026, noche — T-235: revisión de la T-305 y la T-306, y sus arreglos: ✅ cerrada
+
+Sesión programada, en la nube y sin Raúl delante, rama `fix/auth-arreglos-de-la-segunda-revision`.
+Un solo commit. Sin migración ni SQL, y sin tocar rutas, guardias ni permisos.
+
+- **Cómo se revisó.** Una pasada del subagente `revisor` por tarea, con su traspaso y su commit
+  (`6a8e217` y `a7f4918`), y cada hallazgo comprobado a mano, abriendo el archivo y la línea.
+  Además, la tabla «Qué mirar» del traspaso, punto por punto, y una tercera pasada del `revisor`
+  sobre los arreglos antes del commit.
+
+  | Tarea     | Veredicto                                                                                                                                                                      | Pruebas de su tabla |
+  | :-------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------ |
+  | **T-305** | Hace lo que pedía, las seis decisiones. Sin arreglos en lo suyo                                                                                                                | Las 8, todas        |
+  | **T-306** | Hace lo que pedía, las doce decisiones. Un fallo de foco dentro de la decisión 3 («Cerrar» con la lista vacía), y cinco más en lo que su traspaso no nombraba, del mismo corte | Las 11, todas       |
+
+- **Lo que se miró y está bien.** El equipo recordado solo manda con función en él o sin función
+  en ninguno, y con varios con función sigue mandando. Un fallo de `team_followers` no tumba el
+  contexto; los de `profiles` y `team_members` lanzan. `permisos` sigue en `null` hasta que la
+  consulta contesta, y sale solo de `team_member_permissions` del equipo activo. «Guardar» de la
+  A07 calcula contra la foto de «Editar», y `PERMISOS_CAMBIADOS` y `GUARDADO_A_MEDIAS` se dicen
+  con su texto. `mensajeDeLaBase` es una sola, y solo la usan llamadas a funciones de la base.
+  `guardarRol` y `cambiarActivo` llevan el equipo, y la baja, el estado de partida. `app/` importa
+  de `auth` por ruta directa, y el build sale sin `INEFFECTIVE_DYNAMIC_IMPORT`.
+- **Seis arreglos, cada uno con su prueba delante, que fallaba antes:**
+  1. **Inicio, «Cerrar» el aviso de una invitación.** Con la lista ya vacía la tarjeta se va con
+     el mensaje, y el foco iba a su título, que desaparecía con ella. Ahora va al `h1`, como al
+     aceptar; si quedan invitaciones, al título de la tarjeta, como antes.
+  2. **A07, «Solicitudes de permisos».** Si resolver falla porque otra persona ya la resolvió, la
+     lista se recarga vacía y la tarjeta se iba con el mensaje y con el foco. Ahora se queda
+     mientras haya mensaje, con un «Cerrar» que lleva el foco al título de «Miembros». Es lo que
+     la T-306 hizo en la tarjeta de Inicio.
+  3. **A07, lo marcado tras un conflicto.** La marca que vuelve a sembrar el formulario se
+     quedaba puesta si la recarga traía lo mismo, y la siguiente recarga con un cambio ajeno
+     borraba sin avisar lo que se hubiera marcado desde el aviso. Ahora se apaga en cuanto la
+     persona toca el formulario.
+  4. **«Unirse a un equipo», «Dejar de seguir».** Se anunciaba «Has dejado de seguir a…» y la
+     fila seguía diciendo «Siguiendo» hasta que volvía el contexto; si esa recarga fallaba, se
+     quedaba así. Ahora lo dice en cuanto la función contesta (`recienDejados`), como la T-306
+     hizo con «Seguir».
+  5. **«Unirse a un equipo», tras un fallo.** Los tres mensajes —seguir o dejar de seguir, enviar
+     la solicitud y cancelarla— reciben el foco. La T-306 lo hizo solo en la A07.
+  6. **Ajustes, tras fallar «Dejar de seguir».** Lo mismo.
+- **`useFocoAlFallar` se muda a `shared/hooks`**, que ya lo usan tres pantallas, una de ellas de
+  `app/`. Los `.fallo` de «Unirse a un equipo» y de Ajustes ganan su foco visible.
+- **Tres pruebas más, que no son arreglos:** el foco al confirmar una baja, que es el tercio de la
+  decisión 4 de la T-306 que no tenía prueba; «Cerrar» con invitaciones en la lista; y el «sin
+  red» de `mensajeDeLaBase` con la forma que devuelve de verdad el cliente de Supabase.
+- **Sin red, que el traspaso pedía mirar.** Quien se queda sin cobertura no entiende qué le pasa:
+  lee «No se ha podido completar. Vuelve a intentarlo.» **No se ha tocado**, porque ese texto lo
+  decidió el traspaso de la T-306 y porque el fallo es más ancho que `auth` (punto 88).
+- **El foco y los botones que se desactivan, comprobado en Chromium 141.** Un botón con el foco
+  que pasa a `disabled` lo suelta: `activeElement` es `body`, y no vuelve al reactivarse. Es la
+  premisa de la T-306, que hasta hoy nadie había mirado en un navegador. Lo que queda, en el
+  punto 89.
+- Lint, formato, **1128 pruebas en 82 archivos** (eran 1117) y build, sin
+  `INEFFECTIVE_DYNAMIC_IMPORT`. **Paquete inicial: 180,63 kB comprimidos**, con el recorrido de
+  la T-234; `main` da 180,64 con el mismo. `auth` no mete nada nuevo en el arranque.
+- **Para Raúl, cuatro puntos nuevos, del 88 al 91**, al final de «Lo que sigue abierto». Ninguno
+  frena la prueba de campo.
+- **Lo arreglado está en producción con el fallo**: la T-305 y la T-306 se publicaron el 08/10.
+  Los seis arreglos están en `main` y en pre, y **no en `release`**: Raúl decide cuándo publica.
+- **`CLAUDE.md` no se ha tocado**: el traspaso no lo pide y ningún arreglo cambia una regla suya.
+  Su párrafo «Siguientes tareas» sigue nombrando la T-235 como pendiente.
+- **Sin probar contra la base de verdad ni en un móvil.** Los seis arreglos se han visto solo en
+  las pruebas, con jsdom, que no suelta el foco de un botón desactivado: por eso las pruebas de
+  foco miran a dónde llega, y no de dónde se va.
+
+---
+
 ## Sesión 09/10/2026, tarde — T-234: revisión de los entrenamientos y sus arreglos: ✅ cerrada
 
 Sesión programada, en la nube y sin Raúl delante, rama `fix/training-arreglos-de-la-revision`. Un
@@ -1696,6 +1765,49 @@ Pendiente de hacer:
     con el guardado en camino que coincide con lo guardado deja «Descartar cambios» sin nada que
     descartar. Y `fechasSemanales` cuenta días sumando 24 horas a una medianoche UTC, que no es
     el instante de ningún entrenamiento: cumple la regla de no sumar milisegundos a un instante.
+
+88. **Sin cobertura, ningún mensaje de guardado nombra la conexión, en toda la aplicación**
+    (revisión de la T-306, T-235). `mensajeDeErrorAlGuardar` dice «No hay conexión…» si el error
+    es un `TypeError`, pero el cliente de Supabase no deja pasar el de `fetch`: lo devuelve como
+    un objeto con `code: ''` y `message: 'TypeError: Failed to fetch'`, y las `api/` lanzan eso.
+    Comprobado con el cliente del proyecto (`supabase-js` 2.116) y un `fetch` que falla, en una
+    consulta y en una función. Así que la rama no se alcanza nunca, y quien guarda sin cobertura
+    lee «No se ha podido guardar. Vuelve a intentarlo.»; en las pantallas que usan
+    `mensajeDeLaBase` («Unirse a un equipo», las invitaciones, las solicitudes de la A07 y
+    Ajustes), «No se ha podido completar. Vuelve a intentarlo.» El directo no pasa por aquí: va
+    por la cola. Dos salidas: una función en `shared/lib/guardado.ts` que reconozca esa forma, y
+    que las dos la usen —es de `shared` y cambia el texto que decidió la T-306, por eso no se ha
+    hecho aquí—, o dejarlo, que los mensajes de carga ya dicen «Suele ser falta de cobertura».
+
+89. **Un botón que se desactiva mientras guarda suelta el foco, en toda la aplicación** (T-235).
+    Comprobado en Chromium 141 con un HTML suelto: al pasar a `disabled`, `activeElement` es
+    `body`, y no vuelve al reactivarse. Sin mirar en Safari ni en Firefox. La T-306 y la T-235
+    llevan el foco al mensaje cuando la petición falla, en `auth` y en Ajustes. Queda lo que sale
+    bien y deja el botón en su sitio: en la A07, «Reactivar» e «Invitar» (con «Invitación
+    guardada…» a la vista y el foco en `body`); en «Unirse a un equipo», «Seguir» y «Dejar de
+    seguir», cuyo comentario dice que el foco se queda donde estaba, y no es verdad. El resto de
+    módulos usa el mismo `disabled={…isPending}` y no se ha mirado pantalla a pantalla. Dos
+    salidas: que `shared/ui/Button` deje de usar `disabled` mientras se guarda —`aria-disabled` y
+    no atender el toque, que es lo que ya hace la casilla de «Lista de equipos»—, un cambio para
+    todos que toca pruebas de todos los módulos; o seguir pantalla a pantalla.
+
+90. **«La lista ya enseña lo que hay» puede no ser verdad** (revisión de la T-306, T-235). Tras
+    `GUARDADO_A_MEDIAS` o `PERMISOS_CAMBIADOS` el formulario de la A07 se siembra con lo que trae
+    la lista recargada. Si esa recarga también falla —sin cobertura, que es cuando más se guarda
+    a medias—, el formulario enseña lo de antes de guardar y el texto dice lo contrario. Dos
+    salidas: que el hook diga si la recarga salió bien y el texto cambie («No se ha podido
+    comprobar qué quedó guardado»), o dejarlo.
+
+91. **Flecos de `auth` que se quedan como están** (revisión, T-235). En Ajustes, «Reintentar»
+    lleva el foco al título de la tarjeta al pulsar, también cuando el reintento vuelve a fallar
+    y el botón sigue ahí; y la línea de un equipo recién dejado de seguir sigue pintada hasta que
+    vuelve el contexto. En «Unirse a un equipo», `recienPedidos` no suelta al equipo cuando llega
+    su solicitud —lo que deja de mandar es `sinLlegar`, y el efecto es el que pedía el traspaso—,
+    y `recienDejados` solo se limpia al volver a seguir desde esa pantalla. `mensajeDeLaBase`
+    enseña tal cual un `42501`, un `23514` o un `23505` aunque no lo lance una función de la
+    T-301a; hoy solo la usan llamadas a esas funciones. `InvitacionesPendientes` lleva el foco a
+    su mensaje con un efecto propio y no con `useFocoAlFallar`. Y la clase de texto solo para
+    lector sigue copiada en tres módulos.
 
 Asumidas y sin fecha: el marco de la ventana vive en `App` como una pieza más entre el enrutador y
 las maquetas; la siembra se lanza a mano; `useHasPermission` recibe `string` y no `AppPermission`;

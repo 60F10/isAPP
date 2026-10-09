@@ -100,8 +100,13 @@ export function InvitacionesPendientes() {
             <Button
               variant="secondary"
               onClick={() => {
+                // Con la lista vacía la tarjeta se va con el mensaje, título
+                // incluido (T-235): el foco pasa al `h1` de la pantalla, como
+                // al aceptar. Si quedan invitaciones, al título de la tarjeta.
+                const quedan = (invitaciones.data ?? []).length > 0;
+
                 setFallo(null);
-                titulo.current?.focus();
+                (quedan ? titulo.current : document.querySelector('h1'))?.focus();
               }}
             >
               Cerrar

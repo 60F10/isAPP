@@ -19,6 +19,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { useAnnounce } from '@shared/hooks/announceContext';
+import { useFocoAlFallar } from '@shared/hooks/useFocoAlFallar';
 import { Button } from '@shared/ui/Button';
 import { Card } from '@shared/ui/Card';
 import { Field } from '@shared/ui/Field';
@@ -85,6 +86,9 @@ function FilaDeEquipo({
   const [mensaje, setMensaje] = useState('');
   const [errorDeMensaje, setErrorDeMensaje] = useState<string | undefined>(undefined);
   const [fallo, setFallo] = useState<string | null>(null);
+  // «Enviar» se desactiva mientras se envía y suelta el foco: si falla, va al
+  // mensaje (T-235).
+  const mensajeDeFallo = useFocoAlFallar<HTMLParagraphElement>(fallo);
   // El botón que abre el formulario, el formulario y el aviso de «pendiente»
   // se sustituyen entre sí, y el foco se iría a `body` (2.4.3). Se lleva al
   // campo al abrir, de vuelta al botón al cancelar y al aviso al enviar.
@@ -195,7 +199,11 @@ function FilaDeEquipo({
             }}
           />
 
-          {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+          {fallo === null ? null : (
+            <p ref={mensajeDeFallo} className={styles.fallo} tabIndex={-1}>
+              {fallo}
+            </p>
+          )}
 
           <div className={styles.acciones}>
             <Button type="submit" variant="primary" disabled={solicitar.isPending}>
@@ -229,6 +237,14 @@ function FilaDeEquipo({
 // Pantalla
 // ---------------------------------------------------------------------------
 
+/** El conjunto sin ese equipo, sin tocar el anterior. */
+function sinEquipo(equipos: ReadonlySet<string>, teamId: string): ReadonlySet<string> {
+  const siguiente = new Set(equipos);
+  siguiente.delete(teamId);
+
+  return siguiente;
+}
+
 export function UnirsePage() {
   const anunciar = useAnnounce();
   const { teams, reintentarContexto } = useAuth();
@@ -241,6 +257,10 @@ export function UnirsePage() {
   const cancelar = useCancelarSolicitud();
   const [fallo, setFallo] = useState<string | null>(null);
   const [falloAlCancelar, setFalloAlCancelar] = useState<string | null>(null);
+  // Los botones se desactivan mientras dura la petición y sueltan el foco: si
+  // falla, va al mensaje (T-235), como en la A07.
+  const mensajeDeFallo = useFocoAlFallar<HTMLParagraphElement>(fallo);
+  const mensajeAlCancelar = useFocoAlFallar<HTMLParagraphElement>(falloAlCancelar);
   // Equipos a los que se acaba de pedir permisos desde esta pantalla. Tapa el
   // rato que tarda en volver la lista de solicitudes, para que el equipo diga
   // «pendiente» en cuanto la base contesta y el foco tenga a dónde ir.
@@ -254,6 +274,10 @@ export function UnirsePage() {
   // Equipos que se acaban de seguir desde esta pantalla: la fila dice
   // «Siguiendo» en cuanto la función contesta, sin esperar al contexto.
   const [recienSeguidos, setRecienSeguidos] = useState<ReadonlySet<string>>(() => new Set());
+  // Y al revés (T-235): los que se acaban de dejar de seguir. Sin esto la fila
+  // seguía diciendo «Siguiendo» después de anunciar «Has dejado de seguir…»,
+  // hasta que volviera el contexto; y si esa recarga fallaba, se quedaba así.
+  const [recienDejados, setRecienDejados] = useState<ReadonlySet<string>>(() => new Set());
   const tituloDeSolicitudes = useRef<HTMLHeadingElement>(null);
 
   const relacionCon = (teamId: string): Relacion => {
@@ -263,7 +287,11 @@ export function UnirsePage() {
       return recienSeguidos.has(teamId) ? 'seguidor' : 'ninguna';
     }
 
-    return membresia.seguidor === true ? 'seguidor' : 'miembro';
+    if (membresia.seguidor === true) {
+      return recienDejados.has(teamId) ? 'ninguna' : 'seguidor';
+    }
+
+    return 'miembro';
   };
 
   const pendientes = new Set(
@@ -374,7 +402,11 @@ export function UnirsePage() {
               );
             })}
           </ul>
-          {falloAlCancelar === null ? null : <p className={styles.fallo}>{falloAlCancelar}</p>}
+          {falloAlCancelar === null ? null : (
+            <p ref={mensajeAlCancelar} className={styles.fallo} tabIndex={-1}>
+              {falloAlCancelar}
+            </p>
+          )}
         </Card>
       )}
 
@@ -414,6 +446,7 @@ export function UnirsePage() {
                     seguir.mutate(equipo.teamId, {
                       onSuccess: () => {
                         setRecienSeguidos((antes) => new Set(antes).add(equipo.teamId));
+                        setRecienDejados((antes) => sinEquipo(antes, equipo.teamId));
                         // El equipo aparece en el resto de la aplicación sin
                         // recargar la página.
                         reintentarContexto();
@@ -426,12 +459,8 @@ export function UnirsePage() {
                     setFallo(null);
                     dejarDeSeguir.mutate(equipo.teamId, {
                       onSuccess: () => {
-                        setRecienSeguidos((antes) => {
-                          const siguiente = new Set(antes);
-                          siguiente.delete(equipo.teamId);
-
-                          return siguiente;
-                        });
+                        setRecienSeguidos((antes) => sinEquipo(antes, equipo.teamId));
+                        setRecienDejados((antes) => new Set(antes).add(equipo.teamId));
                         reintentarContexto();
                         anunciar(`Has dejado de seguir a ${equipo.teamName}`);
                       },
@@ -450,7 +479,11 @@ export function UnirsePage() {
                 />
               ))}
             </ul>
-            {fallo === null ? null : <p className={styles.fallo}>{fallo}</p>}
+            {fallo === null ? null : (
+              <p ref={mensajeDeFallo} className={styles.fallo} tabIndex={-1}>
+                {fallo}
+              </p>
+            )}
           </div>
         )}
       </Card>

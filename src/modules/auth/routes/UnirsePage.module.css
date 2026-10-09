@@ -108,3 +108,9 @@
   color: var(--color-danger);
   font-weight: var(--font-weight-semibold);
 }
+
+/* El mensaje recibe el foco cuando algo falla (T-235). */
+.fallo:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
